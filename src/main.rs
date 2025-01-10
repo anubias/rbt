@@ -1,85 +1,49 @@
-mod arola;
-mod pop;
-mod rahtu;
-mod reponen;
-mod salonen;
-mod siimesjarvi;
-
+mod actor;
 mod utils;
+mod world;
 
-use arola::Arola;
+// mod arola;
+mod pop;
+// mod rahtu;
+// mod reponen;
+// mod salonen;
+// mod siimesjarvi;
+
+use std::time::Duration;
+
+use world::{World, WorldSize};
+
+// use arola::Arola;
 use pop::Aurelian;
-use rahtu::Rahtu;
-use reponen::Samuli;
-use salonen::Es;
-use siimesjarvi::Siimesjarvi;
-
-use utils::{Player, Position};
+// use rahtu::Rahtu;
+// use reponen::Samuli;
+// use salonen::Es;
+// use siimesjarvi::Siimesjarvi;
+// use utils::{Context, Player};
 
 fn main() {
-    let arola = Arola::new();
-    let pop = Aurelian::new(Position { x: 0, y: 0 });
-    let rahtu = Rahtu::new();
-    let reponen = Samuli::new();
-    let salonen = Es::new();
-    let siimesjarvi = Siimesjarvi::new();
+    let mut world = World::new(WorldSize { x: 30, y: 90 });
 
-    println!(
-        "player: {}: health: {}, score:{}",
-        arola.get_name(),
-        arola.get_health(),
-        arola.get_score()
-    );
-    println!(
-        "player: {}: health: {}, score:{}",
-        pop.get_name(),
-        pop.get_health(),
-        pop.get_score()
-    );
-    println!(
-        "player: {}: health: {}, score:{}",
-        rahtu.get_name(),
-        rahtu.get_health(),
-        rahtu.get_score()
-    );
-    println!(
-        "player: {}: health: {}, score:{}",
-        reponen.get_name(),
-        reponen.get_health(),
-        reponen.get_score()
-    );
-    println!(
-        "player: {}: health: {}, score:{}",
-        salonen.get_name(),
-        salonen.get_health(),
-        salonen.get_score()
-    );
-    println!(
-        "player: {}: health: {}, score:{}",
-        siimesjarvi.get_name(),
-        siimesjarvi.get_health(),
-        siimesjarvi.get_score()
-    );
-}
+    // let arola = Arola::new();
+    let pop_1 = Aurelian::new();
+    let pop_2 = Aurelian::new();
+    // let rahtu = Rahtu::new();
+    // let reponen = Samuli::new();
+    // let salonen = Es::new();
+    // let sjarvi = Siimesjarvi::new();
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+    let mut actors = Vec::new();
+    actors.push(world.spawn_actor(&pop_1));
+    actors.push(world.spawn_actor(&pop_2));
 
-    #[test]
-    fn test_health() {
-        let arola = Arola::new();
-        let pop = Aurelian::new();
-        let rahtu = Rahtu::new();
-        let reponen = Samuli::new();
-        let salonen = Es::new();
-        let siimesjarvi = Siimesjarvi::new();
+    loop {
+        for actor in &mut actors {
+            if actor.ready_for_action() {
+                actor.act();
+            }
+        }
 
-        assert_eq!(100, arola.get_health());
-        assert_eq!(100, pop.get_health());
-        assert_eq!(100, rahtu.get_health());
-        assert_eq!(100, reponen.get_health());
-        assert_eq!(100, salonen.get_health());
-        assert_eq!(100, siimesjarvi.get_health());
+        std::thread::sleep(Duration::from_millis(500));
+        println!("{world}");
     }
 }

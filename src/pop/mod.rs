@@ -1,39 +1,25 @@
-use crate::utils::{Player, Position};
+use crate::actor::ActorContext;
+use crate::utils::{Action, Player};
 
 pub struct Aurelian {
-    health: u8,
     name: String,
-    position: Position,
-    ready: bool,
-    score: u32,
 }
 
 impl Aurelian {
-    pub fn new(position: Position) -> Self {
+    pub fn new() -> Self {
         Aurelian {
-            health: 100,
             name: "Aurelian".to_string(),
-            position,
-            ready: false,
-            score: 0,
         }
     }
 }
 
 impl Player for Aurelian {
-    fn get_health(&self) -> u8 {
-        self.health
+    fn act(&self, context: &ActorContext) -> Action {
+        println!("My position is: {}", context.position);
+        Action::Fire
     }
 
-    fn get_name(&self) -> String {
+    fn name(&self) -> String {
         self.name.clone()
-    }
-
-    fn is_ready(&self) -> bool {
-        self.ready
-    }
-
-    fn get_score(&self) -> u32 {
-        self.score
     }
 }
