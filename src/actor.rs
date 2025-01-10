@@ -4,14 +4,14 @@ use crate::{
 };
 
 pub struct Actor<'a> {
-    player: &'a dyn Player,
+    player: &'a mut dyn Player,
     context: ActorContext,
     _health: u8,
     _score: u32,
 }
 
 impl<'a> Actor<'a> {
-    pub fn new(player: &'a dyn Player, context: ActorContext) -> Self {
+    pub fn new(player: &'a mut dyn Player, context: ActorContext) -> Self {
         Self {
             player,
             context,
@@ -22,10 +22,11 @@ impl<'a> Actor<'a> {
 
     pub fn act(&mut self) {
         match self.player.act(&self.context) {
+            Action::Idle => {}
             Action::Fire => {}
-            Action::_Move(direction) => self.context.reposition(direction),
-            Action::_Rotate(rotation) => self.context.rotate(rotation),
-            Action::_Scan(_scan_type) => {}
+            Action::Move(direction) => self.context.reposition(direction),
+            Action::Rotate(rotation) => self.context.rotate(rotation),
+            Action::Scan(_scan_type) => {}
         }
     }
 
@@ -44,15 +45,15 @@ pub struct ActorContext {
 impl ActorContext {
     pub fn reposition(&mut self, direction: Direction) {
         match direction {
-            Direction::_Backward => {}
-            Direction::_Forward => {}
+            Direction::Backward => {}
+            Direction::Forward => {}
         }
     }
 
     pub fn rotate(&mut self, rotation: Rotation) {
         self.orientation = match rotation {
-            Rotation::_Clockwise => self.orientation.rotate_clockwise(),
-            Rotation::_CounterClockwise => self.orientation.rotate_counter_clockwise(),
+            Rotation::Clockwise => self.orientation.rotate_clockwise(),
+            Rotation::CounterClockwise => self.orientation.rotate_counter_clockwise(),
         }
     }
 }

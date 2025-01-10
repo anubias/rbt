@@ -58,7 +58,7 @@ impl<'a> World {
         }
     }
 
-    pub fn spawn_actor(&mut self, player: &'a dyn Player) -> Actor<'a> {
+    pub fn spawn_actor(&mut self, player: &'a mut dyn Player) -> Actor<'a> {
         let context = ActorContext {
             position: self.get_random_field_location(),
             orientation: crate::utils::Orientation::North,

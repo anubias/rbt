@@ -2,12 +2,10 @@ use crate::{actor::ActorContext, world::WorldSize};
 
 pub trait Player {
     /// This is the player's turn to fight
-    fn act(&self, context: &ActorContext) -> Action;
+    fn act(&mut self, context: &ActorContext) -> Action;
 
     /// Returns the player's name
-    fn name(&self) -> String {
-        "Unnamed".to_string()
-    }
+    fn name(&self) -> String;
 
     /// This indicates whether the player is ready to battle
     fn is_ready(&self) -> bool {
@@ -53,16 +51,19 @@ impl std::fmt::Display for Position {
     }
 }
 
+#[derive(Default)]
 pub enum Action {
+    #[default]
+    Idle,
     Fire,
-    _Move(Direction),
-    _Rotate(Rotation),
-    _Scan(_ScanType),
+    Move(Direction),
+    Rotate(Rotation),
+    Scan(_ScanType),
 }
 
 pub enum Direction {
-    _Forward,
-    _Backward,
+    Forward,
+    Backward,
 }
 
 #[derive(Clone)]
@@ -126,8 +127,8 @@ impl From<usize> for Orientation {
 }
 
 pub enum Rotation {
-    _Clockwise,
-    _CounterClockwise,
+    Clockwise,
+    CounterClockwise,
 }
 
 pub enum _ScanType {
