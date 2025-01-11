@@ -12,52 +12,47 @@ use players::{
 
 fn main() {
     let mut world = World::new(WorldSize { x: 30, y: 90 });
-    let mut users = Vec::new();
 
     let mut arola = Arola::default();
-    users.push(world.spawn_user(&mut arola));
+    world.spawn_user(&mut arola);
 
     let mut armholt = Swede::default();
-    users.push(world.spawn_user(&mut armholt));
+    world.spawn_user(&mut armholt);
 
     let mut laurikainen = PlayerOne::default();
-    users.push(world.spawn_user(&mut laurikainen));
+    world.spawn_user(&mut laurikainen);
 
     let mut pop_1 = Aurelian::default();
-    users.push(world.spawn_user(&mut pop_1));
-    let mut pop_2 = Aurelian::default();
-    users.push(world.spawn_user(&mut pop_2));
+    world.spawn_user(&mut pop_1);
+    // let mut pop_2 = Aurelian::default();
+    // world.spawn_user(&mut pop_2);
 
     let mut rahtu = Rahtu::default();
-    users.push(world.spawn_user(&mut rahtu));
+    world.spawn_user(&mut rahtu);
 
     let mut rantala = PlayerTeemu::default();
-    users.push(world.spawn_user(&mut rantala));
+    world.spawn_user(&mut rantala);
 
     let mut reponen = Samuli::default();
-    users.push(world.spawn_user(&mut reponen));
+    world.spawn_user(&mut reponen);
 
     let mut salonen = Es::default();
-    users.push(world.spawn_user(&mut salonen));
+    world.spawn_user(&mut salonen);
 
     let mut sjarvi = Siimesjarvi::default();
-    users.push(world.spawn_user(&mut sjarvi));
+    world.spawn_user(&mut sjarvi);
 
     let mut terava = PlAgiAntti::default();
-    users.push(world.spawn_user(&mut terava));
+    world.spawn_user(&mut terava);
 
-    game_loop(world, users)
+    game_loop(world)
 }
 
-fn game_loop(world: World, mut users: Vec<game::user::User<'_>>) -> ! {
+fn game_loop(mut world: World) -> ! {
     loop {
-        for user in &mut users {
-            if user.ready_for_action() {
-                user.act();
-            }
-        }
-
-        std::thread::sleep(Duration::from_millis(500));
         println!("{world}");
+        std::thread::sleep(Duration::from_millis(1000));
+
+        world.new_turn();
     }
 }

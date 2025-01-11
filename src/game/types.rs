@@ -5,8 +5,9 @@ pub enum Direction {
     Backward,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub enum Orientation {
+    #[default]
     North,
     NorthEast,
     East,
@@ -48,7 +49,7 @@ impl Orientation {
         }
     }
 
-    pub fn reverse(&self) -> Self {
+    pub fn opposite(&self) -> Self {
         match self {
             Self::North => Self::South,
             Self::NorthEast => Self::SouthWest,

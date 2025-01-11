@@ -8,13 +8,7 @@ impl Aurelian {}
 
 impl Player for Aurelian {
     fn act(&mut self, context: &Context) -> Action {
-        println!(
-            "{}: position :{}, orientation: {}",
-            self.name(),
-            context.position,
-            context.orientation
-        );
-
+        println!("{}: context:{}", self.name(), context);
         Action::Move(Direction::Forward)
     }
 
