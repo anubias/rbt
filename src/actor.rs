@@ -24,7 +24,7 @@ impl<'a> Actor<'a> {
         match self.player.act(&self.context) {
             Action::Idle => {}
             Action::Fire => {}
-            Action::Move(direction) => self.context.reposition(direction),
+            Action::Move(direction) => self.context.relocate(direction),
             Action::Rotate(rotation) => self.context.rotate(rotation),
             Action::Scan(_scan_type) => {}
         }
@@ -35,6 +35,9 @@ impl<'a> Actor<'a> {
     }
 }
 
+// Private functions
+impl<'a> Actor<'a> {}
+
 // #[derive(Clone)]
 pub struct ActorContext {
     pub position: Position,
@@ -43,7 +46,7 @@ pub struct ActorContext {
 }
 
 impl ActorContext {
-    pub fn reposition(&mut self, direction: Direction) {
+    pub fn relocate(&mut self, direction: Direction) {
         match direction {
             Direction::Backward => {}
             Direction::Forward => {}

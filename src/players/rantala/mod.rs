@@ -3,26 +3,22 @@ use crate::{
     utils::{Action, Player},
 };
 
-struct PlayerTeemu {
-
-}
+#[derive(Default)]
+pub struct PlayerTeemu {}
 
 impl Player for PlayerTeemu {
     fn act(&mut self, context: &ActorContext) -> Action {
         //Scan environmen
         //Move forward until hitting obstacle or other player
-        if context.orientation == Orientation.North)
-        {
 
+        match context.position {
+            _ => {}
         }
-        
 
-        
-
-        return Action::Move(crate::utils::Direction::_Forward);
+        Action::default()
     }
 
     fn name(&self) -> String {
-        return "Teemu".to_string();
+        "Teemu".to_string()
     }
 }

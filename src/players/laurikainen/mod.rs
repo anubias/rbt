@@ -2,6 +2,7 @@ use crate::{
     actor::ActorContext,
     utils::{Action, Direction, Player, Rotation},
 };
+
 use rand::Rng;
 
 #[derive(Default)]
@@ -34,27 +35,27 @@ impl PlayerOne {
     fn handle_movement(&self) -> Action {
         let default_prob = 0.5;
         let rotate_prob = match self.last_action {
+            Action::Idle => default_prob,
             Action::Move(_) => default_prob,
             Action::Fire => 0.5,
             Action::Rotate(_) => default_prob / 2.,
-            Action::_Scan(_) => default_prob,
-            Action::Idle => default_prob,
+            Action::Scan(_) => default_prob,
         };
 
         let rotate = rand::thread_rng().gen_bool(rotate_prob);
         if rotate {
             let rotate_clockwise = rand::thread_rng().gen_bool(0.5);
             if rotate_clockwise {
-                Action::Rotate(Rotation::_Clockwise)
+                Action::Rotate(Rotation::Clockwise)
             } else {
-                Action::Rotate(Rotation::_CounterClockwise)
+                Action::Rotate(Rotation::CounterClockwise)
             }
         } else {
             let forward = rand::thread_rng().gen_bool(0.8);
             if forward {
-                Action::Move(Direction::_Forward)
+                Action::Move(Direction::Forward)
             } else {
-                Action::Move(Direction::_Backward)
+                Action::Move(Direction::Backward)
             }
         }
     }

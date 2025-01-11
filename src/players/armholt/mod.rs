@@ -1,21 +1,20 @@
-use crate::actor::ActorContext;
-use crate::utils::{Action, Direction, Orientation, Player, Rotation};
+use crate::{
+    actor::ActorContext,
+    utils::{Action, Player},
+};
 
 #[derive(Default)]
-pub struct Swede {
+pub struct Swede {}
 
-
-}
 impl Swede {}
 
 impl Player for Swede {
     fn act(&mut self, context: &ActorContext) -> Action {
-        
         match context.position {
             _ => {}
         }
-        
-        Action::Move(Direction::_Forward)
+
+        Action::default()
     }
 
     fn name(&self) -> String {

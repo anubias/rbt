@@ -108,6 +108,19 @@ impl Orientation {
             Self::NorthEast => Self::North,
         }
     }
+
+    pub fn reverse(&self) -> Self {
+        match self {
+            Self::North => Self::South,
+            Self::NorthEast => Self::SouthWest,
+            Self::East => Self::West,
+            Self::SouthEast => Self::NorthWest,
+            Self::South => Self::North,
+            Self::SouthWest => Self::NorthEast,
+            Self::West => Self::East,
+            Self::NorthWest => Self::SouthEast,
+        }
+    }
 }
 
 impl From<usize> for Orientation {
@@ -123,6 +136,23 @@ impl From<usize> for Orientation {
             7 => Self::NorthWest,
             _ => Self::North,
         }
+    }
+}
+
+impl std::fmt::Display for Orientation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let text = match self {
+            Self::North => "north",
+            Self::NorthEast => "north-east",
+            Self::East => "east",
+            Self::SouthEast => "south-east",
+            Self::South => "south",
+            Self::SouthWest => "south-west",
+            Self::West => "west",
+            Self::NorthWest => "north-west",
+        };
+
+        write!(f, "{text}")
     }
 }
 
