@@ -1,5 +1,5 @@
-use crate::actor::ActorContext;
-use crate::utils::{Action, Direction, Player};
+use super::player::{Action, Player};
+use crate::game::{types::Direction, user::Context};
 
 #[derive(Default)]
 pub struct Aurelian {}
@@ -7,7 +7,7 @@ pub struct Aurelian {}
 impl Aurelian {}
 
 impl Player for Aurelian {
-    fn act(&mut self, context: &ActorContext) -> Action {
+    fn act(&mut self, context: &Context) -> Action {
         println!(
             "{}: position :{}, orientation: {}",
             self.name(),

@@ -1,65 +1,4 @@
-use crate::{actor::ActorContext, world::WorldSize};
-
-pub trait Player {
-    /// This is the player's turn to fight
-    fn act(&mut self, context: &ActorContext) -> Action;
-
-    /// Returns the player's name
-    fn name(&self) -> String;
-
-    /// This indicates whether the player is ready to battle
-    fn is_ready(&self) -> bool {
-        false
-    }
-}
-
-#[derive(Clone)]
-pub struct Position {
-    pub x: usize,
-    pub y: usize,
-}
-
-impl Position {
-    pub fn follow(&self, orientation: &Orientation, world_size: &WorldSize) -> Option<Self> {
-        let (mut x, mut y) = (self.x as isize, self.y as isize);
-
-        match orientation {
-            Orientation::North | Orientation::NorthWest | Orientation::NorthEast => x = x - 1,
-            Orientation::South | Orientation::SouthWest | Orientation::SouthEast => x = x + 1,
-            _ => {}
-        }
-        match orientation {
-            Orientation::East | Orientation::NorthEast | Orientation::SouthEast => y = y + 1,
-            Orientation::West | Orientation::NorthWest | Orientation::SouthWest => y = y - 1,
-            _ => {}
-        }
-
-        if x >= 0 && x < world_size.x as isize && y >= 0 && y < world_size.y as isize {
-            Some(Self {
-                x: x as usize,
-                y: y as usize,
-            })
-        } else {
-            None
-        }
-    }
-}
-
-impl std::fmt::Display for Position {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[x={}, y={}]", self.x, self.y)
-    }
-}
-
-#[derive(Default)]
-pub enum Action {
-    #[default]
-    Idle,
-    Fire,
-    Move(Direction),
-    Rotate(Rotation),
-    Scan(_ScanType),
-}
+use super::world::WorldSize;
 
 pub enum Direction {
     Forward,
@@ -156,12 +95,50 @@ impl std::fmt::Display for Orientation {
     }
 }
 
+#[derive(Clone)]
+pub struct Position {
+    pub x: usize,
+    pub y: usize,
+}
+
+impl Position {
+    pub fn follow(&self, orientation: &Orientation, world_size: &WorldSize) -> Option<Self> {
+        let (mut x, mut y) = (self.x as isize, self.y as isize);
+
+        match orientation {
+            Orientation::North | Orientation::NorthWest | Orientation::NorthEast => x = x - 1,
+            Orientation::South | Orientation::SouthWest | Orientation::SouthEast => x = x + 1,
+            _ => {}
+        }
+        match orientation {
+            Orientation::East | Orientation::NorthEast | Orientation::SouthEast => y = y + 1,
+            Orientation::West | Orientation::NorthWest | Orientation::SouthWest => y = y - 1,
+            _ => {}
+        }
+
+        if x >= 0 && x < world_size.x as isize && y >= 0 && y < world_size.y as isize {
+            Some(Self {
+                x: x as usize,
+                y: y as usize,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+impl std::fmt::Display for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[x={}, y={}]", self.x, self.y)
+    }
+}
+
 pub enum Rotation {
     Clockwise,
     CounterClockwise,
 }
 
-pub enum _ScanType {
+pub enum ScanType {
     _Omni,
     _Directional,
 }

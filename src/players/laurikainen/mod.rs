@@ -1,6 +1,7 @@
-use crate::{
-    actor::ActorContext,
-    utils::{Action, Direction, Player, Rotation},
+use super::player::{Action, Player};
+use crate::game::{
+    types::{Direction, Rotation},
+    user::Context,
 };
 
 use rand::Rng;
@@ -11,7 +12,7 @@ pub struct PlayerOne {
 }
 
 impl Player for PlayerOne {
-    fn act(&mut self, _context: &ActorContext) -> Action {
+    fn act(&mut self, _context: &Context) -> Action {
         // handle scanning and firing
 
         if self.should_move() {

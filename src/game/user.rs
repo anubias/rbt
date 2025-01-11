@@ -1,17 +1,18 @@
-use crate::{
-    utils::{Action, Direction, Orientation, Player, Position, Rotation},
+use super::{
+    types::{Direction, Orientation, Position, Rotation},
     world::WorldSize,
 };
+use crate::players::player::{Action, Player};
 
-pub struct Actor<'a> {
+pub struct User<'a> {
     player: &'a mut dyn Player,
-    context: ActorContext,
+    context: Context,
     _health: u8,
     _score: u32,
 }
 
-impl<'a> Actor<'a> {
-    pub fn new(player: &'a mut dyn Player, context: ActorContext) -> Self {
+impl<'a> User<'a> {
+    pub fn new(player: &'a mut dyn Player, context: Context) -> Self {
         Self {
             player,
             context,
@@ -36,16 +37,16 @@ impl<'a> Actor<'a> {
 }
 
 // Private functions
-impl<'a> Actor<'a> {}
+impl<'a> User<'a> {}
 
 // #[derive(Clone)]
-pub struct ActorContext {
+pub struct Context {
     pub position: Position,
     pub orientation: Orientation,
     pub _world_size: WorldSize,
 }
 
-impl ActorContext {
+impl Context {
     pub fn relocate(&mut self, direction: Direction) {
         match direction {
             Direction::Backward => {}

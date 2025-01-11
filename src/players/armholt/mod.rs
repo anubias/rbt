@@ -1,7 +1,5 @@
-use crate::{
-    actor::ActorContext,
-    utils::{Action, Player},
-};
+use super::player::{Action, Player};
+use crate::game::user::Context;
 
 #[derive(Default)]
 pub struct Swede {}
@@ -9,7 +7,7 @@ pub struct Swede {}
 impl Swede {}
 
 impl Player for Swede {
-    fn act(&mut self, context: &ActorContext) -> Action {
+    fn act(&mut self, context: &Context) -> Action {
         match context.position {
             _ => {}
         }

@@ -1,49 +1,59 @@
-mod actor;
+mod game;
 mod players;
-mod utils;
-mod world;
 
 use std::time::Duration;
 
+use game::world::{World, WorldSize};
 use players::{
     armholt::Swede, arola::Arola, laurikainen::PlayerOne, pop::Aurelian, rahtu::Rahtu,
     rantala::PlayerTeemu, reponen::Samuli, salonen::Es, siimesjarvi::Siimesjarvi,
     terava::PlAgiAntti,
 };
-use world::{World, WorldSize};
 
 fn main() {
     let mut world = World::new(WorldSize { x: 30, y: 90 });
+    let mut users = Vec::new();
 
     let mut arola = Arola::default();
+    users.push(world.spawn_user(&mut arola));
+
     let mut armholt = Swede::default();
+    users.push(world.spawn_user(&mut armholt));
+
     let mut laurikainen = PlayerOne::default();
+    users.push(world.spawn_user(&mut laurikainen));
+
     let mut pop_1 = Aurelian::default();
+    users.push(world.spawn_user(&mut pop_1));
     let mut pop_2 = Aurelian::default();
+    users.push(world.spawn_user(&mut pop_2));
+
     let mut rahtu = Rahtu::default();
+    users.push(world.spawn_user(&mut rahtu));
+
     let mut rantala = PlayerTeemu::default();
+    users.push(world.spawn_user(&mut rantala));
+
     let mut reponen = Samuli::default();
+    users.push(world.spawn_user(&mut reponen));
+
     let mut salonen = Es::default();
+    users.push(world.spawn_user(&mut salonen));
+
     let mut sjarvi = Siimesjarvi::default();
+    users.push(world.spawn_user(&mut sjarvi));
+
     let mut terava = PlAgiAntti::default();
+    users.push(world.spawn_user(&mut terava));
 
-    let mut actors = Vec::new();
-    actors.push(world.spawn_actor(&mut arola));
-    actors.push(world.spawn_actor(&mut armholt));
-    actors.push(world.spawn_actor(&mut laurikainen));
-    actors.push(world.spawn_actor(&mut pop_1));
-    actors.push(world.spawn_actor(&mut pop_2));
-    actors.push(world.spawn_actor(&mut rahtu));
-    actors.push(world.spawn_actor(&mut rantala));
-    actors.push(world.spawn_actor(&mut reponen));
-    actors.push(world.spawn_actor(&mut salonen));
-    actors.push(world.spawn_actor(&mut sjarvi));
-    actors.push(world.spawn_actor(&mut terava));
+    game_loop(world, users)
+}
 
+fn game_loop(world: World, mut users: Vec<game::user::User<'_>>) -> ! {
     loop {
-        for actor in &mut actors {
-            if actor.ready_for_action() {
-                actor.act();
+        for user in &mut users {
+            if user.ready_for_action() {
+                user.act();
             }
         }
 

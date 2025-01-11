@@ -1,9 +1,10 @@
 use rand::{rngs::ThreadRng, thread_rng, Rng};
 
-use crate::{
-    actor::{Actor, ActorContext},
-    utils::{Orientation, Player, Position},
+use super::{
+    types::{Orientation, Position},
+    user::{Context, User},
 };
+use crate::players::player::Player;
 
 const MAX_SIZE: usize = 1000;
 const MAX_USABLE_SPACE_PERCENTAGE: f32 = 90.0;
@@ -58,16 +59,16 @@ impl<'a> World {
         }
     }
 
-    pub fn spawn_actor(&mut self, player: &'a mut dyn Player) -> Actor<'a> {
-        let context = ActorContext {
+    pub fn spawn_user(&mut self, player: &'a mut dyn Player) -> User<'a> {
+        let context = Context {
             position: self.get_random_field_location(),
-            orientation: crate::utils::Orientation::North,
+            orientation: Orientation::North,
             _world_size: self.size.clone(),
         };
         let pos = &context.position;
-        self.map[pos.x][pos.y] = Cell::Actor;
+        self.map[pos.x][pos.y] = Cell::Player;
 
-        Actor::new(player, context)
+        User::new(player, context)
     }
 }
 
@@ -149,10 +150,10 @@ impl std::fmt::Display for World {
             line = String::new();
             for j in 0..self.size.y {
                 let c = match self.map[i][j] {
-                    Cell::Actor => "T",
                     Cell::Field => " ",
                     Cell::Lake => "~",
                     Cell::Mountain => "^",
+                    Cell::Player => "T",
                 };
                 line = format!("{line}{c}");
             }
@@ -182,8 +183,8 @@ impl std::fmt::Display for WorldSize {
 
 #[derive(Clone, Copy)]
 enum Cell {
-    Actor,
     Field,
     Lake,
     Mountain,
+    Player,
 }

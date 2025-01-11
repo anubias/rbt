@@ -1,7 +1,5 @@
-use crate::{
-    actor::ActorContext,
-    utils::{Action, Player, Rotation},
-};
+use super::player::{Action, Player};
+use crate::game::{types::Rotation, user::Context};
 
 #[derive(Default)]
 pub struct PlAgiAntti {
@@ -11,7 +9,7 @@ pub struct PlAgiAntti {
 impl PlAgiAntti {}
 
 impl Player for PlAgiAntti {
-    fn act(&mut self, _context: &ActorContext) -> Action {
+    fn act(&mut self, _context: &Context) -> Action {
         if self.fired {
             self.fired = false;
             return Action::Rotate(Rotation::Clockwise);

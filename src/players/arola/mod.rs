@@ -1,7 +1,5 @@
-use crate::{
-    actor::ActorContext,
-    utils::{Action, Player},
-};
+use super::player::{Action, Player};
+use crate::game::user::Context;
 
 #[derive(Default)]
 pub struct Arola {}
@@ -9,7 +7,7 @@ pub struct Arola {}
 impl Arola {}
 
 impl Player for Arola {
-    fn act(&mut self, context: &ActorContext) -> Action {
+    fn act(&mut self, context: &Context) -> Action {
         match context.position {
             _ => {}
         }
