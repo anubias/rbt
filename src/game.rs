@@ -72,25 +72,6 @@ impl World {
         self.process_player_actions(actions)
     }
 
-    pub fn is_location_free(&self, pos: &Position) -> bool {
-        match self.map[pos.x][pos.y] {
-            Cell::Field => true,
-            _ => false,
-        }
-    }
-
-    pub fn get_random_field_location(&mut self) -> Position {
-        loop {
-            let x = self.rng.gen_range(0..self.size.x);
-            let y = self.rng.gen_range(0..self.size.y);
-            let pos = Position { x, y };
-
-            if self.is_location_free(&pos) {
-                break pos;
-            }
-        }
-    }
-
     pub fn spawn_player(&mut self, player: Box<dyn Player>) {
         if !player.is_ready() {
             // won't spawn pussy-players
@@ -252,6 +233,18 @@ impl World {
         free_count
     }
 
+    fn get_random_field_location(&mut self) -> Position {
+        loop {
+            let x = self.rng.gen_range(0..self.size.x);
+            let y = self.rng.gen_range(0..self.size.y);
+            let pos = Position { x, y };
+
+            if self.is_location_free(&pos) {
+                break pos;
+            }
+        }
+    }
+
     fn get_adjacent_field_location(&mut self, mut position: Position) -> Position {
         loop {
             let o = self
@@ -279,8 +272,15 @@ impl World {
         100.0f32 * self.get_free_count() as f32 / (self.size.x * self.size.y) as f32
     }
 
+    fn is_location_free(&self, position: &Position) -> bool {
+        match self.get_value_from_map(position) {
+            Cell::Field => true,
+            _ => false,
+        }
+    }
+
     fn is_player_at_position(&self, player_id: u8, position: &Position) -> bool {
-        match self.map[position.x][position.y] {
+        match self.get_value_from_map(position) {
             Cell::Player(id) => player_id == id,
             _ => false,
         }
