@@ -21,7 +21,7 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn rotate(&mut self, rotation: Rotation) {
+    pub fn rotate(&mut self, rotation: &Rotation) {
         self.orientation = match rotation {
             Rotation::Clockwise => self.orientation.rotate_clockwise(),
             Rotation::CounterClockwise => self.orientation.rotate_counter_clockwise(),

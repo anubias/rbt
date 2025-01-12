@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use rand::{rngs::ThreadRng, thread_rng, Rng};
 
 use crate::players::player::{
-    Action, Context, Direction, Orientation, Player, Position, WorldSize,
+    Action, Context, Direction, Orientation, Player, Position, Rotation, WorldSize,
 };
 
 const MAX_SIZE: usize = 100;
@@ -130,6 +130,9 @@ impl World {
                         );
                         self.move_player(*player_id, &from, &to);
                     }
+                    Action::Rotate(rotation) => {
+                        self.rotate_player(*player_id, rotation);
+                    }
                     _ => {}
                 }
             }
@@ -190,6 +193,12 @@ impl World {
             }
         } else {
             self.try_set_value_on_map(&to, previous);
+        }
+    }
+
+    fn rotate_player(&mut self, player_id: u8, rotation: &Rotation) {
+        if let Some((_, context)) = self.players.get_mut(&player_id) {
+            context.rotate(rotation);
         }
     }
 
