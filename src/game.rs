@@ -48,6 +48,7 @@ impl World {
         loop {
             result.generate_obstacle(Cell::Mountain);
             result.generate_obstacle(Cell::Lake);
+            result.generate_obstacle(Cell::Swamp);
 
             let get_usable_space_percentage = result.get_usable_space_percentage();
             if get_usable_space_percentage < MAX_USABLE_SPACE_PERCENTAGE {
@@ -62,7 +63,7 @@ impl World {
         let mut actions = Vec::new();
 
         for (id, (player, context)) in self.players.iter_mut() {
-            if player.is_ready() && context.health > 0 {
+            if player.is_ready() && context.health() > 0 {
                 let action = player.act(&context);
                 actions.push((*id, action));
             }
@@ -97,15 +98,8 @@ impl World {
         }
 
         let player_id = (self.players.len() + 1) as u8;
-        let context = Context {
-            health: 100,
-            mobile: true,
-            position: self.get_random_field_location(),
-            orientation: Orientation::default(),
-            world_size: self.size.clone(),
-        };
-
-        let previous = self.try_set_value_on_map(&context.position, Cell::Player(player_id));
+        let context = Context::new(self.get_random_field_location(), self.size.clone());
+        let previous = self.try_set_value_on_map(context.position(), Cell::Player(player_id));
         match previous {
             Cell::Field => {
                 self.players.insert(player_id, (player, context));
@@ -123,10 +117,10 @@ impl World {
                 match action {
                     Action::Move(direction) => {
                         let (from, to) = Self::compute_route(
-                            &context.position,
-                            &context.orientation,
+                            context.position(),
+                            context.orientation(),
                             direction,
-                            &context.world_size,
+                            context.world_size(),
                         );
                         self.move_player(*player_id, &from, &to);
                     }
@@ -142,8 +136,8 @@ impl World {
             let mut pos_opt = None;
 
             if let Some((_, context)) = self.players.get_mut(&player_id) {
-                if context.health == 0 {
-                    pos_opt = Some(context.position.clone());
+                if context.health() == 0 {
+                    pos_opt = Some(context.position().clone());
                 }
             }
 
@@ -156,28 +150,24 @@ impl World {
     }
 
     fn move_player(&mut self, player_id: u8, from: &Position, to: &Position) {
-        let previous = self.try_set_value_on_map(&to, Cell::Player(player_id));
+        let walk_on = self.try_set_value_on_map(&to, Cell::Player(player_id));
+        let mut successfully_moved = false;
+
         if let Some((_, context)) = self.players.get_mut(&player_id) {
-            if context.mobile {
-                match previous {
+            if context.is_mobile() {
+                match walk_on {
                     Cell::Field => {
-                        context.position = to.clone();
-                        self.try_set_value_on_map(&from, Cell::Field);
+                        successfully_moved = context.relocate(to.clone());
                     }
                     Cell::Lake => {
                         context.damage(DAMAGE_COLLISION_WITH_LAKE); // player drowns
+                        successfully_moved = context.relocate(to.clone());
                     }
                     Cell::Mountain => {
                         context.damage(DAMAGE_COLLISION_WITH_MOUNTAIN);
-
-                        // revert player_move, as it cannot be done
-                        self.try_set_value_on_map(&to, previous);
                     }
                     Cell::Player(other_player_id) => {
                         context.damage(DAMAGE_COLLISION_WITH_PLAYER);
-
-                        // revert player_move, as it cannot be done
-                        self.try_set_value_on_map(&to, previous);
 
                         // inflict damage to other player as well
                         if let Some((_, other_context)) = self.players.get_mut(&other_player_id) {
@@ -185,14 +175,17 @@ impl World {
                         }
                     }
                     Cell::Swamp => {
-                        context.mobile = false;
-                        context.position = to.clone();
-                        self.try_set_value_on_map(&from, Cell::Field);
+                        context.immobilize();
+                        successfully_moved = context.relocate(to.clone());
                     }
                 }
             }
+        }
+
+        if successfully_moved {
+            self.try_set_value_on_map(&from, Cell::Field);
         } else {
-            self.try_set_value_on_map(&to, previous);
+            self.try_set_value_on_map(&to, walk_on);
         }
     }
 
@@ -298,16 +291,16 @@ impl World {
     }
 
     fn try_set_value_on_map(&mut self, position: &Position, value: Cell) -> Cell {
-        let previous_value = self.get_value_from_map(position);
+        let walk_on = self.get_value_from_map(position);
 
-        match previous_value {
+        match walk_on {
             Cell::Field | Cell::Player(_) | Cell::Swamp => {
                 self.map[position.x][position.y] = value;
             }
             _ => {}
         }
 
-        previous_value
+        walk_on
     }
 }
 

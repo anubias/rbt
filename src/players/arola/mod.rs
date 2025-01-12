@@ -7,7 +7,7 @@ impl Arola {}
 
 impl Player for Arola {
     fn act(&mut self, context: &Context) -> Action {
-        match context.position {
+        match context.position() {
             _ => {}
         }
 

@@ -8,8 +8,12 @@ impl Aurelian {}
 impl Player for Aurelian {
     fn act(&mut self, context: &Context) -> Action {
         println!("{}: context:{}", self.name(), context);
-        // Action::Move(Direction::Backward)
-        Action::Rotate(Rotation::Clockwise)
+        if context.is_mobile() {
+            Action::Move(Direction::Forward)
+        } else {
+            Action::Move(Direction::Backward)
+        }
+        // Action::Rotate(Rotation::Clockwise)
     }
 
     fn name(&self) -> String {

@@ -7,7 +7,7 @@ impl Es {}
 
 impl Player for Es {
     fn act(&mut self, context: &Context) -> Action {
-        match context.position {
+        match context.position() {
             _ => {}
         }
 

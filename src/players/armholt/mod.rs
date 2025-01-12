@@ -7,7 +7,7 @@ impl Swede {}
 
 impl Player for Swede {
     fn act(&mut self, context: &Context) -> Action {
-        match context.position {
+        match context.position() {
             _ => {}
         }
 

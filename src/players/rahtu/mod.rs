@@ -7,7 +7,7 @@ impl Rahtu {}
 
 impl Player for Rahtu {
     fn act(&mut self, context: &Context) -> Action {
-        match context.position {
+        match context.position() {
             _ => {}
         }
 

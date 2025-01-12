@@ -8,7 +8,7 @@ impl Player for PlayerTeemu {
         //Scan environmen
         //Move forward until hitting obstacle or other player
 
-        match context.position {
+        match context.position() {
             _ => {}
         }
 

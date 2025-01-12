@@ -7,7 +7,7 @@ impl Siimesjarvi {}
 
 impl Player for Siimesjarvi {
     fn act(&mut self, context: &Context) -> Action {
-        match context.position {
+        match context.position() {
             _ => {}
         }
 

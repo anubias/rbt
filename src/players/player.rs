@@ -13,14 +13,48 @@ pub trait Player {
 }
 
 pub struct Context {
-    pub health: u8,
-    pub mobile: bool,
-    pub position: Position,
-    pub orientation: Orientation,
-    pub world_size: WorldSize,
+    health: u8,
+    mobile: bool,
+    position: Position,
+    orientation: Orientation,
+    world_size: WorldSize,
 }
 
 impl Context {
+    pub fn new(position: Position, world_size: WorldSize) -> Self {
+        Self {
+            health: 100,
+            mobile: true,
+            position,
+            orientation: Orientation::default(),
+            world_size,
+        }
+    }
+
+    pub fn health(&self) -> u8 {
+        self.health
+    }
+
+    pub fn is_mobile(&self) -> bool {
+        self.mobile
+    }
+
+    pub fn immobilize(&mut self) {
+        self.mobile = false;
+    }
+
+    pub fn position(&self) -> &Position {
+        &self.position
+    }
+
+    pub fn orientation(&self) -> &Orientation {
+        &self.orientation
+    }
+
+    pub fn world_size(&self) -> &WorldSize {
+        &self.world_size
+    }
+
     pub fn rotate(&mut self, rotation: &Rotation) {
         self.orientation = match rotation {
             Rotation::Clockwise => self.orientation.rotate_clockwise(),
@@ -30,6 +64,12 @@ impl Context {
 
     pub fn damage(&mut self, damage: u8) {
         self.health -= self.health.min(damage);
+    }
+
+    #[must_use]
+    pub fn relocate(&mut self, position: Position) -> bool {
+        self.position = position;
+        true
     }
 }
 
