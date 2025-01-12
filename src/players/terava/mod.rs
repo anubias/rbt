@@ -1,4 +1,4 @@
-use super::player::{Action, Context, Player, Rotation};
+use super::player::*;
 
 #[derive(Default)]
 pub struct PlAgiAntti {

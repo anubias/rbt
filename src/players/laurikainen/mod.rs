@@ -1,6 +1,6 @@
-use super::player::{Action, Context, Direction, Player, Rotation};
-
 use rand::Rng;
+
+use super::player::*;
 
 #[derive(Default)]
 pub struct PlayerOne {
