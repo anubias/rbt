@@ -2,11 +2,9 @@ use std::collections::HashMap;
 
 use rand::{rngs::ThreadRng, thread_rng, Rng};
 
-use super::{
-    types::{Orientation, Position},
-    user::{Context, Request, User},
+use crate::players::player::{
+    Action, Context, Direction, Orientation, Player, Position, WorldSize,
 };
-use crate::players::player::Player;
 
 const MAX_SIZE: usize = 100;
 const MAX_USABLE_SPACE_PERCENTAGE: f32 = 90.0;
@@ -16,14 +14,17 @@ const DAMAGE_COLLISION_WITH_LAKE: u8 = 100;
 const DAMAGE_COLLISION_WITH_MOUNTAIN: u8 = 25;
 const DAMAGE_COLLISION_WITH_PLAYER: u8 = 10;
 
-pub struct World<'a> {
+type UserId = u8;
+type User = (Box<dyn Player>, Context);
+
+pub struct World {
     rng: ThreadRng,
     size: WorldSize,
-    users: HashMap<u8, User<'a>>,
+    players: HashMap<UserId, User>,
     map: [[Cell; MAX_SIZE]; MAX_SIZE],
 }
 
-impl<'a> World<'a> {
+impl World {
     pub fn new(size: WorldSize) -> Self {
         if size.x > MAX_SIZE || size.y > MAX_SIZE {
             panic!("\nWorld size {size} is too big! Maximum accepted size is {MAX_SIZE}\n\n");
@@ -32,7 +33,7 @@ impl<'a> World<'a> {
         let mut result = Self {
             rng: thread_rng(),
             size: size.clone(),
-            users: HashMap::new(),
+            players: HashMap::new(),
             map: [[Cell::Field; MAX_SIZE]; MAX_SIZE],
         };
 
@@ -58,18 +59,16 @@ impl<'a> World<'a> {
     }
 
     pub fn new_turn(&mut self) {
-        let mut requests = Vec::new();
+        let mut actions = Vec::new();
 
-        for (id, user) in self.users.iter_mut() {
-            if user.player.is_ready() {
-                let user_request = user.act();
-                if let Some(request) = user_request {
-                    requests.push((*id, request));
-                }
+        for (id, (player, context)) in self.players.iter_mut() {
+            if player.is_ready() && context.health > 0 {
+                let action = player.act(&context);
+                actions.push((*id, action));
             }
         }
 
-        self.process_user_requests(requests)
+        self.process_player_actions(actions)
     }
 
     pub fn is_location_free(&self, pos: &Position) -> bool {
@@ -91,8 +90,13 @@ impl<'a> World<'a> {
         }
     }
 
-    pub fn spawn_user(&mut self, player: &'a mut dyn Player) {
-        let user_id = (self.users.len() + 1) as u8;
+    pub fn spawn_player(&mut self, player: Box<dyn Player>) {
+        if !player.is_ready() {
+            // won't spawn pussy-players
+            return;
+        }
+
+        let player_id = (self.players.len() + 1) as u8;
         let context = Context {
             health: 100,
             mobile: true,
@@ -100,11 +104,11 @@ impl<'a> World<'a> {
             orientation: Orientation::default(),
             world_size: self.size.clone(),
         };
-        let previous = self.try_set_value_on_map(&context.position, Cell::Player(user_id));
 
+        let previous = self.try_set_value_on_map(&context.position, Cell::Player(player_id));
         match previous {
             Cell::Field => {
-                self.users.insert(user_id, User::new(player, context));
+                self.players.insert(player_id, (player, context));
             }
             _ => {}
         }
@@ -112,72 +116,102 @@ impl<'a> World<'a> {
 }
 
 // Private functions
-impl<'a> World<'a> {
-    fn process_user_requests(&mut self, requests: Vec<(u8, Request)>) {
-        for (user_id, request) in requests.iter() {
-            match request {
-                Request::Move(from, to) => self.move_user(user_id, from, to),
+impl World {
+    fn process_player_actions(&mut self, actions: Vec<(u8, Action)>) {
+        for (player_id, action) in actions.iter() {
+            if let Some((_, context)) = self.players.get(player_id) {
+                match action {
+                    Action::Move(direction) => {
+                        let (from, to) = Self::compute_route(
+                            &context.position,
+                            &context.orientation,
+                            direction,
+                            &context.world_size,
+                        );
+                        self.move_player(*player_id, &from, &to);
+                    }
+                    _ => {}
+                }
             }
         }
 
-        for (user_id, _request) in requests {
+        for (player_id, _) in actions {
             let mut pos_opt = None;
 
-            if let Some(user) = self.users.get_mut(&user_id) {
-                if user.context.health == 0 {
-                    pos_opt = Some(user.context.position.clone());
+            if let Some((_, context)) = self.players.get_mut(&player_id) {
+                if context.health == 0 {
+                    pos_opt = Some(context.position.clone());
                 }
             }
 
             if let Some(position) = pos_opt {
-                if self.is_user_at_position(user_id, &position) {
+                if self.is_player_at_position(player_id, &position) {
                     self.try_set_value_on_map(&position, Cell::Field);
                 }
             }
         }
     }
 
-    fn move_user(&mut self, user_id: &u8, from: &Position, to: &Position) {
-        let previous = self.try_set_value_on_map(to, Cell::Player(*user_id));
-        let user = self.users.get_mut(user_id);
-
-        if let Some(u) = user {
-            if u.context.mobile {
+    fn move_player(&mut self, player_id: u8, from: &Position, to: &Position) {
+        let previous = self.try_set_value_on_map(&to, Cell::Player(player_id));
+        if let Some((_, context)) = self.players.get_mut(&player_id) {
+            if context.mobile {
                 match previous {
                     Cell::Field => {
-                        u.context.position = to.clone();
-                        self.try_set_value_on_map(from, Cell::Field);
+                        context.position = to.clone();
+                        self.try_set_value_on_map(&from, Cell::Field);
                     }
                     Cell::Lake => {
-                        u.context.damage(DAMAGE_COLLISION_WITH_LAKE); // player drowns
+                        context.damage(DAMAGE_COLLISION_WITH_LAKE); // player drowns
                     }
                     Cell::Mountain => {
-                        u.context.damage(DAMAGE_COLLISION_WITH_MOUNTAIN);
+                        context.damage(DAMAGE_COLLISION_WITH_MOUNTAIN);
 
-                        // revert user_move, as it cannot be done
-                        self.try_set_value_on_map(to, previous);
+                        // revert player_move, as it cannot be done
+                        self.try_set_value_on_map(&to, previous);
                     }
-                    Cell::Player(other_user_id) => {
-                        u.context.damage(DAMAGE_COLLISION_WITH_PLAYER);
+                    Cell::Player(other_player_id) => {
+                        context.damage(DAMAGE_COLLISION_WITH_PLAYER);
 
-                        // revert user_move, as it cannot be done
-                        self.try_set_value_on_map(to, previous);
+                        // revert player_move, as it cannot be done
+                        self.try_set_value_on_map(&to, previous);
 
-                        // inflict damage to other use as well
-                        if let Some(other_user) = self.users.get_mut(&other_user_id) {
-                            other_user.context.damage(DAMAGE_COLLISION_WITH_PLAYER);
+                        // inflict damage to other player as well
+                        if let Some((_, other_context)) = self.players.get_mut(&other_player_id) {
+                            other_context.damage(DAMAGE_COLLISION_WITH_PLAYER);
                         }
                     }
                     Cell::Swamp => {
-                        u.context.mobile = false;
-                        u.context.position = to.clone();
-                        self.try_set_value_on_map(from, Cell::Field);
+                        context.mobile = false;
+                        context.position = to.clone();
+                        self.try_set_value_on_map(&from, Cell::Field);
                     }
                 }
             }
         } else {
-            self.try_set_value_on_map(to, previous);
+            self.try_set_value_on_map(&to, previous);
         }
+    }
+
+    fn compute_route(
+        start_position: &Position,
+        orientation: &Orientation,
+        direction: &Direction,
+        world_size: &WorldSize,
+    ) -> (Position, Position) {
+        let actual_orientation = match direction {
+            Direction::Backward => orientation.opposite(),
+            Direction::Forward => orientation.clone(),
+        };
+
+        let new_position = if let Some(pos) = start_position.follow(&actual_orientation, world_size)
+        {
+            pos
+        } else {
+            start_position.clone()
+        };
+
+        (start_position.clone(), new_position)
     }
 
     fn generate_obstacle(&mut self, obstacle: Cell) {
@@ -188,7 +222,7 @@ impl<'a> World<'a> {
         for _ in 0..mountain_size {
             if self.get_free_count() > 0 {
                 let new_pos = if let Some(p) = old_pos.as_ref() {
-                    self.get_connected_field_location(p.clone())
+                    self.get_adjacent_field_location(p.clone())
                 } else {
                     self.get_random_field_location()
                 };
@@ -216,7 +250,7 @@ impl<'a> World<'a> {
         free_count
     }
 
-    fn get_connected_field_location(&mut self, mut position: Position) -> Position {
+    fn get_adjacent_field_location(&mut self, mut position: Position) -> Position {
         loop {
             let o = self
                 .rng
@@ -243,9 +277,9 @@ impl<'a> World<'a> {
         100.0f32 * self.get_free_count() as f32 / (self.size.x * self.size.y) as f32
     }
 
-    fn is_user_at_position(&self, user_id: u8, position: &Position) -> bool {
+    fn is_player_at_position(&self, player_id: u8, position: &Position) -> bool {
         match self.map[position.x][position.y] {
-            Cell::Player(id) => user_id == id,
+            Cell::Player(id) => player_id == id,
             _ => false,
         }
     }
@@ -268,7 +302,7 @@ impl<'a> World<'a> {
     }
 }
 
-impl<'a> std::fmt::Display for World<'a> {
+impl std::fmt::Display for World {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for i in 0..self.size.x {
             let mut line = String::new();
@@ -287,18 +321,6 @@ impl<'a> std::fmt::Display for World<'a> {
         }
 
         Ok(())
-    }
-}
-
-#[derive(Clone)]
-pub struct WorldSize {
-    pub x: usize,
-    pub y: usize,
-}
-
-impl std::fmt::Display for WorldSize {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {})", self.x, self.y)
     }
 }
 

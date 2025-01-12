@@ -1,5 +1,4 @@
-use super::player::{Action, Player};
-use crate::game::{types::Rotation, user::Context};
+use super::player::{Action, Context, Player, Rotation};
 
 #[derive(Default)]
 pub struct PlAgiAntti {

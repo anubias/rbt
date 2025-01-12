@@ -1,5 +1,4 @@
-use super::player::{Action, Player};
-use crate::game::user::Context;
+use super::player::{Action, Context, Player};
 
 #[derive(Default)]
 pub struct Samuli {}

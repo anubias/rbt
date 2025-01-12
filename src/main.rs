@@ -3,47 +3,45 @@ mod players;
 
 use std::time::Duration;
 
-use game::world::{World, WorldSize};
+use game::World;
 use players::{
-    armholt::Swede, arola::Arola, laurikainen::PlayerOne, pop::Aurelian, rahtu::Rahtu,
-    rantala::PlayerTeemu, reponen::Samuli, salonen::Es, siimesjarvi::Siimesjarvi,
+    armholt::Swede, arola::Arola, laurikainen::PlayerOne, player::WorldSize, pop::Aurelian,
+    rahtu::Rahtu, rantala::PlayerTeemu, reponen::Samuli, salonen::Es, siimesjarvi::Siimesjarvi,
     terava::PlAgiAntti,
 };
 
 fn main() {
     let mut world = World::new(WorldSize { x: 30, y: 90 });
 
-    let mut arola = Arola::default();
-    world.spawn_user(&mut arola);
+    let arola = Box::new(Arola::default());
+    world.spawn_player(arola);
 
-    let mut armholt = Swede::default();
-    world.spawn_user(&mut armholt);
+    let armholt = Box::new(Swede::default());
+    world.spawn_player(armholt);
 
-    let mut laurikainen = PlayerOne::default();
-    world.spawn_user(&mut laurikainen);
+    let laurikainen = Box::new(PlayerOne::default());
+    world.spawn_player(laurikainen);
 
-    let mut pop_1 = Aurelian::default();
-    world.spawn_user(&mut pop_1);
-    // let mut pop_2 = Aurelian::default();
-    // world.spawn_user(&mut pop_2);
+    let pop = Box::new(Aurelian::default());
+    world.spawn_player(pop);
 
-    let mut rahtu = Rahtu::default();
-    world.spawn_user(&mut rahtu);
+    let rahtu = Box::new(Rahtu::default());
+    world.spawn_player(rahtu);
 
-    let mut rantala = PlayerTeemu::default();
-    world.spawn_user(&mut rantala);
+    let rantala = Box::new(PlayerTeemu::default());
+    world.spawn_player(rantala);
 
-    let mut reponen = Samuli::default();
-    world.spawn_user(&mut reponen);
+    let reponen = Box::new(Samuli::default());
+    world.spawn_player(reponen);
 
-    let mut salonen = Es::default();
-    world.spawn_user(&mut salonen);
+    let salonen = Box::new(Es::default());
+    world.spawn_player(salonen);
 
-    let mut sjarvi = Siimesjarvi::default();
-    world.spawn_user(&mut sjarvi);
+    let sjarvi = Box::new(Siimesjarvi::default());
+    world.spawn_player(sjarvi);
 
-    let mut terava = PlAgiAntti::default();
-    world.spawn_user(&mut terava);
+    let terava = Box::new(PlAgiAntti::default());
+    world.spawn_player(terava);
 
     game_loop(world)
 }

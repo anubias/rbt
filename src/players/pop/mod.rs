@@ -1,5 +1,4 @@
-use super::player::{Action, Player};
-use crate::game::{types::Direction, user::Context};
+use super::player::{Action, Context, Direction, Player};
 
 #[derive(Default)]
 pub struct Aurelian {}

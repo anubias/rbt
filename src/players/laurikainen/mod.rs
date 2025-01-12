@@ -1,8 +1,4 @@
-use super::player::{Action, Player};
-use crate::game::{
-    types::{Direction, Rotation},
-    user::Context,
-};
+use super::player::{Action, Context, Direction, Player, Rotation};
 
 use rand::Rng;
 
