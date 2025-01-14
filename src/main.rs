@@ -11,7 +11,7 @@ use players::{
 };
 
 fn main() {
-    let mut world = World::new(WorldSize { x: 30, y: 90 });
+    let mut world = World::new(WorldSize { x: 90, y: 30 });
 
     let arola = Box::new(Arola::default());
     world.spawn_player(arola);

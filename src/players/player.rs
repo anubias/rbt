@@ -104,13 +104,13 @@ impl Position {
         let (mut x, mut y) = (self.x as isize, self.y as isize);
 
         match orientation {
-            Orientation::North | Orientation::NorthWest | Orientation::NorthEast => x = x - 1,
-            Orientation::South | Orientation::SouthWest | Orientation::SouthEast => x = x + 1,
+            Orientation::North | Orientation::NorthWest | Orientation::NorthEast => y = y - 1,
+            Orientation::South | Orientation::SouthWest | Orientation::SouthEast => y = y + 1,
             _ => {}
         }
         match orientation {
-            Orientation::East | Orientation::NorthEast | Orientation::SouthEast => y = y + 1,
-            Orientation::West | Orientation::NorthWest | Orientation::SouthWest => y = y - 1,
+            Orientation::East | Orientation::NorthEast | Orientation::SouthEast => x = x + 1,
+            Orientation::West | Orientation::NorthWest | Orientation::SouthWest => x = x - 1,
             _ => {}
         }
 

@@ -6,8 +6,8 @@ use crate::players::player::{
     Action, Context, Direction, Orientation, Player, Position, Rotation, WorldSize,
 };
 
-const MAX_SIZE: usize = 100;
-const MAX_USABLE_SPACE_PERCENTAGE: f32 = 90.0;
+const MAX_MAP_SIZE: usize = 100;
+const MAX_USABLE_SPACE_PERCENTAGE: f32 = 80.0;
 const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.0;
 
 const DAMAGE_COLLISION_WITH_LAKE: u8 = 100;
@@ -21,25 +21,25 @@ pub struct World {
     rng: ThreadRng,
     size: WorldSize,
     players: HashMap<UserId, User>,
-    map: [[Cell; MAX_SIZE]; MAX_SIZE],
+    map: [[Cell; MAX_MAP_SIZE]; MAX_MAP_SIZE],
 }
 
 impl World {
     pub fn new(size: WorldSize) -> Self {
-        if size.x > MAX_SIZE || size.y > MAX_SIZE {
-            panic!("\nWorld size {size} is too big! Maximum accepted size is {MAX_SIZE}\n\n");
+        if size.x > MAX_MAP_SIZE || size.y > MAX_MAP_SIZE {
+            panic!("\nWorld size {size} is too big! Maximum accepted size is {MAX_MAP_SIZE}\n\n");
         }
 
         let mut result = Self {
             rng: thread_rng(),
             size: size.clone(),
             players: HashMap::new(),
-            map: [[Cell::Field; MAX_SIZE]; MAX_SIZE],
+            map: [[Cell::Field; MAX_MAP_SIZE]; MAX_MAP_SIZE],
         };
 
-        for i in 0..size.x {
-            for j in 0..size.y {
-                if i == 0 || j == 0 || i == size.x - 1 || j == size.y - 1 {
+        for i in 0..size.y {
+            for j in 0..size.x {
+                if i == 0 || j == 0 || i == size.y - 1 || j == size.x - 1 {
                     result.map[i][j] = Cell::Swamp;
                 }
             }
@@ -113,6 +113,10 @@ impl World {
             }
         }
 
+        self.clear_dead_players_from_map(actions);
+    }
+
+    fn clear_dead_players_from_map(&mut self, actions: Vec<(u8, Action)>) {
         for (player_id, _) in actions {
             let mut pos_opt = None;
 
@@ -199,21 +203,20 @@ impl World {
 
     fn generate_obstacle(&mut self, obstacle: Cell) {
         let range = (self.size.x * self.size.y) as f32 * MAX_OBSTACLE_SIZE_PERCENTAGE / 100.0;
-        let mountain_size = self.rng.gen_range(0..range as usize);
+        let obstacle_size = self.rng.gen_range(0..range as usize);
 
         let mut old_pos: Option<Position> = None;
-        for _ in 0..mountain_size {
+        for _ in 0..obstacle_size {
             if self.get_free_count() > 0 {
                 let new_pos = if let Some(p) = old_pos.as_ref() {
-                    self.get_adjacent_field_location(p.clone())
+                    self.get_adjacent_field_location(p, obstacle)
                 } else {
-                    self.get_random_field_location()
+                    Some(self.get_random_field_location())
                 };
 
-                self.try_set_value_on_map(&new_pos, obstacle);
-
-                if old_pos.is_none() {
-                    old_pos = Some(new_pos);
+                if let Some(pos) = new_pos {
+                    self.try_set_value_on_map(&pos, obstacle);
+                    old_pos = Some(pos);
                 }
             }
         }
@@ -221,8 +224,8 @@ impl World {
 
     fn get_free_count(&self) -> usize {
         let mut free_count = 0;
-        for i in 0..self.size.x {
-            for j in 0..self.size.y {
+        for i in 0..self.size.y {
+            for j in 0..self.size.x {
                 free_count += match self.map[i][j] {
                     Cell::Field => 1,
                     _ => 0,
@@ -245,27 +248,36 @@ impl World {
         }
     }
 
-    fn get_adjacent_field_location(&mut self, mut position: Position) -> Position {
+    fn get_adjacent_field_location(
+        &mut self,
+        position: &Position,
+        obstacle_type: Cell,
+    ) -> Option<Position> {
+        let mut orientations_bag = vec![
+            Orientation::North,
+            Orientation::East,
+            Orientation::South,
+            Orientation::West,
+        ];
+
+        let mut result = None;
         loop {
-            let o = self
-                .rng
-                .gen_range(0..Orientation::get_cardinal_direction_count());
+            if result.is_some() || orientations_bag.is_empty() {
+                break;
+            }
 
-            let orientation = Orientation::from(o);
-            match orientation {
-                Orientation::North | Orientation::East | Orientation::South | Orientation::West => {
-                    let candidate = position.follow(&orientation, &self.size);
-                    if let Some(p) = candidate {
-                        position = p;
-
-                        if self.is_location_free(&position) {
-                            break position;
-                        }
-                    }
+            let index = self.rng.gen_range(0..orientations_bag.len());
+            let orientation = orientations_bag.remove(index);
+            if let Some(next_pos) = position.follow(&orientation, &self.size) {
+                if self.is_location_free(&next_pos) {
+                    result = Some(next_pos);
+                } else if self.get_value_from_map(&next_pos) == obstacle_type {
+                    result = self.get_adjacent_field_location(&next_pos, obstacle_type)
                 }
-                _ => {}
             }
         }
+
+        result
     }
 
     fn get_usable_space_percentage(&self) -> f32 {
@@ -286,37 +298,34 @@ impl World {
         }
     }
 
-    fn get_value_from_map(&self, position: &Position) -> Cell {
-        self.map[position.x][position.y]
-    }
-
     fn try_set_value_on_map(&mut self, position: &Position, value: Cell) -> Cell {
         let walk_on = self.get_value_from_map(position);
 
         match walk_on {
             Cell::Field | Cell::Player(_) | Cell::Swamp => {
-                self.map[position.x][position.y] = value;
+                self.set_value_from_map(position, value);
             }
             _ => {}
         }
 
         walk_on
     }
+
+    fn get_value_from_map(&self, position: &Position) -> Cell {
+        self.map[position.y][position.x]
+    }
+
+    fn set_value_from_map(&mut self, position: &Position, value: Cell) {
+        self.map[position.y][position.x] = value;
+    }
 }
 
 impl std::fmt::Display for World {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for i in 0..self.size.x {
+        for i in 0..self.size.y {
             let mut line = String::new();
-            for j in 0..self.size.y {
-                let c = match self.map[i][j] {
-                    Cell::Field => " ",
-                    Cell::Lake => "~",
-                    Cell::Mountain => "^",
-                    Cell::Player(_) => "T",
-                    Cell::Swamp => ",",
-                };
-                line = format!("{line}{c}");
+            for j in 0..self.size.x {
+                line = format!("{line}{}", self.map[i][j]);
             }
 
             writeln!(f, "{line}")?;
@@ -326,13 +335,25 @@ impl std::fmt::Display for World {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum Cell {
     Field,
     Lake,
     Mountain,
     Player(u8),
     Swamp,
+}
+
+impl std::fmt::Display for Cell {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Field => write!(f, " "),
+            Self::Lake => write!(f, "~"),
+            Self::Mountain => write!(f, "^"),
+            Self::Player(_) => write!(f, "T"),
+            Self::Swamp => write!(f, "-"),
+        }
+    }
 }
 
 #[cfg(test)]
