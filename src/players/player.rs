@@ -1,3 +1,5 @@
+use crate::game::{Cell, SCANNING_DISTANCE};
+
 /// Public trait that players need to implement, in order for the game engine to be able to interact with the player
 pub trait Player {
     /// This is the player's turn to fight
@@ -13,22 +15,30 @@ pub trait Player {
 }
 
 pub struct Context {
+    player_id: u8,
     health: u8,
     mobile: bool,
     position: Position,
     orientation: Orientation,
+    scan: Option<ScanResult>,
     world_size: WorldSize,
 }
 
 impl Context {
-    pub fn new(position: Position, world_size: WorldSize) -> Self {
+    pub fn new(player_id: u8, position: Position, world_size: WorldSize) -> Self {
         Self {
+            player_id,
             health: 100,
             mobile: true,
             position,
             orientation: Orientation::default(),
+            scan: None,
             world_size,
         }
+    }
+
+    pub fn player_id(&self) -> u8 {
+        self.player_id
     }
 
     pub fn health(&self) -> u8 {
@@ -71,15 +81,31 @@ impl Context {
         self.position = position;
         true
     }
+
+    pub fn reset_scan(&mut self, scan: Option<ScanResult>) {
+        self.scan = scan;
+    }
+
+    pub fn scanned_data(&self) -> &Option<ScanResult> {
+        &self.scan
+    }
 }
 
 impl std::fmt::Display for Context {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{{health={}, mobile={}, position={}, orientation=\"{}\"}}",
-            self.health, self.mobile, self.position, self.orientation
-        )
+        if let Some(scan) = &self.scan {
+            write!(
+                f,
+                "{{health={}, mobile={}, position={}, orientation=\"{}\", scanned_data={}}}",
+                self.health, self.mobile, self.position, self.orientation, scan
+            )
+        } else {
+            write!(
+                f,
+                "{{health={}, mobile={}, position={}, orientation=\"{}\"}}",
+                self.health, self.mobile, self.position, self.orientation,
+            )
+        }
     }
 }
 
@@ -231,9 +257,38 @@ pub enum Rotation {
     CounterClockwise,
 }
 
+#[derive(Clone)]
 pub enum ScanType {
-    _Omni,
-    _Directional,
+    Directional(Orientation),
+    Omni,
+}
+
+impl std::fmt::Display for ScanType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Directional(o) => write!(f, "directional({o})"),
+            Self::Omni => write!(f, "omni"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct ScanResult {
+    pub scan_type: ScanType,
+    pub data: [[Cell; SCANNING_DISTANCE]; SCANNING_DISTANCE],
+}
+
+impl std::fmt::Display for ScanResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{{\nscan_type:{},\ndata:", self.scan_type)?;
+        for i in 0..SCANNING_DISTANCE {
+            write!(f, "\n")?;
+            for j in 0..SCANNING_DISTANCE {
+                write!(f, "{}", self.data[i][j])?;
+            }
+        }
+        write!(f, "\n}}")
+    }
 }
 
 #[derive(Clone)]

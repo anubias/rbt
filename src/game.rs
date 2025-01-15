@@ -3,10 +3,13 @@ use std::collections::HashMap;
 use rand::{rngs::ThreadRng, thread_rng, Rng};
 
 use crate::players::player::{
-    Action, Context, Direction, Orientation, Player, Position, Rotation, WorldSize,
+    Action, Context, Direction, Orientation, Player, Position, Rotation, ScanResult, ScanType,
+    WorldSize,
 };
 
 const MAX_MAP_SIZE: usize = 100;
+pub const SCANNING_DISTANCE: usize = (MAX_MAP_SIZE / 10) - (MAX_MAP_SIZE / 10 + 1) % 2;
+
 const MAX_USABLE_SPACE_PERCENTAGE: f32 = 80.0;
 const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.0;
 
@@ -50,8 +53,7 @@ impl World {
             result.generate_obstacle(Cell::Lake);
             result.generate_obstacle(Cell::Swamp);
 
-            let get_usable_space_percentage = result.get_usable_space_percentage();
-            if get_usable_space_percentage < MAX_USABLE_SPACE_PERCENTAGE {
+            if result.get_usable_space_percentage() < MAX_USABLE_SPACE_PERCENTAGE {
                 break;
             }
         }
@@ -65,6 +67,7 @@ impl World {
         for (id, (player, context)) in self.players.iter_mut() {
             if player.is_ready() && context.health() > 0 {
                 let action = player.act(&context);
+                context.reset_scan(None);
                 actions.push((*id, action));
             }
         }
@@ -79,7 +82,11 @@ impl World {
         }
 
         let player_id = (self.players.len() + 1) as u8;
-        let context = Context::new(self.get_random_field_location(), self.size.clone());
+        let context = Context::new(
+            player_id,
+            self.get_random_field_location(),
+            self.size.clone(),
+        );
         let previous = self.try_set_value_on_map(context.position(), Cell::Player(player_id));
         match previous {
             Cell::Field => {
@@ -95,6 +102,7 @@ impl World {
     fn process_player_actions(&mut self, actions: Vec<(u8, Action)>) {
         for (player_id, action) in actions.iter() {
             if let Some((_, context)) = self.players.get(player_id) {
+                let world_size = context.world_size().clone();
                 match action {
                     Action::Move(direction) => {
                         let (from, to) = Self::compute_route(
@@ -107,6 +115,10 @@ impl World {
                     }
                     Action::Rotate(rotation) => {
                         self.rotate_player(*player_id, rotation);
+                    }
+                    Action::Scan(scan_type) => {
+                        let position = context.position().clone();
+                        self.scan_surroundings(*player_id, scan_type, &position, &world_size);
                     }
                     _ => {}
                 }
@@ -177,6 +189,23 @@ impl World {
     fn rotate_player(&mut self, player_id: u8, rotation: &Rotation) {
         if let Some((_, context)) = self.players.get_mut(&player_id) {
             context.rotate(rotation);
+        }
+    }
+
+    fn scan_surroundings(
+        &mut self,
+        player_id: u8,
+        scan_type: &ScanType,
+        position: &Position,
+        world_size: &WorldSize,
+    ) {
+        let data = self.read_directional_map_area(scan_type, position, world_size);
+        if let Some((_, context)) = self.players.get_mut(&player_id) {
+            let scan_result = ScanResult {
+                scan_type: scan_type.clone(),
+                data,
+            };
+            context.reset_scan(Some(scan_result));
         }
     }
 
@@ -280,6 +309,50 @@ impl World {
         result
     }
 
+    fn read_directional_map_area(
+        &self,
+        scan_type: &ScanType,
+        position: &Position,
+        world_size: &WorldSize,
+    ) -> [[Cell; SCANNING_DISTANCE]; SCANNING_DISTANCE] {
+        let mut sub_map = [[Cell::Field; SCANNING_DISTANCE]; SCANNING_DISTANCE];
+
+        let (pos_x, pos_y, dist) = (
+            position.x as isize,
+            position.y as isize,
+            SCANNING_DISTANCE as isize,
+        );
+
+        // remember that position (x,y) and arrays have the axis switched up
+        let (start_j, start_i) = match scan_type {
+            ScanType::Directional(orientation) => match orientation {
+                Orientation::North => (pos_x - dist / 2, pos_y - dist + 1),
+                Orientation::NorthEast => (pos_x, pos_y - dist + 1),
+                Orientation::East => (pos_x, pos_y - dist / 2),
+                Orientation::SouthEast => (pos_x, pos_y),
+                Orientation::South => (pos_x - dist / 2, pos_y),
+                Orientation::SouthWest => (pos_x - dist + 1, pos_y),
+                Orientation::West => (pos_x - dist + 1, pos_y - dist / 2),
+                Orientation::NorthWest => (pos_x - dist + 1, pos_y - dist + 1),
+            },
+            ScanType::Omni => (pos_x - dist / 2, pos_y - dist / 2),
+        };
+
+        for i in 0..sub_map.len() {
+            let y = start_i + i as isize;
+            if y >= 0 && y < world_size.y as isize {
+                for j in 0..sub_map.len() {
+                    let x = start_j + j as isize;
+                    if x >= 0 && x < world_size.x as isize {
+                        sub_map[i][j] = self.map[y as usize][x as usize];
+                    }
+                }
+            }
+        }
+
+        sub_map
+    }
+
     fn get_usable_space_percentage(&self) -> f32 {
         100.0f32 * self.get_free_count() as f32 / (self.size.x * self.size.y) as f32
     }
@@ -336,7 +409,7 @@ impl std::fmt::Display for World {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Cell {
+pub enum Cell {
     Field,
     Lake,
     Mountain,
