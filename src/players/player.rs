@@ -1,8 +1,8 @@
 /// Specifies the maximum horizontal or vertical size of the game map
-pub const MAX_GAME_MAP_SIZE: usize = 100;
+pub const MAX_GAME_MAP_SIZE: usize = 64;
 
 /// Specifies the size of the scanning data array. It should always be an odd number.
-pub const SCANNING_DISTANCE: usize = (MAX_GAME_MAP_SIZE / 10) - (MAX_GAME_MAP_SIZE / 10 + 1) % 2;
+pub const SCANNING_DISTANCE: usize = (MAX_GAME_MAP_SIZE / 8) - (MAX_GAME_MAP_SIZE / 8 + 1) % 2;
 
 /// Public trait that players need to implement, in order for the game engine to be able to interact with the player
 pub trait Player {

@@ -29,7 +29,7 @@ impl World {
     pub fn new(size: WorldSize) -> Self {
         if size.x > MAX_GAME_MAP_SIZE || size.y > MAX_GAME_MAP_SIZE {
             panic!(
-                "\nWorld size {size} is too big! Maximum accepted size is {MAX_GAME_MAP_SIZE}\n\n"
+                "\nWorld size {size} is too big! Maximum accepted size for each dimension is {MAX_GAME_MAP_SIZE}\n\n"
             );
         }
 
