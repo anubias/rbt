@@ -2,7 +2,6 @@ use rand::Rng;
 
 use super::player::*;
 
-#[derive(Default)]
 pub struct PlayerOne {
     last_action: Action,
 }
@@ -29,6 +28,12 @@ impl Player for PlayerOne {
 }
 
 impl PlayerOne {
+    pub fn new() -> Self {
+        Self {
+            last_action: Action::default(),
+        }
+    }
+
     fn handle_movement(&self) -> Action {
         let default_prob = 0.5;
         let rotate_prob = match self.last_action {

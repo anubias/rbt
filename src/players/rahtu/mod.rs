@@ -1,9 +1,12 @@
 use super::player::*;
 
-#[derive(Default)]
 pub struct Rahtu {}
 
-impl Rahtu {}
+impl Rahtu {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
 
 impl Player for Rahtu {
     fn act(&mut self, context: &Context) -> Action {

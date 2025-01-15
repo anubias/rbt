@@ -1,9 +1,12 @@
 use super::player::*;
 
-#[derive(Default)]
 pub struct Swede {}
 
-impl Swede {}
+impl Swede {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
 
 impl Player for Swede {
     fn act(&mut self, context: &Context) -> Action {

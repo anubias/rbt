@@ -115,13 +115,14 @@ impl std::fmt::Display for Context {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum MapCell {
     Field,
     Lake,
     Mountain,
     Player(u8),
     Swamp,
+    #[default]
     Unknown,
 }
 

@@ -1,11 +1,21 @@
 use super::player::*;
 
-#[derive(Default)]
 pub struct Aurelian {
     iteration: usize,
-    world_map: Vec<Vec<MapCell>>,
+    world_map: [[MapCell; MAX_GAME_MAP_SIZE]; MAX_GAME_MAP_SIZE],
 }
 
+// Public functions
+impl Aurelian {
+    pub fn new() -> Self {
+        Self {
+            iteration: 0,
+            world_map: [[MapCell::Unknown; MAX_GAME_MAP_SIZE]; MAX_GAME_MAP_SIZE],
+        }
+    }
+}
+
+// Private functions
 impl Aurelian {
     fn update_world_map(&mut self, context: &Context) {
         if let Some(scan_result) = context.scanned_data() {

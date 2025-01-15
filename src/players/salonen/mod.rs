@@ -1,9 +1,12 @@
 use super::player::*;
 
-#[derive(Default)]
 pub struct Es {}
 
-impl Es {}
+impl Es {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
 
 impl Player for Es {
     fn act(&mut self, context: &Context) -> Action {

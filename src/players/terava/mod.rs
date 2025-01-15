@@ -1,11 +1,14 @@
 use super::player::*;
 
-#[derive(Default)]
 pub struct PlAgiAntti {
     fired: bool,
 }
 
-impl PlAgiAntti {}
+impl PlAgiAntti {
+    pub fn new() -> Self {
+        Self { fired: false }
+    }
+}
 
 impl Player for PlAgiAntti {
     fn act(&mut self, _context: &Context) -> Action {

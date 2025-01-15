@@ -1,9 +1,12 @@
 use super::player::*;
 
-#[derive(Default)]
 pub struct Siimesjarvi {}
 
-impl Siimesjarvi {}
+impl Siimesjarvi {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
 
 impl Player for Siimesjarvi {
     fn act(&mut self, context: &Context) -> Action {
@@ -26,7 +29,7 @@ mod tests {
 
     #[test]
     fn test_that_initial_player_values_are_correct() {
-        let s = Siimesjarvi::default();
+        let s = Siimesjarvi::new();
         assert_eq!(false, s.is_ready());
     }
 }
