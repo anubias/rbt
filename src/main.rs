@@ -1,9 +1,9 @@
-mod game;
+mod world;
 mod players;
 
 use std::time::Duration;
 
-use game::World;
+use world::World;
 use players::{
     armholt::Swede, arola::Arola, laurikainen::PlayerOne, player::WorldSize, pop::Aurelian,
     rahtu::Rahtu, rantala::PlayerTeemu, reponen::Samuli, salonen::Es, siimesjarvi::Siimesjarvi,
