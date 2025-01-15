@@ -1,4 +1,8 @@
-use crate::game::{Cell, SCANNING_DISTANCE};
+/// Specifies the maximum horizontal or vertical size of the game map
+pub const MAX_GAME_MAP_SIZE: usize = 100;
+
+/// Specifies the size of the scanning data array. It should always be an odd number.
+pub const SCANNING_DISTANCE: usize = (MAX_GAME_MAP_SIZE / 10) - (MAX_GAME_MAP_SIZE / 10 + 1) % 2;
 
 /// Public trait that players need to implement, in order for the game engine to be able to interact with the player
 pub trait Player {
@@ -14,6 +18,8 @@ pub trait Player {
     }
 }
 
+/// Represents the context that the game engine is sharing with the player logic with
+/// every interaction.
 pub struct Context {
     player_id: u8,
     health: u8,
@@ -105,6 +111,29 @@ impl std::fmt::Display for Context {
                 "{{health={}, mobile={}, position={}, orientation=\"{}\"}}",
                 self.health, self.mobile, self.position, self.orientation,
             )
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum MapCell {
+    Field,
+    Lake,
+    Mountain,
+    Player(u8),
+    Swamp,
+    Unknown,
+}
+
+impl std::fmt::Display for MapCell {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Field => write!(f, "🌱"),
+            Self::Lake => write!(f, "🌊"),
+            Self::Mountain => write!(f, "🪨"),
+            Self::Player(_) => write!(f, "🪖"),
+            Self::Swamp => write!(f, "🌲"),
+            Self::Unknown => write!(f, ""),
         }
     }
 }
@@ -275,7 +304,7 @@ impl std::fmt::Display for ScanType {
 #[derive(Clone)]
 pub struct ScanResult {
     pub scan_type: ScanType,
-    pub data: [[Cell; SCANNING_DISTANCE]; SCANNING_DISTANCE],
+    pub data: [[MapCell; SCANNING_DISTANCE]; SCANNING_DISTANCE],
 }
 
 impl std::fmt::Display for ScanResult {

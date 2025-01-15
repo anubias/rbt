@@ -3,15 +3,13 @@ use std::collections::HashMap;
 use rand::{rngs::ThreadRng, thread_rng, Rng};
 
 use crate::players::player::{
-    Action, Context, Direction, Orientation, Player, Position, Rotation, ScanResult, ScanType,
-    WorldSize,
+    Action, Context, Direction, MapCell, Orientation, Player, Position, Rotation, ScanResult,
+    ScanType, WorldSize, MAX_GAME_MAP_SIZE, SCANNING_DISTANCE,
 };
 
-const MAX_MAP_SIZE: usize = 100;
-pub const SCANNING_DISTANCE: usize = (MAX_MAP_SIZE / 10) - (MAX_MAP_SIZE / 10 + 1) % 2;
-
 const MAX_USABLE_SPACE_PERCENTAGE: f32 = 80.0;
-const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.0;
+const MIN_OBSTACLE_SIZE_PERCENTAGE: f32 = 0.5;
+const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.5;
 
 const DAMAGE_COLLISION_WITH_LAKE: u8 = 100;
 const DAMAGE_COLLISION_WITH_MOUNTAIN: u8 = 25;
@@ -24,34 +22,36 @@ pub struct World {
     rng: ThreadRng,
     size: WorldSize,
     players: HashMap<UserId, User>,
-    map: [[Cell; MAX_MAP_SIZE]; MAX_MAP_SIZE],
+    map: [[MapCell; MAX_GAME_MAP_SIZE]; MAX_GAME_MAP_SIZE],
 }
 
 impl World {
     pub fn new(size: WorldSize) -> Self {
-        if size.x > MAX_MAP_SIZE || size.y > MAX_MAP_SIZE {
-            panic!("\nWorld size {size} is too big! Maximum accepted size is {MAX_MAP_SIZE}\n\n");
+        if size.x > MAX_GAME_MAP_SIZE || size.y > MAX_GAME_MAP_SIZE {
+            panic!(
+                "\nWorld size {size} is too big! Maximum accepted size is {MAX_GAME_MAP_SIZE}\n\n"
+            );
         }
 
         let mut result = Self {
             rng: thread_rng(),
             size: size.clone(),
             players: HashMap::new(),
-            map: [[Cell::Field; MAX_MAP_SIZE]; MAX_MAP_SIZE],
+            map: [[MapCell::Field; MAX_GAME_MAP_SIZE]; MAX_GAME_MAP_SIZE],
         };
 
         for i in 0..size.y {
             for j in 0..size.x {
                 if i == 0 || j == 0 || i == size.y - 1 || j == size.x - 1 {
-                    result.map[i][j] = Cell::Swamp;
+                    result.map[i][j] = MapCell::Swamp;
                 }
             }
         }
 
         loop {
-            result.generate_obstacle(Cell::Mountain);
-            result.generate_obstacle(Cell::Lake);
-            result.generate_obstacle(Cell::Swamp);
+            result.generate_obstacle(MapCell::Mountain);
+            result.generate_obstacle(MapCell::Lake);
+            result.generate_obstacle(MapCell::Swamp);
 
             if result.get_usable_space_percentage() < MAX_USABLE_SPACE_PERCENTAGE {
                 break;
@@ -87,9 +87,9 @@ impl World {
             self.get_random_field_location(),
             self.size.clone(),
         );
-        let previous = self.try_set_value_on_map(context.position(), Cell::Player(player_id));
+        let previous = self.try_set_value_on_map(context.position(), MapCell::Player(player_id));
         match previous {
-            Cell::Field => {
+            MapCell::Field => {
                 self.players.insert(player_id, (player, context));
             }
             _ => {}
@@ -140,30 +140,30 @@ impl World {
 
             if let Some(position) = pos_opt {
                 if self.is_player_at_position(player_id, &position) {
-                    self.try_set_value_on_map(&position, Cell::Field);
+                    self.try_set_value_on_map(&position, MapCell::Field);
                 }
             }
         }
     }
 
     fn move_player(&mut self, player_id: u8, from: &Position, to: &Position) {
-        let walk_on = self.try_set_value_on_map(&to, Cell::Player(player_id));
+        let walk_on = self.try_set_value_on_map(&to, MapCell::Player(player_id));
         let mut successfully_moved = false;
 
         if let Some((_, context)) = self.players.get_mut(&player_id) {
             if context.is_mobile() {
                 match walk_on {
-                    Cell::Field => {
+                    MapCell::Field => {
                         successfully_moved = context.relocate(to.clone());
                     }
-                    Cell::Lake => {
+                    MapCell::Lake => {
                         context.damage(DAMAGE_COLLISION_WITH_LAKE); // player drowns
                         successfully_moved = context.relocate(to.clone());
                     }
-                    Cell::Mountain => {
+                    MapCell::Mountain => {
                         context.damage(DAMAGE_COLLISION_WITH_MOUNTAIN);
                     }
-                    Cell::Player(other_player_id) => {
+                    MapCell::Player(other_player_id) => {
                         context.damage(DAMAGE_COLLISION_WITH_PLAYER);
 
                         // inflict damage to other player as well
@@ -171,16 +171,17 @@ impl World {
                             other_context.damage(DAMAGE_COLLISION_WITH_PLAYER);
                         }
                     }
-                    Cell::Swamp => {
+                    MapCell::Swamp => {
                         context.immobilize();
                         successfully_moved = context.relocate(to.clone());
                     }
+                    MapCell::Unknown => {}
                 }
             }
         }
 
         if successfully_moved {
-            self.try_set_value_on_map(&from, Cell::Field);
+            self.try_set_value_on_map(&from, MapCell::Field);
         } else {
             self.try_set_value_on_map(&to, walk_on);
         }
@@ -230,9 +231,11 @@ impl World {
         (start_position.clone(), new_position)
     }
 
-    fn generate_obstacle(&mut self, obstacle: Cell) {
-        let range = (self.size.x * self.size.y) as f32 * MAX_OBSTACLE_SIZE_PERCENTAGE / 100.0;
-        let obstacle_size = self.rng.gen_range(0..range as usize);
+    fn generate_obstacle(&mut self, obstacle: MapCell) {
+        let map_size = (self.size.x * self.size.y) as f32;
+        let range_min = (map_size * MIN_OBSTACLE_SIZE_PERCENTAGE / 100.0) as usize;
+        let range_max = (map_size * MAX_OBSTACLE_SIZE_PERCENTAGE / 100.0) as usize;
+        let obstacle_size = self.rng.gen_range(range_min..range_max);
 
         let mut old_pos: Option<Position> = None;
         for _ in 0..obstacle_size {
@@ -256,7 +259,7 @@ impl World {
         for i in 0..self.size.y {
             for j in 0..self.size.x {
                 free_count += match self.map[i][j] {
-                    Cell::Field => 1,
+                    MapCell::Field => 1,
                     _ => 0,
                 }
             }
@@ -280,7 +283,7 @@ impl World {
     fn get_adjacent_field_location(
         &mut self,
         position: &Position,
-        obstacle_type: Cell,
+        obstacle_type: MapCell,
     ) -> Option<Position> {
         let mut orientations_bag = vec![
             Orientation::North,
@@ -314,8 +317,8 @@ impl World {
         scan_type: &ScanType,
         position: &Position,
         world_size: &WorldSize,
-    ) -> [[Cell; SCANNING_DISTANCE]; SCANNING_DISTANCE] {
-        let mut sub_map = [[Cell::Field; SCANNING_DISTANCE]; SCANNING_DISTANCE];
+    ) -> [[MapCell; SCANNING_DISTANCE]; SCANNING_DISTANCE] {
+        let mut sub_map = [[MapCell::Unknown; SCANNING_DISTANCE]; SCANNING_DISTANCE];
 
         let (pos_x, pos_y, dist) = (
             position.x as isize,
@@ -359,23 +362,23 @@ impl World {
 
     fn is_location_free(&self, position: &Position) -> bool {
         match self.get_value_from_map(position) {
-            Cell::Field => true,
+            MapCell::Field => true,
             _ => false,
         }
     }
 
     fn is_player_at_position(&self, player_id: u8, position: &Position) -> bool {
         match self.get_value_from_map(position) {
-            Cell::Player(id) => player_id == id,
+            MapCell::Player(id) => player_id == id,
             _ => false,
         }
     }
 
-    fn try_set_value_on_map(&mut self, position: &Position, value: Cell) -> Cell {
+    fn try_set_value_on_map(&mut self, position: &Position, value: MapCell) -> MapCell {
         let walk_on = self.get_value_from_map(position);
 
         match walk_on {
-            Cell::Field | Cell::Player(_) | Cell::Swamp => {
+            MapCell::Field | MapCell::Player(_) | MapCell::Swamp => {
                 self.set_value_from_map(position, value);
             }
             _ => {}
@@ -384,11 +387,11 @@ impl World {
         walk_on
     }
 
-    fn get_value_from_map(&self, position: &Position) -> Cell {
+    fn get_value_from_map(&self, position: &Position) -> MapCell {
         self.map[position.y][position.x]
     }
 
-    fn set_value_from_map(&mut self, position: &Position, value: Cell) {
+    fn set_value_from_map(&mut self, position: &Position, value: MapCell) {
         self.map[position.y][position.x] = value;
     }
 }
@@ -405,27 +408,6 @@ impl std::fmt::Display for World {
         }
 
         Ok(())
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Cell {
-    Field,
-    Lake,
-    Mountain,
-    Player(u8),
-    Swamp,
-}
-
-impl std::fmt::Display for Cell {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Field => write!(f, " "),
-            Self::Lake => write!(f, "~"),
-            Self::Mountain => write!(f, "^"),
-            Self::Player(_) => write!(f, "T"),
-            Self::Swamp => write!(f, "-"),
-        }
     }
 }
 
