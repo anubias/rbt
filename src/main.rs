@@ -49,7 +49,7 @@ fn main() {
 fn game_loop(mut world: World) -> ! {
     loop {
         println!("{world}");
-        std::thread::sleep(Duration::from_millis(1000));
+        std::thread::sleep(Duration::from_millis(500));
 
         world.new_turn();
     }

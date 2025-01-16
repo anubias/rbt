@@ -11,7 +11,6 @@ const MAX_USABLE_SPACE_PERCENTAGE: f32 = 75.0;
 const MIN_OBSTACLE_SIZE_PERCENTAGE: f32 = 0.5;
 const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.5;
 
-const DAMAGE_COLLISION_WITH_LAKE: u8 = 100;
 const DAMAGE_COLLISION_WITH_MOUNTAIN: u8 = 25;
 const DAMAGE_COLLISION_WITH_PLAYER: u8 = 10;
 
@@ -67,7 +66,7 @@ impl World {
         for (id, (player, context)) in self.players.iter_mut() {
             if player.is_ready() && context.health() > 0 {
                 let action = player.act(&context);
-                context.reset_scan(None);
+                context.set_scanned_data(None);
                 actions.push((*id, action));
             }
         }
@@ -85,6 +84,7 @@ impl World {
         let context = Context::new(
             player_id,
             self.get_random_field_location(),
+            MapCell::Field,
             self.size.clone(),
         );
         let previous = self.try_set_value_on_map(context.position(), MapCell::Player(player_id));
@@ -131,34 +131,34 @@ impl World {
     fn clear_dead_players_from_map(&mut self, actions: Vec<(u8, Action)>) {
         for (player_id, _) in actions {
             let mut pos_opt = None;
+            let mut under = MapCell::Field;
 
             if let Some((_, context)) = self.players.get_mut(&player_id) {
                 if context.health() == 0 {
                     pos_opt = Some(context.position().clone());
+                    under = context.under().clone();
                 }
             }
 
             if let Some(position) = pos_opt {
                 if self.is_player_at_position(player_id, &position) {
-                    self.try_set_value_on_map(&position, MapCell::Field);
+                    self.try_set_value_on_map(&position, under);
                 }
             }
         }
     }
 
     fn move_player(&mut self, player_id: u8, from: &Position, to: &Position) {
+        let mut was_on = MapCell::default();
         let walk_on = self.try_set_value_on_map(&to, MapCell::Player(player_id));
         let mut successfully_moved = false;
 
         if let Some((_, context)) = self.players.get_mut(&player_id) {
             if context.is_mobile() {
                 match walk_on {
-                    MapCell::Field => {
-                        successfully_moved = context.relocate(to.clone());
-                    }
-                    MapCell::Lake => {
-                        context.damage(DAMAGE_COLLISION_WITH_LAKE); // player drowns
-                        successfully_moved = context.relocate(to.clone());
+                    MapCell::Field | MapCell::Lake | MapCell::Swamp => {
+                        was_on = context.under().clone();
+                        successfully_moved = context.relocate(to.clone(), walk_on);
                     }
                     MapCell::Mountain => {
                         context.damage(DAMAGE_COLLISION_WITH_MOUNTAIN);
@@ -171,17 +171,13 @@ impl World {
                             other_context.damage(DAMAGE_COLLISION_WITH_PLAYER);
                         }
                     }
-                    MapCell::Swamp => {
-                        context.immobilize();
-                        successfully_moved = context.relocate(to.clone());
-                    }
                     MapCell::Unknown => {}
                 }
             }
         }
 
         if successfully_moved {
-            self.try_set_value_on_map(&from, MapCell::Field);
+            self.try_set_value_on_map(&from, was_on);
         } else {
             self.try_set_value_on_map(&to, walk_on);
         }
@@ -206,7 +202,7 @@ impl World {
                 scan_type: scan_type.clone(),
                 data,
             };
-            context.reset_scan(Some(scan_result));
+            context.set_scanned_data(Some(scan_result));
         }
     }
 

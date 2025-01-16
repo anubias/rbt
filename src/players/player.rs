@@ -27,18 +27,25 @@ pub struct Context {
     mobile: bool,
     position: Position,
     orientation: Orientation,
+    under: MapCell,
     scan: Option<ScanResult>,
     world_size: WorldSize,
 }
 
 impl Context {
-    pub fn new(player_id: u8, position: Position, world_size: WorldSize) -> Self {
+    pub fn new(
+        player_id: u8,
+        position: Position,
+        under_track: MapCell,
+        world_size: WorldSize,
+    ) -> Self {
         Self {
             player_id,
             health: 100,
             mobile: true,
             position,
             orientation: Orientation::default(),
+            under: under_track,
             scan: None,
             world_size,
         }
@@ -56,16 +63,16 @@ impl Context {
         self.mobile
     }
 
-    pub fn immobilize(&mut self) {
-        self.mobile = false;
-    }
-
     pub fn position(&self) -> &Position {
         &self.position
     }
 
     pub fn orientation(&self) -> &Orientation {
         &self.orientation
+    }
+
+    pub fn under(&self) -> &MapCell {
+        &self.under
     }
 
     pub fn world_size(&self) -> &WorldSize {
@@ -84,17 +91,25 @@ impl Context {
     }
 
     #[must_use]
-    pub fn relocate(&mut self, position: Position) -> bool {
-        self.position = position;
-        true
-    }
+    pub fn relocate(&mut self, new_position: Position, walk_on: MapCell) -> bool {
+        self.position = new_position;
+        self.under = walk_on;
 
-    pub fn reset_scan(&mut self, scan: Option<ScanResult>) {
-        self.scan = scan;
+        match self.under {
+            MapCell::Lake => self.health = 0,
+            MapCell::Swamp => self.mobile = false,
+            _ => {}
+        }
+
+        true
     }
 
     pub fn scanned_data(&self) -> &Option<ScanResult> {
         &self.scan
+    }
+
+    pub fn set_scanned_data(&mut self, scan: Option<ScanResult>) {
+        self.scan = scan;
     }
 }
 
@@ -103,14 +118,14 @@ impl std::fmt::Display for Context {
         if let Some(scan) = &self.scan {
             write!(
                 f,
-                "{{health={}, mobile={}, position={}, orientation=\"{}\", scanned_data={}}}",
-                self.health, self.mobile, self.position, self.orientation, scan
+                "{{health={}, position={}, orientation=\"{}\", under={}, scanned_data={}}}",
+                self.health, self.position, self.orientation, self.under, scan
             )
         } else {
             write!(
                 f,
-                "{{health={}, mobile={}, position={}, orientation=\"{}\"}}",
-                self.health, self.mobile, self.position, self.orientation,
+                "{{health={}, position={}, orientation=\"{}\", under={}}}",
+                self.health, self.position, self.orientation, self.under,
             )
         }
     }
