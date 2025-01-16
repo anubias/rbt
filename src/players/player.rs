@@ -1,8 +1,9 @@
 /// Specifies the maximum horizontal or vertical size of the game map
-pub const MAX_GAME_MAP_SIZE: usize = 64;
+pub const MAX_WORLD_SIZE: usize = 64;
 
 /// Specifies the size of the scanning data array. It should always be an odd number.
-pub const SCANNING_DISTANCE: usize = (MAX_GAME_MAP_SIZE / 8) - (MAX_GAME_MAP_SIZE / 8 + 1) % 2;
+pub const SCANNING_DISTANCE: usize = (MAX_WORLD_SIZE / DIV) - (MAX_WORLD_SIZE / DIV + 1) % 2;
+const DIV: usize = 4;
 
 /// Public trait that players need to implement, in order for the game engine to be able to interact with the player
 pub trait Player {
@@ -129,12 +130,12 @@ pub enum MapCell {
 impl std::fmt::Display for MapCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Field => write!(f, "🌱"),
-            Self::Lake => write!(f, "🌊"),
-            Self::Mountain => write!(f, "🪨"),
-            Self::Player(_) => write!(f, "🪖"),
-            Self::Swamp => write!(f, "🌲"),
-            Self::Unknown => write!(f, ""),
+            Self::Field => write!(f, "🟩"),     // 🌱, 🟩
+            Self::Lake => write!(f, "🟦"),      // 🌊, 🟦
+            Self::Mountain => write!(f, "🟫"),  // 🪨, 🟫
+            Self::Player(_) => write!(f, "🪖"), // 🪖
+            Self::Swamp => write!(f, "⬜"),     // 🌲, ⬜
+            Self::Unknown => write!(f, "⬛"),   // "", ⬛
         }
     }
 }
@@ -178,6 +179,20 @@ impl Position {
         } else {
             None
         }
+    }
+
+    pub fn manhattan_distance(&self, other: &Position) -> (isize, isize) {
+        let dx = self.x as isize - other.x as isize;
+        let dy = self.y as isize - other.y as isize;
+
+        (dx, dy)
+    }
+
+    pub fn pythagorean_distance(&self, other: &Position) -> f32 {
+        let dx = self.x as f32 - other.x as f32;
+        let dy = self.y as f32 - other.y as f32;
+
+        (dx * dx + dy * dy).sqrt()
     }
 }
 
@@ -305,7 +320,7 @@ impl std::fmt::Display for ScanType {
 #[derive(Clone)]
 pub struct ScanResult {
     pub scan_type: ScanType,
-    pub data: [[MapCell; SCANNING_DISTANCE]; SCANNING_DISTANCE],
+    pub data: Box<[[MapCell; SCANNING_DISTANCE]; SCANNING_DISTANCE]>,
 }
 
 impl std::fmt::Display for ScanResult {

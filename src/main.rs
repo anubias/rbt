@@ -1,14 +1,14 @@
-mod world;
 mod players;
+mod world;
 
 use std::time::Duration;
 
-use world::World;
 use players::{
     armholt::Swede, arola::Arola, laurikainen::PlayerOne, player::WorldSize, pop::Aurelian,
     rahtu::Rahtu, rantala::PlayerTeemu, reponen::Samuli, salonen::Es, siimesjarvi::Siimesjarvi,
     terava::PlAgiAntti,
 };
+use world::World;
 
 fn main() {
     let mut world = World::new(WorldSize { x: 60, y: 30 });

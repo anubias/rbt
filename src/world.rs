@@ -4,10 +4,10 @@ use rand::{rngs::ThreadRng, thread_rng, Rng};
 
 use crate::players::player::{
     Action, Context, Direction, MapCell, Orientation, Player, Position, Rotation, ScanResult,
-    ScanType, WorldSize, MAX_GAME_MAP_SIZE, SCANNING_DISTANCE,
+    ScanType, WorldSize, MAX_WORLD_SIZE, SCANNING_DISTANCE,
 };
 
-const MAX_USABLE_SPACE_PERCENTAGE: f32 = 80.0;
+const MAX_USABLE_SPACE_PERCENTAGE: f32 = 75.0;
 const MIN_OBSTACLE_SIZE_PERCENTAGE: f32 = 0.5;
 const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.5;
 
@@ -22,14 +22,14 @@ pub struct World {
     rng: ThreadRng,
     size: WorldSize,
     players: HashMap<UserId, User>,
-    map: [[MapCell; MAX_GAME_MAP_SIZE]; MAX_GAME_MAP_SIZE],
+    map: Box<[[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]>,
 }
 
 impl World {
     pub fn new(size: WorldSize) -> Self {
-        if size.x > MAX_GAME_MAP_SIZE || size.y > MAX_GAME_MAP_SIZE {
+        if size.x > MAX_WORLD_SIZE || size.y > MAX_WORLD_SIZE {
             panic!(
-                "\nWorld size {size} is too big! Maximum accepted size for each dimension is {MAX_GAME_MAP_SIZE}\n\n"
+                "\nWorld size {size} is too big! Maximum accepted size for each dimension is {MAX_WORLD_SIZE}\n\n"
             );
         }
 
@@ -37,7 +37,7 @@ impl World {
             rng: thread_rng(),
             size: size.clone(),
             players: HashMap::new(),
-            map: [[MapCell::Field; MAX_GAME_MAP_SIZE]; MAX_GAME_MAP_SIZE],
+            map: Box::new([[MapCell::Field; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
         };
 
         for i in 0..size.y {
@@ -317,8 +317,8 @@ impl World {
         scan_type: &ScanType,
         position: &Position,
         world_size: &WorldSize,
-    ) -> [[MapCell; SCANNING_DISTANCE]; SCANNING_DISTANCE] {
-        let mut sub_map = [[MapCell::Unknown; SCANNING_DISTANCE]; SCANNING_DISTANCE];
+    ) -> Box<[[MapCell; SCANNING_DISTANCE]; SCANNING_DISTANCE]> {
+        let mut sub_map = Box::new([[MapCell::Unknown; SCANNING_DISTANCE]; SCANNING_DISTANCE]);
 
         let (pos_x, pos_y, dist) = (
             position.x as isize,
