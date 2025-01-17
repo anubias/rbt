@@ -7,15 +7,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'battle'",
+            "name": "Debug executable 'rbt'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=battle",
-                    "--package=battle"
+                    "--bin=rbt",
+                    "--package=rbt"
                 ],
                 "filter": {
-                    "name": "battle",
+                    "name": "rbt",
                     "kind": "bin"
                 }
             },
@@ -25,16 +25,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'battle'",
+            "name": "Debug unit tests in executable 'rbt'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=battle",
-                    "--package=battle"
+                    "--bin=rbt",
+                    "--package=rbt"
                 ],
                 "filter": {
-                    "name": "battle",
+                    "name": "rbt",
                     "kind": "bin"
                 }
             },
