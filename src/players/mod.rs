@@ -1,8 +1,11 @@
 pub mod player;
 
+pub mod alvarez;
 pub mod armholt;
 pub mod arola;
 pub mod laurikainen;
+pub mod moykkynen;
+pub mod niemisto;
 pub mod pop;
 pub mod rahtu;
 pub mod rantala;

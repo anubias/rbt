@@ -76,9 +76,9 @@ impl World {
 
     pub fn spawn_player(&mut self, player: Box<dyn Player>) {
         if !player.is_ready() {
-            // won't spawn pussy-players
             return;
         }
+        println!("Player {} is ready for action!", player.name());
 
         let player_id = (self.players.len() + 1) as u8;
         let context = Context::new(
@@ -87,8 +87,9 @@ impl World {
             MapCell::Field,
             self.size.clone(),
         );
-        let previous = self.try_set_value_on_map(context.position(), MapCell::Player(player_id));
-        match previous {
+
+        let walk_on = self.try_set_value_on_map(context.position(), MapCell::Player(player_id));
+        match walk_on {
             MapCell::Field => {
                 self.players.insert(player_id, (player, context));
             }

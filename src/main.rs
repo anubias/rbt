@@ -4,23 +4,39 @@ mod world;
 use std::time::Duration;
 
 use players::{
-    armholt::Swede, arola::Arola, laurikainen::PlayerOne, player::WorldSize, pop::Aurelian,
-    rahtu::Rahtu, rantala::PlayerTeemu, reponen::Samuli, salonen::Es, siimesjarvi::Siimesjarvi,
-    terava::PlAgiAntti,
+    alvarez::Luis, armholt::Swede, arola::Arola, laurikainen::PlayerOne, moykkynen::Joonas,
+    niemisto::Niemisto, player::WorldSize, pop::Aurelian, rahtu::Rahtu, rantala::PlayerTeemu,
+    reponen::Samuli, salonen::Es, siimesjarvi::Siimesjarvi, terava::PlAgiAntti,
 };
 use world::World;
 
 fn main() {
     let mut world = World::new(WorldSize { x: 60, y: 30 });
 
-    let arola = Box::new(Arola::new());
-    world.spawn_player(arola);
+    spawn_players(&mut world);
+    game_loop(world)
+}
+
+fn spawn_players(world: &mut World) {
+    println!("Spawning players...");
+
+    let alvarez = Box::new(Luis::new());
+    world.spawn_player(alvarez);
 
     let armholt = Box::new(Swede::new());
     world.spawn_player(armholt);
 
+    let arola = Box::new(Arola::new());
+    world.spawn_player(arola);
+
     let laurikainen = Box::new(PlayerOne::new());
     world.spawn_player(laurikainen);
+
+    let moykkynen = Box::new(Joonas::new());
+    world.spawn_player(moykkynen);
+
+    let niemisto = Box::new(Niemisto::new());
+    world.spawn_player(niemisto);
 
     let pop = Box::new(Aurelian::new());
     world.spawn_player(pop);
@@ -43,13 +59,13 @@ fn main() {
     let terava = Box::new(PlAgiAntti::new());
     world.spawn_player(terava);
 
-    game_loop(world)
+    println!("Players spawned.");
 }
 
 fn game_loop(mut world: World) -> ! {
     loop {
         println!("{world}");
-        std::thread::sleep(Duration::from_millis(500));
+        std::thread::sleep(Duration::from_millis(100));
 
         world.new_turn();
     }

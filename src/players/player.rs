@@ -222,7 +222,7 @@ pub enum Direction {
     Backward,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub enum Orientation {
     #[default]
     North,
@@ -278,6 +278,21 @@ impl Orientation {
             Self::NorthWest => Self::SouthEast,
         }
     }
+
+    pub fn steps_to(&self, other: &Self) -> (Rotation, usize) {
+        let my_index: isize = self.into();
+        let their_index: isize = other.into();
+
+        let delta = my_index - their_index;
+        let rotation = match delta {
+            ..-4 => Rotation::CounterClockwise,
+            -4..=0 => Rotation::Clockwise,
+            1..=4 => Rotation::CounterClockwise,
+            5.. => Rotation::Clockwise,
+        };
+
+        (rotation, delta as usize)
+    }
 }
 
 impl From<usize> for Orientation {
@@ -291,6 +306,21 @@ impl From<usize> for Orientation {
             5 => Self::SouthWest,
             6 => Self::West,
             7.. => Self::NorthWest,
+        }
+    }
+}
+
+impl From<&Orientation> for isize {
+    fn from(value: &Orientation) -> Self {
+        match value {
+            Orientation::North => 0,
+            Orientation::NorthEast => 1,
+            Orientation::East => 2,
+            Orientation::SouthEast => 3,
+            Orientation::South => 4,
+            Orientation::SouthWest => 5,
+            Orientation::West => 6,
+            Orientation::NorthWest => 7,
         }
     }
 }
