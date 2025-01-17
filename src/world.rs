@@ -414,9 +414,12 @@ mod tests {
 
     #[test]
     fn test_random_field_location() {
-        let mut world = World::new(WorldSize { x: 100, y: 100 });
+        let mut world = World::new(WorldSize {
+            x: MAX_WORLD_SIZE,
+            y: MAX_WORLD_SIZE,
+        });
 
-        for _ in 0..10_000 {
+        for _ in 0..MAX_WORLD_SIZE * MAX_WORLD_SIZE {
             let location = world.get_random_field_location();
             assert!(world.is_location_free(&location));
         }
