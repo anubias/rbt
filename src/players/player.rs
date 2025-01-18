@@ -96,8 +96,8 @@ impl Context {
         self.under = walk_on;
 
         match self.under {
-            MapCell::Lake => self.health = 0,
-            MapCell::Swamp => self.mobile = false,
+            MapCell::Terrain(Terrain::Lake) => self.health = 0,
+            MapCell::Terrain(Terrain::Swamp) => self.mobile = false,
             _ => {}
         }
 
@@ -131,13 +131,10 @@ impl std::fmt::Display for Context {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub enum MapCell {
-    Field,
-    Lake,
-    Mountain,
     Player(u8),
-    Swamp,
+    Terrain(Terrain),
     #[default]
     Unknown,
 }
@@ -145,12 +142,29 @@ pub enum MapCell {
 impl std::fmt::Display for MapCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Field => write!(f, "🟩"),     // 🌱, 🟩
-            Self::Lake => write!(f, "🟦"),      // 🌊, 🟦
-            Self::Mountain => write!(f, "🟫"),  // 🪨, 🟫
             Self::Player(_) => write!(f, "🪖"), // 🪖
-            Self::Swamp => write!(f, "⬜"),     // 🌲, ⬜
-            Self::Unknown => write!(f, "⬛"),   // "", ⬛
+            Self::Terrain(t) => write!(f, "{t}"),
+            Self::Unknown => write!(f, "⬛"), // "", ⬛
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default, PartialEq)]
+pub enum Terrain {
+    #[default]
+    Field,
+    Lake,
+    Forest,
+    Swamp,
+}
+
+impl std::fmt::Display for Terrain {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Field => write!(f, "🟩"),
+            Self::Lake => write!(f, "🟦"),
+            Self::Forest => write!(f, "🌲"),
+            Self::Swamp => write!(f, "⬜"),
         }
     }
 }

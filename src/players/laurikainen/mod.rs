@@ -176,10 +176,8 @@ impl PlayerOne {
 
     fn is_cell_okay_to_step_on(&self, cell: &MapCell) -> bool {
         match cell {
-            MapCell::Field => true,
-            MapCell::Swamp => false,
-            MapCell::Lake => false,
-            MapCell::Mountain => false,
+            MapCell::Terrain(Terrain::Field) => true,
+            MapCell::Terrain(_) => false,
             MapCell::Player(_) => false,
             MapCell::Unknown => false,
         }

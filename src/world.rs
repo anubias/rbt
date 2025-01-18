@@ -4,7 +4,7 @@ use rand::{rngs::ThreadRng, thread_rng, Rng};
 
 use crate::players::player::{
     Action, Context, Direction, MapCell, Orientation, Player, Position, Rotation, ScanResult,
-    ScanType, WorldSize, MAX_WORLD_SIZE, SCANNING_DISTANCE,
+    ScanType, Terrain, WorldSize, MAX_WORLD_SIZE, SCANNING_DISTANCE,
 };
 
 const MAX_USABLE_SPACE_PERCENTAGE: f32 = 75.0;
@@ -36,21 +36,21 @@ impl World {
             rng: thread_rng(),
             size: size.clone(),
             players: HashMap::new(),
-            map: Box::new([[MapCell::Field; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
+            map: Box::new([[MapCell::Terrain(Terrain::Field); MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
         };
 
         for i in 0..size.y {
             for j in 0..size.x {
                 if i == 0 || j == 0 || i == size.y - 1 || j == size.x - 1 {
-                    result.map[i][j] = MapCell::Swamp;
+                    result.map[i][j] = MapCell::Terrain(Terrain::Swamp);
                 }
             }
         }
 
         loop {
-            result.generate_obstacle(MapCell::Mountain);
-            result.generate_obstacle(MapCell::Lake);
-            result.generate_obstacle(MapCell::Swamp);
+            result.generate_obstacle(MapCell::Terrain(Terrain::Forest));
+            result.generate_obstacle(MapCell::Terrain(Terrain::Lake));
+            result.generate_obstacle(MapCell::Terrain(Terrain::Swamp));
 
             if result.get_usable_space_percentage() < MAX_USABLE_SPACE_PERCENTAGE {
                 break;
@@ -84,13 +84,13 @@ impl World {
         let context = Context::new(
             player_id,
             self.get_random_field_location(),
-            MapCell::Field,
+            MapCell::Terrain(Terrain::Field),
             self.size.clone(),
         );
 
         let walk_on = self.try_set_value_on_map(context.position(), MapCell::Player(player_id));
         match walk_on {
-            MapCell::Field => {
+            MapCell::Terrain(Terrain::Field) => {
                 self.players.insert(player_id, (player, context));
             }
             _ => {}
@@ -132,7 +132,7 @@ impl World {
     fn clear_dead_players_from_map(&mut self, actions: Vec<(u8, Action)>) {
         for (player_id, _) in actions {
             let mut pos_opt = None;
-            let mut under = MapCell::Field;
+            let mut under = MapCell::Terrain(Terrain::Field);
 
             if let Some((_, context)) = self.players.get_mut(&player_id) {
                 if context.health() == 0 {
@@ -143,7 +143,7 @@ impl World {
 
             if let Some(position) = pos_opt {
                 if self.is_player_at_position(player_id, &position) {
-                    self.try_set_value_on_map(&position, under);
+                    self.set_value_on_map(&position, under);
                 }
             }
         }
@@ -157,12 +157,12 @@ impl World {
         if let Some((_, context)) = self.players.get_mut(&player_id) {
             if context.is_mobile() {
                 match walk_on {
-                    MapCell::Field | MapCell::Lake | MapCell::Swamp => {
+                    MapCell::Terrain(Terrain::Forest) => {
+                        context.damage(DAMAGE_COLLISION_WITH_MOUNTAIN);
+                    }
+                    MapCell::Terrain(_) => {
                         was_on = context.under().clone();
                         successfully_moved = context.relocate(to.clone(), walk_on);
-                    }
-                    MapCell::Mountain => {
-                        context.damage(DAMAGE_COLLISION_WITH_MOUNTAIN);
                     }
                     MapCell::Player(other_player_id) => {
                         context.damage(DAMAGE_COLLISION_WITH_PLAYER);
@@ -178,9 +178,9 @@ impl World {
         }
 
         if successfully_moved {
-            self.try_set_value_on_map(&from, was_on);
+            self.set_value_on_map(&from, was_on);
         } else {
-            self.try_set_value_on_map(&to, walk_on);
+            self.set_value_on_map(&to, walk_on);
         }
     }
 
@@ -244,7 +244,7 @@ impl World {
                 };
 
                 if let Some(pos) = new_pos {
-                    self.try_set_value_on_map(&pos, obstacle);
+                    self.set_value_on_map(&pos, obstacle);
                     old_pos = Some(pos);
                 }
             }
@@ -256,7 +256,7 @@ impl World {
         for i in 0..self.size.y {
             for j in 0..self.size.x {
                 free_count += match self.map[i][j] {
-                    MapCell::Field => 1,
+                    MapCell::Terrain(Terrain::Field) => 1,
                     _ => 0,
                 }
             }
@@ -359,7 +359,7 @@ impl World {
 
     fn is_location_free(&self, position: &Position) -> bool {
         match self.get_value_from_map(position) {
-            MapCell::Field => true,
+            MapCell::Terrain(Terrain::Field) => true,
             _ => false,
         }
     }
@@ -375,8 +375,8 @@ impl World {
         let walk_on = self.get_value_from_map(position);
 
         match walk_on {
-            MapCell::Field | MapCell::Player(_) | MapCell::Swamp => {
-                self.set_value_from_map(position, value);
+            MapCell::Terrain(Terrain::Field) | MapCell::Terrain(Terrain::Swamp) => {
+                self.set_value_on_map(position, value);
             }
             _ => {}
         }
@@ -388,7 +388,7 @@ impl World {
         self.map[position.y][position.x]
     }
 
-    fn set_value_from_map(&mut self, position: &Position, value: MapCell) {
+    fn set_value_on_map(&mut self, position: &Position, value: MapCell) {
         self.map[position.y][position.x] = value;
     }
 }

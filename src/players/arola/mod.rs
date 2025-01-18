@@ -38,11 +38,9 @@ fn get_moving_action(scan_data: &ScanResult, heading: &Orientation) -> Action {
     };
 
     match front_cell {
-        MapCell::Field => Action::Move(Direction::Forward),
-        MapCell::Lake => Action::Rotate(Rotation::Clockwise),
-        MapCell::Mountain => Action::Rotate(Rotation::Clockwise),
         MapCell::Player(_) => Action::Move(Direction::Forward), // Crash to the other player
-        MapCell::Swamp => Action::Rotate(Rotation::Clockwise),
+        MapCell::Terrain(Terrain::Field) => Action::Move(Direction::Forward),
+        MapCell::Terrain(_) => Action::Rotate(Rotation::Clockwise),
         MapCell::Unknown => Action::Idle,
     }
 }

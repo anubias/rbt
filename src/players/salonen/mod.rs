@@ -60,7 +60,7 @@ impl Player for Es {
             let next_cell = scanned_data.data[next_cell_x][next_cell_y];
 
             match next_cell {
-                MapCell::Field => {
+                MapCell::Terrain(Terrain::Field) => {
                     return Action::Move(Direction::Forward);
                 }
                 _ => {

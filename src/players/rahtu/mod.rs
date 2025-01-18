@@ -47,7 +47,7 @@ impl Rahtu {
                                 continue;
                             }
                             match scanned_data.data[x][y] {
-                                MapCell::Field => {
+                                MapCell::Terrain(Terrain::Field) => {
                                     self.sensor_data[global_x][global_y] = SensorData::Empty
                                 }
                                 MapCell::Player(_) => {

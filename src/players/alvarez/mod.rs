@@ -1,7 +1,7 @@
 use super::player::*;
 
 #[derive(Default)]
-pub struct Luis{
+pub struct Luis {
     last_action: Action,
     map: Vec<Vec<u32>>,
 }
@@ -10,7 +10,7 @@ impl Luis {
     pub fn new() -> Self {
         Self {
             last_action: Action::default(),
-            map: Vec::<Vec<u32>>::new()
+            map: Vec::<Vec<u32>>::new(),
         }
     }
 }
@@ -19,9 +19,7 @@ impl Player for Luis {
     fn act(&mut self, context: &Context) -> Action {
         // Just scanned
         if let Some(scan_data) = context.scanned_data() {
-
             // Cache map data (just if uncomplete?)
-
 
             let orientation = context.orientation();
             let center = SCANNING_DISTANCE / 2;
@@ -54,8 +52,8 @@ impl Player for Luis {
             let next_cell = scan_data.data[next_cell_x][next_cell_y];
 
             match next_cell {
-                MapCell::Field => Action::Move(Direction::Forward),
-                MapCell::Lake | MapCell::Mountain | MapCell::Swamp => Action::Rotate(Rotation::Clockwise),
+                MapCell::Terrain(Terrain::Field) => Action::Move(Direction::Forward),
+                MapCell::Terrain(_) => Action::Rotate(Rotation::Clockwise),
                 MapCell::Player(_) => Action::Fire,
                 MapCell::Unknown => Action::Scan(ScanType::Omni),
             }
