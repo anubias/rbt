@@ -154,7 +154,7 @@ pub enum Terrain {
     #[default]
     Field,
     Lake,
-    Forest,
+    Forest(TreeType),
     Swamp,
 }
 
@@ -163,10 +163,18 @@ impl std::fmt::Display for Terrain {
         match self {
             Self::Field => write!(f, "🟩"),
             Self::Lake => write!(f, "🟦"),
-            Self::Forest => write!(f, "🌲"),
+            Self::Forest(TreeType::Deciduous) => write!(f, "🌳"),
+            Self::Forest(TreeType::Evergreen) => write!(f, "🌲"),
             Self::Swamp => write!(f, "⬜"),
         }
     }
+}
+
+#[derive(Clone, Copy, Default, PartialEq)]
+pub enum TreeType {
+    #[default]
+    Deciduous,
+    Evergreen,
 }
 
 #[derive(Default)]

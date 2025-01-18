@@ -4,10 +4,10 @@ use rand::{rngs::ThreadRng, thread_rng, Rng};
 
 use crate::players::player::{
     Action, Context, Direction, MapCell, Orientation, Player, Position, Rotation, ScanResult,
-    ScanType, Terrain, WorldSize, MAX_WORLD_SIZE, SCANNING_DISTANCE,
+    ScanType, Terrain, TreeType, WorldSize, MAX_WORLD_SIZE, SCANNING_DISTANCE,
 };
 
-const MAX_USABLE_SPACE_PERCENTAGE: f32 = 75.0;
+const MAX_FIELD_AREA_PERCENTAGE: f32 = 75.0;
 const MIN_OBSTACLE_SIZE_PERCENTAGE: f32 = 0.5;
 const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.5;
 
@@ -48,11 +48,12 @@ impl World {
         }
 
         loop {
-            result.generate_obstacle(MapCell::Terrain(Terrain::Forest));
+            result.generate_obstacle(MapCell::Terrain(Terrain::Forest(TreeType::Deciduous)));
+            result.generate_obstacle(MapCell::Terrain(Terrain::Forest(TreeType::Evergreen)));
             result.generate_obstacle(MapCell::Terrain(Terrain::Lake));
             result.generate_obstacle(MapCell::Terrain(Terrain::Swamp));
 
-            if result.get_usable_space_percentage() < MAX_USABLE_SPACE_PERCENTAGE {
+            if result.get_field_terrain_percentage() < MAX_FIELD_AREA_PERCENTAGE {
                 break;
             }
         }
@@ -157,7 +158,7 @@ impl World {
         if let Some((_, context)) = self.players.get_mut(&player_id) {
             if context.is_mobile() {
                 match walk_on {
-                    MapCell::Terrain(Terrain::Forest) => {
+                    MapCell::Terrain(Terrain::Forest(_)) => {
                         context.damage(DAMAGE_COLLISION_WITH_MOUNTAIN);
                     }
                     MapCell::Terrain(_) => {
@@ -236,7 +237,7 @@ impl World {
 
         let mut old_pos: Option<Position> = None;
         for _ in 0..obstacle_size {
-            if self.get_free_count() > 0 {
+            if self.get_field_count() > 0 {
                 let new_pos = if let Some(p) = old_pos.as_ref() {
                     self.get_adjacent_field_location(p, obstacle)
                 } else {
@@ -251,7 +252,7 @@ impl World {
         }
     }
 
-    fn get_free_count(&self) -> usize {
+    fn get_field_count(&self) -> usize {
         let mut free_count = 0;
         for i in 0..self.size.y {
             for j in 0..self.size.x {
@@ -353,8 +354,8 @@ impl World {
         sub_map
     }
 
-    fn get_usable_space_percentage(&self) -> f32 {
-        100.0f32 * self.get_free_count() as f32 / (self.size.x * self.size.y) as f32
+    fn get_field_terrain_percentage(&self) -> f32 {
+        100.0f32 * self.get_field_count() as f32 / (self.size.x * self.size.y) as f32
     }
 
     fn is_location_free(&self, position: &Position) -> bool {
