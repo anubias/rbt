@@ -27,25 +27,18 @@ pub struct Context {
     mobile: bool,
     position: Position,
     orientation: Orientation,
-    under: MapCell,
     scan: Option<ScanResult>,
     world_size: WorldSize,
 }
 
 impl Context {
-    pub fn new(
-        player_id: u8,
-        position: Position,
-        under_track: MapCell,
-        world_size: WorldSize,
-    ) -> Self {
+    pub fn new(player_id: u8, position: Position, world_size: WorldSize) -> Self {
         Self {
             player_id,
             health: 100,
             mobile: true,
             position,
             orientation: Orientation::default(),
-            under: under_track,
             scan: None,
             world_size,
         }
@@ -71,10 +64,6 @@ impl Context {
         &self.orientation
     }
 
-    pub fn under(&self) -> &MapCell {
-        &self.under
-    }
-
     pub fn world_size(&self) -> &WorldSize {
         &self.world_size
     }
@@ -90,14 +79,12 @@ impl Context {
         self.health -= self.health.min(damage);
     }
 
-    #[must_use]
-    pub fn relocate(&mut self, new_position: Position, walk_on: MapCell) -> bool {
-        self.position = new_position;
-        self.under = walk_on;
+    pub fn relocate(&mut self, new_position: &Position, walk_on: Terrain) -> bool {
+        self.position = new_position.clone();
 
-        match self.under {
-            MapCell::Terrain(Terrain::Lake) => self.health = 0,
-            MapCell::Terrain(Terrain::Swamp) => self.mobile = false,
+        match walk_on {
+            Terrain::Lake => self.health = 0,
+            Terrain::Swamp => self.mobile = false,
             _ => {}
         }
 
@@ -118,14 +105,14 @@ impl std::fmt::Display for Context {
         if let Some(scan) = &self.scan {
             write!(
                 f,
-                "{{health={}, position={}, orientation=\"{}\", under={}, scanned_data={}}}",
-                self.health, self.position, self.orientation, self.under, scan
+                "{{health={}, position={}, orientation=\"{}\", scanned_data={}}}",
+                self.health, self.position, self.orientation, scan
             )
         } else {
             write!(
                 f,
-                "{{health={}, position={}, orientation=\"{}\", under={}}}",
-                self.health, self.position, self.orientation, self.under,
+                "{{health={}, position={}, orientation=\"{}\"}}",
+                self.health, self.position, self.orientation,
             )
         }
     }
@@ -133,7 +120,7 @@ impl std::fmt::Display for Context {
 
 #[derive(Clone, Copy, Default, PartialEq)]
 pub enum MapCell {
-    Player(u8),
+    Player(u8, Terrain),
     Terrain(Terrain),
     #[default]
     Unknown,
@@ -142,7 +129,7 @@ pub enum MapCell {
 impl std::fmt::Display for MapCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Player(_) => write!(f, "🪖"), // 🪖
+            Self::Player(_, _) => write!(f, "🪖"), // 🪖
             Self::Terrain(t) => write!(f, "{t}"),
             Self::Unknown => write!(f, "⬛"), // "", ⬛
         }

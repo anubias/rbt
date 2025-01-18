@@ -11,7 +11,7 @@ const MAX_FIELD_AREA_PERCENTAGE: f32 = 75.0;
 const MIN_OBSTACLE_SIZE_PERCENTAGE: f32 = 0.5;
 const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.5;
 
-const DAMAGE_COLLISION_WITH_MOUNTAIN: u8 = 25;
+const DAMAGE_COLLISION_WITH_FOREST: u8 = 25;
 const DAMAGE_COLLISION_WITH_PLAYER: u8 = 10;
 
 type UserId = u8;
@@ -85,16 +85,11 @@ impl World {
         let context = Context::new(
             player_id,
             self.get_random_field_location(),
-            MapCell::Terrain(Terrain::Field),
             self.size.clone(),
         );
 
-        let walk_on = self.try_set_value_on_map(context.position(), MapCell::Player(player_id));
-        match walk_on {
-            MapCell::Terrain(Terrain::Field) => {
-                self.players.insert(player_id, (player, context));
-            }
-            _ => {}
+        if let Some(_) = self.try_set_player_on_cell(context.position(), player_id) {
+            self.players.insert(player_id, (player, context));
         }
     }
 }
@@ -131,57 +126,63 @@ impl World {
     }
 
     fn clear_dead_players_from_map(&mut self, actions: Vec<(u8, Action)>) {
+        let mut dead_players = Vec::new();
+
         for (player_id, _) in actions {
-            let mut pos_opt = None;
-            let mut under = MapCell::Terrain(Terrain::Field);
-
-            if let Some((_, context)) = self.players.get_mut(&player_id) {
+            if let Some((_, context)) = self.players.get(&player_id) {
                 if context.health() == 0 {
-                    pos_opt = Some(context.position().clone());
-                    under = context.under().clone();
+                    match self.get_value_from_map(context.position()) {
+                        MapCell::Player(_, terrain) => {
+                            dead_players.push((context.position().clone(), terrain));
+                        }
+                        _ => {}
+                    }
                 }
             }
+        }
 
-            if let Some(position) = pos_opt {
-                if self.is_player_at_position(player_id, &position) {
-                    self.set_value_on_map(&position, under);
-                }
-            }
+        for (position, terrain) in dead_players {
+            self.set_value_on_map(&position, MapCell::Terrain(terrain));
         }
     }
 
     fn move_player(&mut self, player_id: u8, from: &Position, to: &Position) {
-        let mut was_on = MapCell::default();
-        let walk_on = self.try_set_value_on_map(&to, MapCell::Player(player_id));
-        let mut successfully_moved = false;
-
-        if let Some((_, context)) = self.players.get_mut(&player_id) {
-            if context.is_mobile() {
-                match walk_on {
-                    MapCell::Terrain(Terrain::Forest(_)) => {
-                        context.damage(DAMAGE_COLLISION_WITH_MOUNTAIN);
-                    }
-                    MapCell::Terrain(_) => {
-                        was_on = context.under().clone();
-                        successfully_moved = context.relocate(to.clone(), walk_on);
-                    }
-                    MapCell::Player(other_player_id) => {
-                        context.damage(DAMAGE_COLLISION_WITH_PLAYER);
-
-                        // inflict damage to other player as well
-                        if let Some((_, other_context)) = self.players.get_mut(&other_player_id) {
-                            other_context.damage(DAMAGE_COLLISION_WITH_PLAYER);
-                        }
-                    }
-                    MapCell::Unknown => {}
-                }
-            }
+        if !self.is_player_at_position(player_id, from) {
+            panic!("World map vs player context inconsistency detected while moving a player (player not at expected position)!");
         }
 
-        if successfully_moved {
-            self.set_value_on_map(&from, was_on);
+        let can_move = if let Some((_, context)) = self.players.get(&player_id) {
+            context.is_mobile()
         } else {
-            self.set_value_on_map(&to, walk_on);
+            false
+        };
+
+        if can_move {
+            let to_cell = self.get_value_from_map(to);
+            match to_cell {
+                MapCell::Player(other_id, _) => {
+                    if let Some((_, context)) = self.players.get_mut(&player_id) {
+                        context.damage(DAMAGE_COLLISION_WITH_PLAYER);
+                    }
+                    if let Some((_, context)) = self.players.get_mut(&other_id) {
+                        context.damage(DAMAGE_COLLISION_WITH_PLAYER);
+                    }
+                }
+                MapCell::Terrain(_) => {
+                    if let Some(terrain) = self.try_set_player_on_cell(to, player_id) {
+                        self.unset_player_from_cell(from);
+
+                        if let Some((_, context)) = self.players.get_mut(&player_id) {
+                            context.relocate(to, terrain);
+                        }
+                    } else {
+                        if let Some((_, context)) = self.players.get_mut(&player_id) {
+                            context.damage(DAMAGE_COLLISION_WITH_FOREST);
+                        }
+                    }
+                }
+                MapCell::Unknown => {}
+            }
         }
     }
 
@@ -367,22 +368,38 @@ impl World {
 
     fn is_player_at_position(&self, player_id: u8, position: &Position) -> bool {
         match self.get_value_from_map(position) {
-            MapCell::Player(id) => player_id == id,
+            MapCell::Player(id, _) => player_id == id,
             _ => false,
         }
     }
 
-    fn try_set_value_on_map(&mut self, position: &Position, value: MapCell) -> MapCell {
-        let walk_on = self.get_value_from_map(position);
+    fn unset_player_from_cell(&mut self, position: &Position) {
+        let map_cell = self.get_value_from_map(position);
 
-        match walk_on {
-            MapCell::Terrain(Terrain::Field) | MapCell::Terrain(Terrain::Swamp) => {
-                self.set_value_on_map(position, value);
+        match map_cell {
+            MapCell::Player(_, terrain) => {
+                self.set_value_on_map(position, MapCell::Terrain(terrain))
             }
             _ => {}
         }
+    }
 
-        walk_on
+    fn try_set_player_on_cell(&mut self, position: &Position, player_id: u8) -> Option<Terrain> {
+        let mut result = None;
+        let map_cell = self.get_value_from_map(position);
+
+        match map_cell {
+            MapCell::Terrain(terrain) => match terrain {
+                Terrain::Field | Terrain::Lake | Terrain::Swamp => {
+                    self.set_value_on_map(position, MapCell::Player(player_id, terrain.clone()));
+                    result = Some(terrain.clone());
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+
+        result
     }
 
     fn get_value_from_map(&self, position: &Position) -> MapCell {
