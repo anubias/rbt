@@ -25,7 +25,7 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(size: WorldSize) -> Self {
+    pub fn new(size: WorldSize) -> Box<Self> {
         if size.x > MAX_WORLD_SIZE || size.y > MAX_WORLD_SIZE {
             panic!(
                 "\nWorld size {size} is too big! Maximum accepted size for each dimension is {MAX_WORLD_SIZE}\n\n"
@@ -34,18 +34,11 @@ impl World {
 
         let mut result = Self {
             rng: thread_rng(),
-            size: size.clone(),
+            size,
             players: HashMap::new(),
             map: Box::new([[MapCell::Terrain(Terrain::Field); MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
         };
-
-        for i in 0..size.y {
-            for j in 0..size.x {
-                if i == 0 || j == 0 || i == size.y - 1 || j == size.x - 1 {
-                    result.map[i][j] = MapCell::Terrain(Terrain::Swamp);
-                }
-            }
-        }
+        result.generate_map_border();
 
         loop {
             result.generate_obstacle(MapCell::Terrain(Terrain::Forest(TreeType::Deciduous)));
@@ -58,7 +51,7 @@ impl World {
             }
         }
 
-        result
+        Box::new(result)
     }
 
     pub fn new_turn(&mut self) {
@@ -101,7 +94,7 @@ impl World {
                 let world_size = context.world_size().clone();
                 match action {
                     Action::Move(direction) => {
-                        let (from, to) = Self::compute_route(
+                        let (from, to) = compute_route(
                             context.position(),
                             context.orientation(),
                             direction,
@@ -206,27 +199,6 @@ impl World {
             };
             context.set_scanned_data(Some(scan_result));
         }
-    }
-
-    fn compute_route(
-        start_position: &Position,
-        orientation: &Orientation,
-        direction: &Direction,
-        world_size: &WorldSize,
-    ) -> (Position, Position) {
-        let actual_orientation = match direction {
-            Direction::Backward => orientation.opposite(),
-            Direction::Forward => orientation.clone(),
-        };
-
-        let new_position = if let Some(pos) = start_position.follow(&actual_orientation, world_size)
-        {
-            pos
-        } else {
-            start_position.clone()
-        };
-
-        (start_position.clone(), new_position)
     }
 
     fn generate_obstacle(&mut self, obstacle: MapCell) {
@@ -408,6 +380,36 @@ impl World {
     fn set_value_on_map(&mut self, position: &Position, value: MapCell) {
         self.map[position.y][position.x] = value;
     }
+
+    fn generate_map_border(&mut self) {
+        for i in 0..self.size.y {
+            for j in 0..self.size.x {
+                if i == 0 || j == 0 || i == self.size.y - 1 || j == self.size.x - 1 {
+                    self.map[i][j] = MapCell::Terrain(Terrain::Swamp);
+                }
+            }
+        }
+    }
+}
+
+fn compute_route(
+    start_position: &Position,
+    orientation: &Orientation,
+    direction: &Direction,
+    world_size: &WorldSize,
+) -> (Position, Position) {
+    let actual_orientation = match direction {
+        Direction::Backward => orientation.opposite(),
+        Direction::Forward => orientation.clone(),
+    };
+
+    let new_position = if let Some(pos) = start_position.follow(&actual_orientation, world_size) {
+        pos
+    } else {
+        start_position.clone()
+    };
+
+    (start_position.clone(), new_position)
 }
 
 impl std::fmt::Display for World {
@@ -429,16 +431,191 @@ impl std::fmt::Display for World {
 mod tests {
     use super::*;
 
+    const MINI_MAP_SIZE: usize = 10;
+
+    fn generate_mini_world() -> Box<World> {
+        let world = World {
+            rng: thread_rng(),
+            size: WorldSize {
+                x: MINI_MAP_SIZE,
+                y: MINI_MAP_SIZE,
+            },
+            players: HashMap::new(),
+            map: Box::new([[MapCell::Terrain(Terrain::Field); MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
+        };
+
+        Box::new(world)
+    }
+
+    fn populate_mini_world(world: &mut Box<World>) {
+        world.generate_map_border();
+
+        world.map[2][2] = MapCell::Terrain(Terrain::Lake);
+        world.map[2][3] = MapCell::Terrain(Terrain::Lake);
+        world.map[3][2] = MapCell::Terrain(Terrain::Lake);
+        world.map[3][3] = MapCell::Terrain(Terrain::Lake);
+        world.map[4][3] = MapCell::Terrain(Terrain::Lake);
+
+        world.map[3][6] = MapCell::Terrain(Terrain::Forest(TreeType::Deciduous));
+        world.map[3][7] = MapCell::Terrain(Terrain::Forest(TreeType::Deciduous));
+        world.map[4][6] = MapCell::Terrain(Terrain::Forest(TreeType::Deciduous));
+        world.map[4][7] = MapCell::Terrain(Terrain::Forest(TreeType::Deciduous));
+        world.map[5][5] = MapCell::Terrain(Terrain::Forest(TreeType::Deciduous));
+        world.map[5][6] = MapCell::Terrain(Terrain::Forest(TreeType::Deciduous));
+        world.map[6][5] = MapCell::Terrain(Terrain::Forest(TreeType::Deciduous));
+    }
+
+    #[test]
+    fn test_compute_route() {
+        let mut world = generate_mini_world();
+        populate_mini_world(&mut world);
+
+        // In the middle, facing northwest, going backwards
+        let position = Position { x: 2, y: 3 };
+        let orientation = Orientation::NorthEast;
+        let direction = Direction::Backward;
+        let world_size = WorldSize {
+            x: MINI_MAP_SIZE,
+            y: MINI_MAP_SIZE,
+        };
+
+        let (from, to) = compute_route(&position, &orientation, &direction, &world_size);
+        assert_eq!((from.x, from.y), (position.x, position.y));
+        assert_eq!((to.x, to.y), (1, 4));
+
+        // Moving outside of the map, located on left edge, going west, route is "stationary"
+        let position = Position { x: 0, y: 3 };
+        let orientation = Orientation::West;
+        let direction = Direction::Forward;
+        let world_size = WorldSize {
+            x: MINI_MAP_SIZE,
+            y: MINI_MAP_SIZE,
+        };
+
+        let (from, to) = compute_route(&position, &orientation, &direction, &world_size);
+        assert_eq!((from.x, from.y), (position.x, position.y));
+        assert_eq!((from.x, from.y), (to.x, to.y));
+    }
+
+    #[test]
+    fn test_generate_map_border() {
+        let mut world = generate_mini_world();
+        populate_mini_world(&mut world);
+
+        for i in 0..world.size.x {
+            for j in 0..world.size.y {
+                if i == 0 || i == world.size.x - 1 || j == 0 || j == world.size.y {
+                    assert_eq!(MapCell::Terrain(Terrain::Swamp), world.map[i][j]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_get_field_count() {
+        let mut world = generate_mini_world();
+        assert_eq!(MINI_MAP_SIZE * MINI_MAP_SIZE, world.get_field_count());
+
+        world.generate_map_border();
+        assert_eq!(
+            MINI_MAP_SIZE * MINI_MAP_SIZE - 4 * (MINI_MAP_SIZE - 1),
+            world.get_field_count()
+        );
+    }
+
+    #[test]
+    fn test_get_field_terrain_percentage() {
+        let mut world = generate_mini_world();
+        assert_eq!(100.0, world.get_field_terrain_percentage());
+
+        world.generate_map_border();
+        let percentage =
+            world.get_field_count() as f32 / (MINI_MAP_SIZE * MINI_MAP_SIZE) as f32 * 100.0;
+        assert_eq!(percentage, world.get_field_terrain_percentage());
+    }
+
     #[test]
     fn test_random_field_location() {
-        let mut world = World::new(WorldSize {
-            x: MAX_WORLD_SIZE,
-            y: MAX_WORLD_SIZE,
-        });
+        let mut world = generate_mini_world();
+        populate_mini_world(&mut world);
 
-        for _ in 0..MAX_WORLD_SIZE * MAX_WORLD_SIZE {
+        for _ in 0..1000 {
             let location = world.get_random_field_location();
             assert!(world.is_location_free(&location));
         }
+    }
+
+    #[test]
+    fn try_set_player_on_field_cell() {
+        let mut world = generate_mini_world();
+        populate_mini_world(&mut world);
+
+        let position = Position { x: 5, y: 2 };
+        assert!(world.get_value_from_map(&position) == MapCell::Terrain(Terrain::Field));
+
+        let player_id = 10;
+        let result = world.try_set_player_on_cell(&position, player_id);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn try_set_player_on_forest_cell() {
+        let mut world = generate_mini_world();
+        populate_mini_world(&mut world);
+
+        let position = Position { x: 6, y: 3 };
+        assert!(
+            world.get_value_from_map(&position)
+                == MapCell::Terrain(Terrain::Forest(TreeType::Deciduous))
+        );
+
+        let player_id = 10;
+        let result = world.try_set_player_on_cell(&position, player_id);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn try_set_player_on_lake_cell() {
+        let mut world = generate_mini_world();
+        populate_mini_world(&mut world);
+
+        let position = Position { x: 3, y: 2 };
+        assert!(world.get_value_from_map(&position) == MapCell::Terrain(Terrain::Lake));
+
+        let player_id = 10;
+        let result = world.try_set_player_on_cell(&position, player_id);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn try_set_player_on_swamp_cell() {
+        let mut world = generate_mini_world();
+        populate_mini_world(&mut world);
+
+        let position = Position { x: 5, y: 0 };
+        assert!(world.get_value_from_map(&position) == MapCell::Terrain(Terrain::Swamp));
+
+        let player_id = 10;
+        let result = world.try_set_player_on_cell(&position, player_id);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn is_player_at_position() {
+        let mut world = generate_mini_world();
+
+        let position = Position { x: 5, y: 2 };
+        assert!(world.get_value_from_map(&position) == MapCell::Terrain(Terrain::Field));
+
+        let player_id = 10;
+        let result = world.try_set_player_on_cell(&position, player_id);
+        assert!(result.is_some());
+
+        let other_position = Position {
+            x: position.x + 1,
+            y: position.y,
+        };
+        assert!(world.is_player_at_position(player_id, &position));
+        assert!(!world.is_player_at_position(player_id, &other_position));
     }
 }
