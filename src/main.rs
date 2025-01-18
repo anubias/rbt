@@ -17,7 +17,7 @@ fn main() {
     game_loop(world)
 }
 
-fn spawn_players(world: &mut World) {
+fn spawn_players(world: &mut Box<World>) {
     println!("Spawning players...");
 
     let alvarez = Box::new(Luis::new());
@@ -62,7 +62,7 @@ fn spawn_players(world: &mut World) {
     println!("Players spawned.");
 }
 
-fn game_loop(mut world: World) -> ! {
+fn game_loop(mut world: Box<World>) -> ! {
     loop {
         println!("{world}");
         std::thread::sleep(Duration::from_millis(100));

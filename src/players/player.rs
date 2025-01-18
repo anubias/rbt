@@ -122,7 +122,7 @@ impl std::fmt::Display for Context {
     }
 }
 
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum MapCell {
     Player(u8, Terrain),
     Terrain(Terrain),
@@ -140,7 +140,7 @@ impl std::fmt::Display for MapCell {
     }
 }
 
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Terrain {
     #[default]
     Field,
@@ -161,7 +161,7 @@ impl std::fmt::Display for Terrain {
     }
 }
 
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum TreeType {
     #[default]
     Deciduous,
