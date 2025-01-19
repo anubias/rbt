@@ -7,6 +7,10 @@ const DIV: usize = 4;
 
 /// Public trait that players need to implement, in order for the game engine to be able to interact with the player
 pub trait Player {
+    fn initialized(&mut self) -> bool {
+        true
+    }
+
     /// This is the player's turn to fight
     fn act(&mut self, context: &Context) -> Action;
 

@@ -75,21 +75,20 @@ impl World {
         self.process_player_actions(actions)
     }
 
-    pub fn spawn_player(&mut self, player: Box<dyn Player>) {
-        if !player.is_ready() {
-            return;
-        }
-        println!("Player {} is ready for action!", player.name());
+    pub fn spawn_player(&mut self, mut player: Box<dyn Player>) {
+        if player.is_ready() && player.initialized() {
+            println!("Player {} is ready for action!", player.name());
 
-        let player_id = (self.players.len() + 1) as u8;
-        let context = Context::new(
-            player_id,
-            self.get_random_field_location(),
-            self.size.clone(),
-        );
+            let player_id = (self.players.len() + 1) as u8;
+            let context = Context::new(
+                player_id,
+                self.get_random_field_location(),
+                self.size.clone(),
+            );
 
-        if let Some(_) = self.try_set_player_on_cell(context.position(), player_id) {
-            self.players.insert(player_id, (player, context));
+            if let Some(_) = self.try_set_player_on_cell(context.position(), player_id) {
+                self.players.insert(player_id, (player, context));
+            }
         }
     }
 }
