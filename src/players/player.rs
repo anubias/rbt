@@ -7,6 +7,9 @@ const DIV: usize = 4;
 
 /// Public trait that players need to implement, in order for the game engine to be able to interact with the player
 pub trait Player {
+    /// Implement this method if and only if you need to perform expensive and
+    /// potentially failing initialization. The return value indicates the
+    /// initialization state.
     fn initialized(&mut self) -> bool {
         true
     }
