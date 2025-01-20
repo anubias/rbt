@@ -28,6 +28,7 @@ pub trait Player {
 
 /// Represents the context that the game engine is sharing with the player logic with
 /// every interaction.
+#[derive(Debug)]
 pub struct Context {
     player_id: u8,
     health: u8,
@@ -171,7 +172,7 @@ pub enum TreeType {
     Evergreen,
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub enum Action {
     #[default]
     Idle,
@@ -181,7 +182,7 @@ pub enum Action {
     Scan(ScanType),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
@@ -212,11 +213,11 @@ impl Position {
         }
     }
 
-    pub fn manhattan_distance(&self, other: &Position) -> (isize, isize) {
+    pub fn manhattan_distance(&self, other: &Position) -> usize {
         let dx = self.x as isize - other.x as isize;
         let dy = self.y as isize - other.y as isize;
 
-        (dx, dy)
+        (dx.abs() + dy.abs()) as usize
     }
 
     pub fn pythagorean_distance(&self, other: &Position) -> f32 {
@@ -233,12 +234,13 @@ impl std::fmt::Display for Position {
     }
 }
 
+#[derive(Debug)]
 pub enum Direction {
     Forward,
     Backward,
 }
 
-#[derive(Clone, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Orientation {
     #[default]
     North,
@@ -296,16 +298,21 @@ impl Orientation {
     }
 
     pub fn steps_to(&self, other: &Self) -> (Rotation, usize) {
-        let my_index: isize = self.into();
+        let mut my_index: isize = self.into();
         let their_index: isize = other.into();
 
-        let delta = my_index - their_index;
+        if my_index < their_index {
+            my_index += Orientation::get_cardinal_direction_count() as isize;
+        }
+
+        let mut delta = my_index - their_index;
         let rotation = match delta {
-            ..-4 => Rotation::CounterClockwise,
-            -4..=0 => Rotation::Clockwise,
-            1..=4 => Rotation::CounterClockwise,
-            5.. => Rotation::Clockwise,
+            ..4 => Rotation::CounterClockwise,
+            4.. => Rotation::Clockwise,
         };
+        if delta > 4 {
+            delta = delta % 4;
+        }
 
         (rotation, delta as usize)
     }
@@ -358,12 +365,13 @@ impl std::fmt::Display for Orientation {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Rotation {
     Clockwise,
     CounterClockwise,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ScanType {
     Directional(Orientation),
     Omni,
@@ -378,7 +386,7 @@ impl std::fmt::Display for ScanType {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ScanResult {
     pub scan_type: ScanType,
     pub data: Box<[[MapCell; SCANNING_DISTANCE]; SCANNING_DISTANCE]>,
@@ -397,7 +405,7 @@ impl std::fmt::Display for ScanResult {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WorldSize {
     pub x: usize,
     pub y: usize,
@@ -406,5 +414,49 @@ pub struct WorldSize {
 impl std::fmt::Display for WorldSize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}, {})", self.x, self.y)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_position_distance() {
+        let a = Position { x: 2, y: 3 };
+        let b = Position { x: 5, y: 7 };
+
+        let manhattan = a.manhattan_distance(&b);
+        let pythagorean = a.pythagorean_distance(&b);
+
+        assert_eq!(3 + 4, manhattan);
+        assert_eq!(5.0, pythagorean);
+    }
+
+    #[test]
+    fn test_orientation_steps_to() {
+        let a = Orientation::North;
+        let b = Orientation::SouthWest;
+
+        let steps = a.steps_to(&b);
+        assert_eq!((Rotation::CounterClockwise, 3), (steps.0, steps.1));
+
+        let a = Orientation::West;
+        let b = Orientation::North;
+
+        let steps = a.steps_to(&b);
+        assert_eq!((Rotation::Clockwise, 2), (steps.0, steps.1));
+
+        let a = Orientation::North;
+        let b = Orientation::South;
+
+        let steps = a.steps_to(&b);
+        assert_eq!((Rotation::Clockwise, 4), (steps.0, steps.1));
+
+        let a = Orientation::West;
+        let b = Orientation::West;
+
+        let steps = a.steps_to(&b);
+        assert_eq!((Rotation::CounterClockwise, 0), (steps.0, steps.1));
     }
 }
