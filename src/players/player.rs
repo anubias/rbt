@@ -1,3 +1,15 @@
+//! Provides the interfaces necessary to implement a working Rusty Battle Tank
+//!
+//! Every player needs to create their own data structure(s), of which one must
+//! implement the `Player` trait. That trait provides the mechanism necessary
+//! for the RBT game engine to interact with the player, and vice-versa.
+//!
+//! This module also provides a host of useful ancilary data structures, like
+//! `Context`, `MapCell`, `Terrain`, `Position`, `Rotation`, `Direction`,
+//! `Orientation`, etc. The players should check the (free) functionality
+//! offered by these data structures, and avoid re-implementing already
+//! provided behavior.
+
 /// Specifies the maximum horizontal or vertical size of the game map
 pub const MAX_WORLD_SIZE: usize = 64;
 
@@ -5,22 +17,26 @@ pub const MAX_WORLD_SIZE: usize = 64;
 pub const SCANNING_DISTANCE: usize = (MAX_WORLD_SIZE / DIV) - (MAX_WORLD_SIZE / DIV + 1) % 2;
 const DIV: usize = 4;
 
-/// Public trait that players need to implement, in order for the game engine to be able to interact with the player
+/// Public trait that players need to implement, in order for the game engine
+/// to be able to interact with the player.
 pub trait Player {
     /// Implement this method if and only if you need to perform expensive and
-    /// potentially failing initialization. The return value indicates the
-    /// initialization state.
+    /// potentially failing initialization.
+    ///
+    /// The return value should indicate the initialization success.
     fn initialized(&mut self) -> bool {
         true
     }
 
-    /// This is the player's turn to fight
+    /// This is the player's turn to fight.
+    ///
+    /// The changes performed by the game engine are provided in the `context`.
     fn act(&mut self, context: &Context) -> Action;
 
     /// Returns the player's name
     fn name(&self) -> String;
 
-    /// This indicates whether the player is ready to battle
+    /// This indicates whether the player is ready for battle or not.
     fn is_ready(&self) -> bool {
         false
     }
@@ -78,8 +94,8 @@ impl Context {
 
     pub fn rotate(&mut self, rotation: &Rotation) {
         self.orientation = match rotation {
-            Rotation::Clockwise => self.orientation.rotate_clockwise(),
-            Rotation::CounterClockwise => self.orientation.rotate_counter_clockwise(),
+            Rotation::Clockwise => self.orientation.rotated_clockwise(),
+            Rotation::CounterClockwise => self.orientation.rotated_counter_clockwise(),
         }
     }
 
@@ -189,6 +205,10 @@ pub struct Position {
 }
 
 impl Position {
+    /// Follows a "path" from the current Position according to the provided orientation.
+    ///
+    /// It takes into account the provided world size, guaranteeing that the result will
+    /// either be a valid Position within the bounds of the provided world size, or None.
     pub fn follow(&self, orientation: &Orientation, world_size: &WorldSize) -> Option<Self> {
         let (mut x, mut y) = (self.x as isize, self.y as isize);
 
@@ -213,18 +233,36 @@ impl Position {
         }
     }
 
-    pub fn manhattan_distance(&self, other: &Position) -> usize {
+    /// Computes the (x,y) delta between self and the provided `Position`
+    ///
+    /// In other words, this computes the delta between two Positions
+    /// on the X and Y axes separately.
+    ///
+    /// Please note that the distances may be negative.
+    pub fn delta(&self, other: &Position) -> (isize, isize) {
         let dx = self.x as isize - other.x as isize;
         let dy = self.y as isize - other.y as isize;
+
+        (dx, dy)
+    }
+
+    /// Computes the manhattan distance between self and the provided `Position`
+    ///
+    /// The `manhattan distance` is defined as the distance between two points
+    /// that it would take to navigate if one could only travel along the
+    /// x and y axis (ie. not diagonally). Similar to computing the walking
+    /// distance between two points in Manhattan.
+    pub fn manhattan_distance(&self, other: &Position) -> usize {
+        let (dx, dy) = self.delta(other);
 
         (dx.abs() + dy.abs()) as usize
     }
 
+    /// Computes the pythagorean distance between self and the provided `Position`.
     pub fn pythagorean_distance(&self, other: &Position) -> f32 {
-        let dx = self.x as f32 - other.x as f32;
-        let dy = self.y as f32 - other.y as f32;
+        let (dx, dy) = self.delta(other);
 
-        (dx * dx + dy * dy).sqrt()
+        ((dx * dx + dy * dy) as f32).sqrt()
     }
 }
 
@@ -258,7 +296,7 @@ impl Orientation {
         8
     }
 
-    pub fn rotate_clockwise(&self) -> Self {
+    pub fn rotated_clockwise(&self) -> Self {
         match self {
             Self::North => Self::NorthEast,
             Self::NorthEast => Self::East,
@@ -271,7 +309,7 @@ impl Orientation {
         }
     }
 
-    pub fn rotate_counter_clockwise(&self) -> Self {
+    pub fn rotated_counter_clockwise(&self) -> Self {
         match self {
             Self::North => Self::NorthWest,
             Self::NorthWest => Self::West,
@@ -297,12 +335,17 @@ impl Orientation {
         }
     }
 
-    pub fn steps_to(&self, other: &Self) -> (Rotation, usize) {
-        let mut my_index: isize = self.into();
-        let their_index: isize = other.into();
+    /// Computes the fastest way to turn towards a new `Orientation`.
+    ///
+    /// The result is a tuple containing the Rotation and the number of
+    /// steps to repeat the same rotation in order to change orientation
+    /// to the desired one.
+    pub fn quick_turn(&self, other: &Self) -> (Rotation, usize) {
+        let mut my_index: usize = self.into();
+        let their_index: usize = other.into();
 
         if my_index < their_index {
-            my_index += Orientation::get_cardinal_direction_count() as isize;
+            my_index += Orientation::get_cardinal_direction_count() as usize;
         }
 
         let mut delta = my_index - their_index;
@@ -333,7 +376,7 @@ impl From<usize> for Orientation {
     }
 }
 
-impl From<&Orientation> for isize {
+impl From<&Orientation> for usize {
     fn from(value: &Orientation) -> Self {
         match value {
             Orientation::North => 0,
@@ -434,29 +477,29 @@ mod tests {
     }
 
     #[test]
-    fn test_orientation_steps_to() {
+    fn test_orientation_quick_turn() {
         let a = Orientation::North;
         let b = Orientation::SouthWest;
 
-        let steps = a.steps_to(&b);
+        let steps = a.quick_turn(&b);
         assert_eq!((Rotation::CounterClockwise, 3), (steps.0, steps.1));
 
         let a = Orientation::West;
         let b = Orientation::North;
 
-        let steps = a.steps_to(&b);
+        let steps = a.quick_turn(&b);
         assert_eq!((Rotation::Clockwise, 2), (steps.0, steps.1));
 
         let a = Orientation::North;
         let b = Orientation::South;
 
-        let steps = a.steps_to(&b);
+        let steps = a.quick_turn(&b);
         assert_eq!((Rotation::Clockwise, 4), (steps.0, steps.1));
 
         let a = Orientation::West;
         let b = Orientation::West;
 
-        let steps = a.steps_to(&b);
+        let steps = a.quick_turn(&b);
         assert_eq!((Rotation::CounterClockwise, 0), (steps.0, steps.1));
     }
 }
