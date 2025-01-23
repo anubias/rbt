@@ -414,7 +414,7 @@ pub enum Rotation {
     CounterClockwise,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Aiming {
     Positional(Position),
     Cardinal(Orientation),
