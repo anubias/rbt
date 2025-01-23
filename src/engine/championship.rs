@@ -78,7 +78,6 @@ impl Championship {
             Box::new(PlayerOne::new()),
             Box::new(Joonas::new()),
             Box::new(Niemisto::new()),
-            Box::new(Aurelian::new()),
             Box::new(Rahtu::new()),
             Box::new(PlayerTeemu::new()),
             Box::new(Samuli::new()),
