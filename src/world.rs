@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use rand::{rngs::ThreadRng, thread_rng, Rng};
 
 use crate::players::player::{
-    Action, Context, Direction, MapCell, Orientation, Player, Position, Rotation, ScanResult,
-    ScanType, Terrain, TreeType, WorldSize, MAX_WORLD_SIZE, SCANNING_DISTANCE,
+    Action, Aiming, Context, Direction, MapCell, Orientation, Player, Position, Rotation,
+    ScanResult, ScanType, Terrain, TreeType, WorldSize, MAX_WORLD_SIZE, SCANNING_DISTANCE,
 };
 
 const MAX_FIELD_AREA_PERCENTAGE: f32 = 75.0;
@@ -14,13 +14,17 @@ const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.5;
 const DAMAGE_COLLISION_WITH_FOREST: u8 = 25;
 const DAMAGE_COLLISION_WITH_PLAYER: u8 = 10;
 
-type UserId = u8;
-type User = (Box<dyn Player>, Context);
+type PlayerId = u8;
+
+struct Tank {
+    player: Box<dyn Player>,
+    context: Context,
+}
 
 pub struct World {
     rng: ThreadRng,
     size: WorldSize,
-    players: HashMap<UserId, User>,
+    tanks: HashMap<PlayerId, Tank>,
     map: Box<[[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]>,
 }
 
@@ -35,7 +39,7 @@ impl World {
         let mut result = Self {
             rng: thread_rng(),
             size,
-            players: HashMap::new(),
+            tanks: HashMap::new(),
             map: Box::new([[MapCell::Terrain(Terrain::Field); MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
         };
         result.generate_map_border();
@@ -57,10 +61,10 @@ impl World {
     pub fn new_turn(&mut self) {
         let mut actions = Vec::new();
 
-        for (id, (player, context)) in self.players.iter_mut() {
-            if player.is_ready() && context.health() > 0 {
-                let action = player.act(&context);
-                context.set_scanned_data(None);
+        for (id, tank) in self.tanks.iter_mut() {
+            if tank.player.is_ready() && tank.context.health() > 0 {
+                let action = tank.player.act(&tank.context);
+                tank.context.set_scanned_data(None);
                 actions.push((*id, action));
             }
         }
@@ -72,15 +76,15 @@ impl World {
         if player.is_ready() && player.initialized() {
             println!("Player {} is ready for action!", player.name());
 
-            let player_id = (self.players.len() + 1) as u8;
+            let player_id = (self.tanks.len() + 1) as PlayerId;
             let context = Context::new(
                 player_id,
                 self.get_random_field_location(),
                 self.size.clone(),
             );
 
-            if let Some(_) = self.try_set_player_on_cell(context.position(), player_id) {
-                self.players.insert(player_id, (player, context));
+            if let Some(_) = self.try_set_player_on_cell(player_id, context.position()) {
+                self.tanks.insert(player_id, Tank { player, context });
             }
         }
     }
@@ -88,28 +92,25 @@ impl World {
 
 // Private functions
 impl World {
-    fn process_player_actions(&mut self, actions: Vec<(u8, Action)>) {
+    fn process_player_actions(&mut self, actions: Vec<(PlayerId, Action)>) {
         for (player_id, action) in actions.iter() {
-            if let Some((_, context)) = self.players.get(player_id) {
-                let world_size = context.world_size().clone();
+            if let Some(tank) = self.tanks.get(player_id) {
+                let world_size = tank.context.world_size().clone();
                 match action {
                     Action::Idle => {}
                     Action::Fire(_aiming) => {}
                     Action::Move(direction) => {
                         let (from, to) = compute_route(
-                            context.position(),
-                            context.orientation(),
+                            tank.context.position(),
+                            tank.context.orientation(),
                             direction,
-                            context.world_size(),
+                            tank.context.world_size(),
                         );
                         self.move_player(*player_id, &from, &to);
                     }
-                    Action::Rotate(rotation) => {
-                        self.rotate_player(*player_id, rotation);
-                    }
+                    Action::Rotate(rotation) => self.rotate_player(*player_id, rotation),
                     Action::Scan(scan_type) => {
-                        let position = context.position().clone();
-                        self.scan_surroundings(*player_id, scan_type, &position, &world_size);
+                        self.scan_surroundings(*player_id, scan_type, &world_size)
                     }
                 }
             }
@@ -118,15 +119,15 @@ impl World {
         self.clear_dead_players_from_map(actions);
     }
 
-    fn clear_dead_players_from_map(&mut self, actions: Vec<(u8, Action)>) {
+    fn clear_dead_players_from_map(&mut self, actions: Vec<(PlayerId, Action)>) {
         let mut dead_players = Vec::new();
 
         for (player_id, _) in actions {
-            if let Some((_, context)) = self.players.get(&player_id) {
-                if context.health() == 0 {
-                    match self.get_value_from_map(context.position()) {
+            if let Some(tank) = self.tanks.get(&player_id) {
+                if tank.context.health() == 0 {
+                    match self.get_value_from_map(tank.context.position()) {
                         MapCell::Player(_, terrain) => {
-                            dead_players.push((context.position().clone(), terrain));
+                            dead_players.push((tank.context.position().clone(), terrain));
                         }
                         _ => {}
                     }
@@ -139,13 +140,13 @@ impl World {
         }
     }
 
-    fn move_player(&mut self, player_id: u8, from: &Position, to: &Position) {
+    fn move_player(&mut self, player_id: PlayerId, from: &Position, to: &Position) {
         if !self.is_player_at_position(player_id, from) {
             panic!("World map vs player context inconsistency detected while moving a player (player not at expected position)!");
         }
 
-        let can_move = if let Some((_, context)) = self.players.get(&player_id) {
-            context.is_mobile()
+        let can_move = if let Some(tank) = self.tanks.get(&player_id) {
+            tank.context.is_mobile()
         } else {
             false
         };
@@ -154,23 +155,23 @@ impl World {
             let to_cell = self.get_value_from_map(to);
             match to_cell {
                 MapCell::Player(other_id, _) => {
-                    if let Some((_, context)) = self.players.get_mut(&player_id) {
-                        context.damage(DAMAGE_COLLISION_WITH_PLAYER);
+                    if let Some(tank) = self.tanks.get_mut(&player_id) {
+                        tank.context.damage(DAMAGE_COLLISION_WITH_PLAYER);
                     }
-                    if let Some((_, context)) = self.players.get_mut(&other_id) {
-                        context.damage(DAMAGE_COLLISION_WITH_PLAYER);
+                    if let Some(tank) = self.tanks.get_mut(&other_id) {
+                        tank.context.damage(DAMAGE_COLLISION_WITH_PLAYER);
                     }
                 }
                 MapCell::Terrain(_) => {
-                    if let Some(terrain) = self.try_set_player_on_cell(to, player_id) {
+                    if let Some(terrain) = self.try_set_player_on_cell(player_id, to) {
                         self.unset_player_from_cell(from);
 
-                        if let Some((_, context)) = self.players.get_mut(&player_id) {
-                            context.relocate(to, terrain);
+                        if let Some(tank) = self.tanks.get_mut(&player_id) {
+                            tank.context.relocate(to, terrain);
                         }
                     } else {
-                        if let Some((_, context)) = self.players.get_mut(&player_id) {
-                            context.damage(DAMAGE_COLLISION_WITH_FOREST);
+                        if let Some(tank) = self.tanks.get_mut(&player_id) {
+                            tank.context.damage(DAMAGE_COLLISION_WITH_FOREST);
                         }
                     }
                 }
@@ -179,26 +180,29 @@ impl World {
         }
     }
 
-    fn rotate_player(&mut self, player_id: u8, rotation: &Rotation) {
-        if let Some((_, context)) = self.players.get_mut(&player_id) {
-            context.rotate(rotation);
+    fn rotate_player(&mut self, player_id: PlayerId, rotation: &Rotation) {
+        if let Some(tank) = self.tanks.get_mut(&player_id) {
+            tank.context.rotate(rotation);
         }
     }
 
     fn scan_surroundings(
         &mut self,
-        player_id: u8,
+        player_id: PlayerId,
         scan_type: &ScanType,
-        position: &Position,
         world_size: &WorldSize,
     ) {
-        let data = self.read_directional_map_area(scan_type, position, world_size);
-        if let Some((_, context)) = self.players.get_mut(&player_id) {
-            let scan_result = ScanResult {
-                scan_type: scan_type.clone(),
-                data,
-            };
-            context.set_scanned_data(Some(scan_result));
+        if let Some(tank) = self.tanks.get(&player_id) {
+            let position = tank.context.position().clone();
+            let data = self.read_directional_map_area(scan_type, &position, world_size);
+
+            if let Some(tank) = self.tanks.get_mut(&player_id) {
+                let scan_result = ScanResult {
+                    scan_type: scan_type.clone(),
+                    data,
+                };
+                tank.context.set_scanned_data(Some(scan_result));
+            }
         }
     }
 
@@ -338,7 +342,7 @@ impl World {
         }
     }
 
-    fn is_player_at_position(&self, player_id: u8, position: &Position) -> bool {
+    fn is_player_at_position(&self, player_id: PlayerId, position: &Position) -> bool {
         match self.get_value_from_map(position) {
             MapCell::Player(id, _) => player_id == id,
             _ => false,
@@ -356,7 +360,11 @@ impl World {
         }
     }
 
-    fn try_set_player_on_cell(&mut self, position: &Position, player_id: u8) -> Option<Terrain> {
+    fn try_set_player_on_cell(
+        &mut self,
+        player_id: PlayerId,
+        position: &Position,
+    ) -> Option<Terrain> {
         let mut result = None;
         let map_cell = self.get_value_from_map(position);
 
@@ -441,7 +449,7 @@ mod tests {
                 x: MINI_MAP_SIZE,
                 y: MINI_MAP_SIZE,
             },
-            players: HashMap::new(),
+            tanks: HashMap::new(),
             map: Box::new([[MapCell::Terrain(Terrain::Field); MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
         };
 
@@ -555,7 +563,7 @@ mod tests {
         assert!(world.get_value_from_map(&position) == MapCell::Terrain(Terrain::Field));
 
         let player_id = 10;
-        let result = world.try_set_player_on_cell(&position, player_id);
+        let result = world.try_set_player_on_cell(player_id, &position);
         assert!(result.is_some());
     }
 
@@ -571,7 +579,7 @@ mod tests {
         );
 
         let player_id = 10;
-        let result = world.try_set_player_on_cell(&position, player_id);
+        let result = world.try_set_player_on_cell(player_id, &position);
         assert!(result.is_none());
     }
 
@@ -584,7 +592,7 @@ mod tests {
         assert!(world.get_value_from_map(&position) == MapCell::Terrain(Terrain::Lake));
 
         let player_id = 10;
-        let result = world.try_set_player_on_cell(&position, player_id);
+        let result = world.try_set_player_on_cell(player_id, &position);
         assert!(result.is_some());
     }
 
@@ -597,7 +605,7 @@ mod tests {
         assert!(world.get_value_from_map(&position) == MapCell::Terrain(Terrain::Swamp));
 
         let player_id = 10;
-        let result = world.try_set_player_on_cell(&position, player_id);
+        let result = world.try_set_player_on_cell(player_id, &position);
         assert!(result.is_some());
     }
 
@@ -609,7 +617,7 @@ mod tests {
         assert!(world.get_value_from_map(&position) == MapCell::Terrain(Terrain::Field));
 
         let player_id = 10;
-        let result = world.try_set_player_on_cell(&position, player_id);
+        let result = world.try_set_player_on_cell(player_id, &position);
         assert!(result.is_some());
 
         let other_position = Position {
