@@ -16,7 +16,7 @@ impl Luis {
 }
 
 impl Player for Luis {
-    fn act(&mut self, context: &Context) -> Action {
+    fn act(&mut self, context: Context) -> Action {
         // Just scanned
         if let Some(scan_data) = context.scanned_data() {
             // Cache map data (just if uncomplete?)

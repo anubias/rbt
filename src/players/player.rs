@@ -31,7 +31,7 @@ pub trait Player {
     /// This is the player's turn to fight.
     ///
     /// The changes performed by the game engine are provided in the `context`.
-    fn act(&mut self, context: &Context) -> Action;
+    fn act(&mut self, context: Context) -> Action;
 
     /// Returns the player's name
     fn name(&self) -> String;
@@ -44,7 +44,7 @@ pub trait Player {
 
 /// Represents the context that the game engine is sharing with the player logic with
 /// every interaction.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Context {
     player_id: u8,
     health: u8,

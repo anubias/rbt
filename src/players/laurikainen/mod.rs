@@ -17,7 +17,7 @@ pub struct PlayerOne {
 }
 
 impl Player for PlayerOne {
-    fn act(&mut self, context: &Context) -> Action {
+    fn act(&mut self, context: Context) -> Action {
         // handle scanning and firing
 
         let action;

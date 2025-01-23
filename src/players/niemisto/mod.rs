@@ -48,7 +48,7 @@ impl Player for Niemisto {
         self.conn.is_some()
     }
 
-    fn act(&mut self, _context: &Context) -> Action {
+    fn act(&mut self, _context: Context) -> Action {
         if !self.just_fired {
             let mut ch: char = '\0';
 
