@@ -26,9 +26,9 @@ impl Joonas {
 }
 
 impl Player for Joonas {
-    fn act(&mut self, _context: &Context) -> Action {
+    fn act(&mut self, context: Context) -> Action {
         match self.last_action {
-            Action::Scan(_) => self.analyze_scanned_data(_context),
+            Action::Scan(_) => self.analyze_scanned_data(&context),
             // Action::Fire => Action::Scan(ScanType::Directional(self.direction)),
             // Action::Move(dir) => Action
             _ => Action::Scan(ScanType::Omni),

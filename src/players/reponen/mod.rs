@@ -9,7 +9,7 @@ impl Samuli {
 }
 
 impl Player for Samuli {
-    fn act(&mut self, context: &Context) -> Action {
+    fn act(&mut self, context: Context) -> Action {
         match context.position() {
             _ => {}
         }

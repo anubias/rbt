@@ -34,18 +34,18 @@ impl PlAgiAntti {
 }
 
 impl Player for PlAgiAntti {
-    fn act(&mut self, context: &Context) -> Action {
+    fn act(&mut self, context: Context) -> Action {
         // Evaluate the current state
-        let threat_level = self.evaluate_threat(context);
-        let opportunity_level = self.evaluate_opportunity(context);
+        let threat_level = self.evaluate_threat(&context);
+        let opportunity_level = self.evaluate_opportunity(&context);
 
         // Decision tree based on state evaluation
         if threat_level >= opportunity_level {
-            self.defensive_action(context)
+            self.defensive_action(&context)
         } else if opportunity_level > 0 {
-            self.offensive_action(context)
+            self.offensive_action(&context)
         } else {
-            self.exploratory_action(context)
+            self.exploratory_action(&context)
         }
     }
 

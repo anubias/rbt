@@ -11,7 +11,7 @@ impl Es {
 }
 
 impl Player for Es {
-    fn act(&mut self, context: &Context) -> Action {
+    fn act(&mut self, context: Context) -> Action {
         self.iteration += 1;
 
         if self.iteration == 1 {

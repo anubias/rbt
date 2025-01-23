@@ -9,7 +9,7 @@ impl PlayerTeemu {
 }
 
 impl Player for PlayerTeemu {
-    fn act(&mut self, context: &Context) -> Action {
+    fn act(&mut self, context: Context) -> Action {
         //Scan environmen
         //Move forward until hitting obstacle or other player
 

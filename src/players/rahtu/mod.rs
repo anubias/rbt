@@ -124,8 +124,8 @@ impl Rahtu {
 }
 
 impl Player for Rahtu {
-    fn act(&mut self, context: &Context) -> Action {
-        self.update_map(context);
+    fn act(&mut self, context: Context) -> Action {
+        self.update_map(&context);
         // println(context);
         match context.position() {
             _ => {}

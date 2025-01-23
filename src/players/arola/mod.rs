@@ -9,7 +9,7 @@ impl Arola {
 }
 
 impl Player for Arola {
-    fn act(&mut self, context: &Context) -> Action {
+    fn act(&mut self, context: Context) -> Action {
         match context.scanned_data() {
             None => Action::Scan(ScanType::Directional(context.orientation().clone())),
             Some(scan_data) => get_moving_action(scan_data, context.orientation()),

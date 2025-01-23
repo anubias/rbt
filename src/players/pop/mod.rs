@@ -13,7 +13,7 @@ impl Aurelian {
 impl Aurelian {}
 
 impl Player for Aurelian {
-    fn act(&mut self, _context: &Context) -> Action {
+    fn act(&mut self, _context: Context) -> Action {
         Action::default()
     }
 

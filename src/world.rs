@@ -63,7 +63,7 @@ impl World {
 
         for (id, tank) in self.tanks.iter_mut() {
             if tank.player.is_ready() && tank.context.health() > 0 {
-                let action = tank.player.act(&tank.context);
+                let action = tank.player.act(tank.context.clone());
                 tank.context.set_scanned_data(None);
                 actions.push((*id, action));
             }
