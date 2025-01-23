@@ -71,7 +71,7 @@ impl Player for Niemisto {
                     Orientation::NorthWest => rot = Rotation::Clockwise,
                 }
             }
-            return Action::Fire;
+            return Action::Fire(Aiming::default());
         } else {
             self.just_fired = false;
             return Action::Rotate(Rotation::Clockwise);

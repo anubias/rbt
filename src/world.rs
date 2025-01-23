@@ -93,6 +93,8 @@ impl World {
             if let Some((_, context)) = self.players.get(player_id) {
                 let world_size = context.world_size().clone();
                 match action {
+                    Action::Idle => {}
+                    Action::Fire(_aiming) => {}
                     Action::Move(direction) => {
                         let (from, to) = compute_route(
                             context.position(),
@@ -109,7 +111,6 @@ impl World {
                         let position = context.position().clone();
                         self.scan_surroundings(*player_id, scan_type, &position, &world_size);
                     }
-                    _ => {}
                 }
             }
         }

@@ -24,7 +24,7 @@ impl PlAgiAntti {
 
     fn offensive_action(&self, _context: &Context) -> Action {
         // TODO: Implement logic for offensive actions
-        Action::Fire
+        Action::Fire(Aiming::Cardinal(Orientation::default()))
     }
 
     fn exploratory_action(&self, _context: &Context) -> Action {

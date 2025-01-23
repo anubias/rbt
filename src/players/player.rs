@@ -192,7 +192,7 @@ pub enum TreeType {
 pub enum Action {
     #[default]
     Idle,
-    Fire,
+    Fire(Aiming),
     Move(Direction),
     Rotate(Rotation),
     Scan(ScanType),
@@ -412,6 +412,18 @@ impl std::fmt::Display for Orientation {
 pub enum Rotation {
     Clockwise,
     CounterClockwise,
+}
+
+#[derive(Debug)]
+pub enum Aiming {
+    Positional(Position),
+    Cardinal(Orientation),
+}
+
+impl Default for Aiming {
+    fn default() -> Self {
+        Aiming::Cardinal(Orientation::default())
+    }
 }
 
 #[derive(Clone, Debug)]

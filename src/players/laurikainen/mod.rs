@@ -27,7 +27,7 @@ impl Player for PlayerOne {
         if self.should_move() {
             action = self.handle_movement();
         } else {
-            action = Action::Fire;
+            action = Action::Fire(Aiming::default());
         }
 
         self.last_scan = None;
@@ -72,7 +72,7 @@ impl PlayerOne {
         {
             action = self.rotate_to(first_orientation_with_player, context);
             if action.is_none() {
-                action = Some(Action::Fire)
+                action = Some(Action::Fire(Aiming::default()))
             }
         }
 
@@ -188,7 +188,7 @@ impl PlayerOne {
         let rotate_prob = match self.last_action {
             Action::Idle => default_prob,
             Action::Move(_) => default_prob,
-            Action::Fire => 0.5,
+            Action::Fire(_) => 0.5,
             Action::Rotate(_) => default_prob / 2.,
             Action::Scan(_) => default_prob,
         };
