@@ -79,8 +79,4 @@ impl Player for Es {
     fn name(&self) -> String {
         "ES".to_string()
     }
-
-    fn is_ready(&self) -> bool {
-        true
-    }
 }

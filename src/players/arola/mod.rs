@@ -19,10 +19,6 @@ impl Player for Arola {
     fn name(&self) -> String {
         "Arola".to_string()
     }
-
-    fn is_ready(&self) -> bool {
-        true
-    }
 }
 
 fn get_moving_action(scan_data: &ScanResult, heading: &Orientation) -> Action {

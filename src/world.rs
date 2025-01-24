@@ -88,6 +88,17 @@ impl World {
             }
         }
     }
+
+    #[allow(dead_code)]
+    pub fn get_players(&self) -> Vec<&Box<dyn Player>> {
+        let mut result = Vec::new();
+
+        for tank in self.tanks.values() {
+            result.push(&tank.player);
+        }
+
+        result
+    }
 }
 
 // Private functions

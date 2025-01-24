@@ -65,8 +65,4 @@ impl Player for Luis {
     fn name(&self) -> String {
         "LPlayer".to_string()
     }
-
-    fn is_ready(&self) -> bool {
-        true
-    }
 }

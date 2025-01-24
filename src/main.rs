@@ -72,3 +72,18 @@ fn game_loop(mut world: Box<World>) -> ! {
         world.new_turn();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_no_player_is_ready() {
+        let mut world = World::new(WorldSize { x: 10, y: 10 });
+        spawn_players(&mut world);
+
+        for player in world.get_players() {
+            assert!(!player.is_ready());
+        }
+    }
+}
