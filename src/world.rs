@@ -21,9 +21,30 @@ struct Tank {
     context: Context,
 }
 
+struct Avatars {
+    icons: Vec<char>,
+}
+
+impl Avatars {
+    fn new() -> Self {
+        Self {
+            icons: vec![
+                '🙂', '🤖', '🤡', '😈', '🤬', '👽', '👹', '🎃', '🐸', '🦁', '🦊', '🐷', '🐭', '🐼',
+                '🐺',
+            ],
+        }
+    }
+
+    fn get_icon(&self, player_id: u8) -> char {
+        let index = player_id as usize - 1;
+        *self.icons.get(index as usize).unwrap_or(&'👶')
+    }
+}
+
 pub struct World {
     rng: ThreadRng,
     size: WorldSize,
+    avatars: Avatars,
     tanks: HashMap<PlayerId, Tank>,
     map: Box<[[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]>,
 }
@@ -39,6 +60,7 @@ impl World {
         let mut result = Self {
             rng: thread_rng(),
             size,
+            avatars: Avatars::new(),
             tanks: HashMap::new(),
             map: Box::new([[MapCell::Terrain(Terrain::Field); MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
         };
@@ -137,7 +159,7 @@ impl World {
             if let Some(tank) = self.tanks.get(&player_id) {
                 if tank.context.health() == 0 {
                     match self.get_value_from_map(tank.context.position()) {
-                        MapCell::Player(_, terrain) => {
+                        MapCell::Player(_, _, terrain) => {
                             dead_players.push((tank.context.position().clone(), terrain));
                         }
                         _ => {}
@@ -165,7 +187,7 @@ impl World {
         if can_move {
             let to_cell = self.get_value_from_map(to);
             match to_cell {
-                MapCell::Player(other_id, _) => {
+                MapCell::Player(other_id, _, _) => {
                     if let Some(tank) = self.tanks.get_mut(&player_id) {
                         tank.context.damage(DAMAGE_COLLISION_WITH_PLAYER);
                     }
@@ -355,7 +377,7 @@ impl World {
 
     fn is_player_at_position(&self, player_id: PlayerId, position: &Position) -> bool {
         match self.get_value_from_map(position) {
-            MapCell::Player(id, _) => player_id == id,
+            MapCell::Player(id, _, _) => player_id == id,
             _ => false,
         }
     }
@@ -364,7 +386,7 @@ impl World {
         let map_cell = self.get_value_from_map(position);
 
         match map_cell {
-            MapCell::Player(_, terrain) => {
+            MapCell::Player(_, _, terrain) => {
                 self.set_value_on_map(position, MapCell::Terrain(terrain))
             }
             _ => {}
@@ -382,7 +404,14 @@ impl World {
         match map_cell {
             MapCell::Terrain(terrain) => match terrain {
                 Terrain::Field | Terrain::Lake | Terrain::Swamp => {
-                    self.set_value_on_map(position, MapCell::Player(player_id, terrain.clone()));
+                    self.set_value_on_map(
+                        position,
+                        MapCell::Player(
+                            player_id,
+                            self.avatars.get_icon(player_id),
+                            terrain.clone(),
+                        ),
+                    );
                     result = Some(terrain.clone());
                 }
                 _ => {}
@@ -460,6 +489,7 @@ mod tests {
                 x: MINI_MAP_SIZE,
                 y: MINI_MAP_SIZE,
             },
+            avatars: Avatars::new(),
             tanks: HashMap::new(),
             map: Box::new([[MapCell::Terrain(Terrain::Field); MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
         };

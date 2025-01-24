@@ -34,7 +34,7 @@ fn get_moving_action(scan_data: &ScanResult, heading: &Orientation) -> Action {
     };
 
     match front_cell {
-        MapCell::Player(_, _) => Action::Move(Direction::Forward), // Crash to the other player
+        MapCell::Player(_, _, _) => Action::Move(Direction::Forward), // Crash to the other player
         MapCell::Terrain(Terrain::Field) => Action::Move(Direction::Forward),
         MapCell::Terrain(_) => Action::Rotate(Rotation::Clockwise),
         MapCell::Unknown => Action::Idle,

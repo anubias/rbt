@@ -144,7 +144,7 @@ impl std::fmt::Display for Context {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum MapCell {
-    Player(u8, Terrain),
+    Player(u8, char, Terrain),
     Terrain(Terrain),
     #[default]
     Unknown,
@@ -153,9 +153,9 @@ pub enum MapCell {
 impl std::fmt::Display for MapCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Player(_, _) => write!(f, "🪖"), // 🪖
+            Self::Player(_, avatar, _) => write!(f, "{avatar}"),
             Self::Terrain(t) => write!(f, "{t}"),
-            Self::Unknown => write!(f, "⬛"), // "", ⬛
+            Self::Unknown => write!(f, "⬛"),
         }
     }
 }
@@ -176,7 +176,7 @@ impl std::fmt::Display for Terrain {
             Self::Lake => write!(f, "🟦"),
             Self::Forest(TreeType::Deciduous) => write!(f, "🌳"),
             Self::Forest(TreeType::Evergreen) => write!(f, "🌲"),
-            Self::Swamp => write!(f, "⬜"),
+            Self::Swamp => write!(f, "🟫"),
         }
     }
 }
