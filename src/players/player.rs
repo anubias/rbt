@@ -42,34 +42,47 @@ pub trait Player {
     }
 }
 
+/// Defines the player id type
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct PlayerId {
+    pub avatar: char,
+    pub id: usize,
+}
+
+impl PlayerId {
+    pub fn new(avatar: char, id: usize) -> Self {
+        Self { avatar, id }
+    }
+}
+
 /// Represents the context that the game engine is sharing with the player logic with
 /// every interaction.
 #[derive(Clone, Debug)]
 pub struct Context {
-    player_id: u8,
     health: u8,
     mobile: bool,
-    position: Position,
     orientation: Orientation,
+    player_id: PlayerId,
+    position: Position,
     scan: Option<ScanResult>,
     world_size: WorldSize,
 }
 
 impl Context {
-    pub fn new(player_id: u8, position: Position, world_size: WorldSize) -> Self {
+    pub fn new(player_id: PlayerId, position: Position, world_size: WorldSize) -> Self {
         Self {
-            player_id,
             health: 100,
             mobile: true,
-            position,
             orientation: Orientation::default(),
+            player_id,
+            position,
             scan: None,
             world_size,
         }
     }
 
-    pub fn player_id(&self) -> u8 {
-        self.player_id
+    pub fn damage(&mut self, damage: u8) {
+        self.health -= self.health.min(damage);
     }
 
     pub fn health(&self) -> u8 {
@@ -80,27 +93,16 @@ impl Context {
         self.mobile
     }
 
-    pub fn position(&self) -> &Position {
-        &self.position
-    }
-
     pub fn orientation(&self) -> &Orientation {
         &self.orientation
     }
 
-    pub fn world_size(&self) -> &WorldSize {
-        &self.world_size
+    pub fn player_id(&self) -> PlayerId {
+        self.player_id.clone()
     }
 
-    pub fn rotate(&mut self, rotation: &Rotation) {
-        self.orientation = match rotation {
-            Rotation::Clockwise => self.orientation.rotated_clockwise(),
-            Rotation::CounterClockwise => self.orientation.rotated_counter_clockwise(),
-        }
-    }
-
-    pub fn damage(&mut self, damage: u8) {
-        self.health -= self.health.min(damage);
+    pub fn position(&self) -> &Position {
+        &self.position
     }
 
     pub fn relocate(&mut self, new_position: &Position, walk_on: Terrain) -> bool {
@@ -115,12 +117,23 @@ impl Context {
         true
     }
 
+    pub fn rotate(&mut self, rotation: &Rotation) {
+        self.orientation = match rotation {
+            Rotation::Clockwise => self.orientation.rotated_clockwise(),
+            Rotation::CounterClockwise => self.orientation.rotated_counter_clockwise(),
+        }
+    }
+
     pub fn scanned_data(&self) -> &Option<ScanResult> {
         &self.scan
     }
 
     pub fn set_scanned_data(&mut self, scan: Option<ScanResult>) {
         self.scan = scan;
+    }
+
+    pub fn world_size(&self) -> &WorldSize {
+        &self.world_size
     }
 }
 
@@ -144,7 +157,7 @@ impl std::fmt::Display for Context {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum MapCell {
-    Player(u8, char, Terrain),
+    Player(PlayerId, Terrain),
     Terrain(Terrain),
     #[default]
     Unknown,
@@ -153,7 +166,7 @@ pub enum MapCell {
 impl std::fmt::Display for MapCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Player(_, avatar, _) => write!(f, "{avatar}"),
+            Self::Player(player_id, _) => write!(f, "{}", player_id.avatar),
             Self::Terrain(t) => write!(f, "{t}"),
             Self::Unknown => write!(f, "⬛"),
         }

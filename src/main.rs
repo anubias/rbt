@@ -6,70 +6,90 @@ mod world;
 use std::time::Duration;
 
 use players::{
-    alvarez::Luis, armholt::Swede, arola::Arola, laurikainen::PlayerOne, moykkynen::Joonas,
-    niemisto::Niemisto, player::WorldSize, pop::Aurelian, rahtu::Rahtu, rantala::PlayerTeemu,
-    reponen::Samuli, salonen::Es, siimesjarvi::Siimesjarvi, terava::PlAgiAntti,
+    alvarez::Luis,
+    armholt::Swede,
+    arola::Arola,
+    laurikainen::PlayerOne,
+    moykkynen::Joonas,
+    niemisto::Niemisto,
+    player::{Player, WorldSize},
+    pop::Aurelian,
+    rahtu::Rahtu,
+    rantala::PlayerTeemu,
+    reponen::Samuli,
+    salonen::Es,
+    siimesjarvi::Siimesjarvi,
+    terava::PlAgiAntti,
 };
 use world::World;
 
-fn main() {
-    let mut world = World::new(WorldSize { x: 60, y: 30 });
+const AVATARS: [char; 18] = [
+    '🙂', '😈', '👽', '🤡', '🤖', '🎃', '🐵', '🐶', '🐱', '🦁', '🐺', '🐻', '🐼', '🦊', '🐷', '🐰',
+    '🐭', '🐸',
+];
+const DEFAULT_AVATAR: char = '👶';
 
-    spawn_players(&mut world);
-    game_loop(world)
+fn main() {
+    let mut game = Game::new();
+    spawn_players(&mut game);
+    game.main_loop();
 }
 
-fn spawn_players(world: &mut Box<World>) {
+fn spawn_players(game: &mut Game) {
     println!("Spawning players...");
 
-    let alvarez = Box::new(Luis::new());
-    world.spawn_player(alvarez);
-
-    let armholt = Box::new(Swede::new());
-    world.spawn_player(armholt);
-
-    let arola = Box::new(Arola::new());
-    world.spawn_player(arola);
-
-    let laurikainen = Box::new(PlayerOne::new());
-    world.spawn_player(laurikainen);
-
-    let moykkynen = Box::new(Joonas::new());
-    world.spawn_player(moykkynen);
-
-    let niemisto = Box::new(Niemisto::new());
-    world.spawn_player(niemisto);
-
-    let pop = Box::new(Aurelian::new());
-    world.spawn_player(pop);
-
-    let rahtu = Box::new(Rahtu::new());
-    world.spawn_player(rahtu);
-
-    let rantala = Box::new(PlayerTeemu::new());
-    world.spawn_player(rantala);
-
-    let reponen = Box::new(Samuli::new());
-    world.spawn_player(reponen);
-
-    let salonen = Box::new(Es::new());
-    world.spawn_player(salonen);
-
-    let sjarvi = Box::new(Siimesjarvi::new());
-    world.spawn_player(sjarvi);
-
-    let terava = Box::new(PlAgiAntti::new());
-    world.spawn_player(terava);
+    game.spawn_single_player(Box::new(Luis::new()));
+    game.spawn_single_player(Box::new(Swede::new()));
+    game.spawn_single_player(Box::new(Arola::new()));
+    game.spawn_single_player(Box::new(PlayerOne::new()));
+    game.spawn_single_player(Box::new(Joonas::new()));
+    game.spawn_single_player(Box::new(Niemisto::new()));
+    game.spawn_single_player(Box::new(Aurelian::new()));
+    game.spawn_single_player(Box::new(Rahtu::new()));
+    game.spawn_single_player(Box::new(PlayerTeemu::new()));
+    game.spawn_single_player(Box::new(Samuli::new()));
+    game.spawn_single_player(Box::new(Es::new()));
+    game.spawn_single_player(Box::new(Siimesjarvi::new()));
+    game.spawn_single_player(Box::new(PlAgiAntti::new()));
 
     println!("Players spawned.");
 }
 
-fn game_loop(mut world: Box<World>) -> ! {
-    loop {
-        println!("{world}");
-        std::thread::sleep(Duration::from_millis(100));
+fn avatar(player_id: usize) -> char {
+    let index = player_id - 1;
+    if index >= AVATARS.len() {
+        DEFAULT_AVATAR
+    } else {
+        AVATARS[index]
+    }
+}
 
-        world.new_turn();
+struct Game {
+    player_count: usize,
+    world: Box<World>,
+}
+
+impl Game {
+    fn new() -> Self {
+        Self {
+            player_count: 0,
+            world: Box::new(World::new(WorldSize { x: 60, y: 30 })),
+        }
+    }
+
+    fn spawn_single_player(&mut self, player: Box<dyn Player>) {
+        self.player_count += 1;
+
+        self.world.spawn_player(player, avatar(self.player_count));
+    }
+
+    fn main_loop(&mut self) -> ! {
+        loop {
+            println!("{}", self.world);
+            std::thread::sleep(Duration::from_millis(100));
+
+            self.world.new_turn();
+        }
     }
 }
 
@@ -79,11 +99,9 @@ mod tests {
 
     #[test]
     fn test_no_player_is_ready() {
-        let mut world = World::new(WorldSize { x: 10, y: 10 });
-        spawn_players(&mut world);
+        let mut game = Game::new();
+        spawn_players(&mut game);
 
-        for player in world.get_players() {
-            assert!(!player.is_ready());
-        }
+        assert!(!game.world.has_ready_players());
     }
 }

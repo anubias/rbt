@@ -50,7 +50,7 @@ impl Rahtu {
                                 MapCell::Terrain(Terrain::Field) => {
                                     self.sensor_data[global_x][global_y] = SensorData::Empty
                                 }
-                                MapCell::Player(_, _, _) => {
+                                MapCell::Player(_, _) => {
                                     self.sensor_data[global_x][global_y] = SensorData::NotScanned
                                 }
 
