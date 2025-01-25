@@ -152,7 +152,7 @@ impl PlayerOne {
                 {
                     let cell = scanned_map[new_y as usize][new_x as usize];
                     match cell {
-                        MapCell::Player(_, _, _) => {
+                        MapCell::Player(_, _) => {
                             with_players.insert(orientation);
                         }
                         MapCell::Unknown => {
@@ -178,7 +178,7 @@ impl PlayerOne {
         match cell {
             MapCell::Terrain(Terrain::Field) => true,
             MapCell::Terrain(_) => false,
-            MapCell::Player(_, _, _) => false,
+            MapCell::Player(_, _) => false,
             MapCell::Unknown => false,
         }
     }
