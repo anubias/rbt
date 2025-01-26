@@ -337,7 +337,7 @@ impl World {
 
         // remember that position (x,y) and arrays have the axis switched up
         let (start_j, start_i) = match scan_type {
-            ScanType::Directional(orientation) => match orientation {
+            ScanType::Mono(orientation) => match orientation {
                 Orientation::North => (pos_x - dist / 2, pos_y - dist + 1),
                 Orientation::NorthEast => (pos_x, pos_y - dist + 1),
                 Orientation::East => (pos_x, pos_y - dist / 2),

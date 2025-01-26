@@ -43,7 +43,7 @@ pub trait Player {
 }
 
 /// Defines the player id type
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PlayerId {
     pub avatar: char,
     pub id: usize,
@@ -55,9 +55,15 @@ impl PlayerId {
     }
 }
 
+impl std::fmt::Display for PlayerId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{id: {}, avatar: {}}}", self.id, self.avatar)
+    }
+}
+
 /// Represents the context that the game engine is sharing with the player logic with
 /// every interaction.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Context {
     health: u8,
     mobile: bool,
@@ -139,23 +145,22 @@ impl Context {
 
 impl std::fmt::Display for Context {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(scan) = &self.scan {
-            write!(
-                f,
-                "{{health={}, position={}, orientation=\"{}\", scanned_data={}}}",
-                self.health, self.position, self.orientation, scan
+        let text = if let Some(_) = &self.scan {
+            format!(
+                "{{\n   player_id: {},\n   health: {},\n   mobile: {},\n   orientation: \"{}\",\n   position: {},\n   scanned_data: present\n}}",
+                self.player_id, self.health, self.mobile, self.orientation, self.position
             )
         } else {
-            write!(
-                f,
-                "{{health={}, position={}, orientation=\"{}\"}}",
-                self.health, self.position, self.orientation,
+            format!(
+                "{{\n   player_id: {},\n   health: {},\n   mobile: {},\n   orientation: \"{}\",\n   position: {},\n   scanned_data: absent\n}}",
+                self.player_id, self.health, self.mobile, self.orientation, self.position,
             )
-        }
+        };
+        write!(f, "{text}")
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MapCell {
     Player(PlayerId, Terrain),
     Terrain(Terrain),
@@ -173,7 +178,7 @@ impl std::fmt::Display for MapCell {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Terrain {
     #[default]
     Field,
@@ -194,14 +199,14 @@ impl std::fmt::Display for Terrain {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TreeType {
     #[default]
     Deciduous,
     Evergreen,
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Action {
     #[default]
     Idle,
@@ -211,7 +216,21 @@ pub enum Action {
     Scan(ScanType),
 }
 
-#[derive(Clone, Debug)]
+impl std::fmt::Display for Action {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let text = match self {
+            Action::Idle => "Idle".to_string(),
+            Action::Fire(a) => format!("Fire({a})"),
+            Action::Move(d) => format!("Move({d})"),
+            Action::Rotate(r) => format!("Rotate({r})"),
+            Action::Scan(s) => format!("Scan({s})"),
+        };
+
+        write!(f, "{text}")
+    }
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
@@ -281,17 +300,28 @@ impl Position {
 
 impl std::fmt::Display for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[x={}, y={}]", self.x, self.y)
+        write!(f, "[x: {}, y: {}]", self.x, self.y)
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Direction {
+    #[default]
     Forward,
     Backward,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+impl std::fmt::Display for Direction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let text = match self {
+            Direction::Forward => "Forward",
+            Direction::Backward => "Backward",
+        };
+        write!(f, "{text}")
+    }
+}
+
+#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Orientation {
     #[default]
     North,
@@ -421,13 +451,24 @@ impl std::fmt::Display for Orientation {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Rotation {
+    #[default]
     Clockwise,
     CounterClockwise,
 }
 
-#[derive(Clone, Debug)]
+impl std::fmt::Display for Rotation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let text = match self {
+            Rotation::Clockwise => "Clockwise",
+            Rotation::CounterClockwise => "Counter-Clockwise",
+        };
+        write!(f, "{text}")
+    }
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Aiming {
     Positional(Position),
     Cardinal(Orientation),
@@ -439,22 +480,34 @@ impl Default for Aiming {
     }
 }
 
-#[derive(Clone, Debug)]
+impl std::fmt::Display for Aiming {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let text = match self {
+            Aiming::Positional(p) => format!("Positional({})", p),
+            Aiming::Cardinal(o) => format!("Cardinal({})", o),
+        };
+        write!(f, "{}", text)
+    }
+}
+
+#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ScanType {
-    Directional(Orientation),
+    Mono(Orientation),
+    #[default]
     Omni,
 }
 
 impl std::fmt::Display for ScanType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Directional(o) => write!(f, "directional({o})"),
-            Self::Omni => write!(f, "omni"),
-        }
+        let text = match self {
+            Self::Mono(o) => format!("Mono({o})"),
+            Self::Omni => "Omni".to_string(),
+        };
+        write!(f, "{text}")
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ScanResult {
     pub scan_type: ScanType,
     pub data: Box<[[MapCell; SCANNING_DISTANCE]; SCANNING_DISTANCE]>,
@@ -462,9 +515,9 @@ pub struct ScanResult {
 
 impl std::fmt::Display for ScanResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{{\nscan_type:{},\ndata:", self.scan_type)?;
+        writeln!(f, "{{scan_type: {},   data:", self.scan_type)?;
         for i in 0..SCANNING_DISTANCE {
-            write!(f, "\n")?;
+            write!(f, "\n      ")?;
             for j in 0..SCANNING_DISTANCE {
                 write!(f, "{}", self.data[i][j])?;
             }
@@ -473,7 +526,7 @@ impl std::fmt::Display for ScanResult {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct WorldSize {
     pub x: usize,
     pub y: usize,
@@ -481,7 +534,7 @@ pub struct WorldSize {
 
 impl std::fmt::Display for WorldSize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {})", self.x, self.y)
+        write!(f, "(width={}, height={})", self.x, self.y)
     }
 }
 

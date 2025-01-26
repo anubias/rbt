@@ -77,7 +77,7 @@ impl Player for Niemisto {
             return Action::Rotate(Rotation::Clockwise);
         }
         //return Action::Move(Direction::Forward);
-        return Action::Scan(ScanType::Directional(Orientation::NorthEast));
+        return Action::Scan(ScanType::Mono(Orientation::NorthEast));
     }
 
     fn name(&self) -> String {

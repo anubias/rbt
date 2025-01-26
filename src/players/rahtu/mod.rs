@@ -28,7 +28,7 @@ impl Rahtu {
     fn update_map(&mut self, context: &Context) {
         if let Some(scanned_data) = context.scanned_data() {
             match scanned_data.scan_type {
-                ScanType::Directional(_) => todo!(),
+                ScanType::Mono(_) => todo!(),
                 ScanType::Omni => {
                     for x in 0..SCANNING_DISTANCE {
                         if x < SCANNING_DISTANCE / 2 || x + SCANNING_DISTANCE / 2 > MAX_WORLD_SIZE {

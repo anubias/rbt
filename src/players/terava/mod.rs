@@ -29,7 +29,7 @@ impl PlAgiAntti {
 
     fn exploratory_action(&self, _context: &Context) -> Action {
         // TODO: Implement logic for exploratory actions
-        Action::Scan(ScanType::Directional(Orientation::East))
+        Action::Scan(ScanType::Mono(Orientation::East))
     }
 }
 
