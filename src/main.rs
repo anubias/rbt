@@ -86,7 +86,7 @@ impl Game {
     fn main_loop(&mut self) -> ! {
         loop {
             println!("{}", self.world);
-            std::thread::sleep(Duration::from_millis(100));
+            std::thread::sleep(Duration::from_millis(1000));
 
             self.world.new_turn();
         }
