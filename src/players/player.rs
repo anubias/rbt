@@ -67,6 +67,7 @@ impl std::fmt::Display for PlayerId {
 pub struct Context {
     health: u8,
     mobile: bool,
+    previous_action: Action,
     orientation: Orientation,
     player_id: PlayerId,
     position: Position,
@@ -79,6 +80,7 @@ impl Context {
         Self {
             health: 100,
             mobile: true,
+            previous_action: Action::default(),
             orientation: Orientation::default(),
             player_id,
             position,
@@ -88,7 +90,7 @@ impl Context {
     }
 
     pub fn damage(&mut self, damage: u8) {
-        self.health -= self.health.min(damage);
+        self.health = self.health.saturating_sub(damage);
     }
 
     pub fn health(&self) -> u8 {
@@ -99,19 +101,23 @@ impl Context {
         self.mobile
     }
 
+    pub fn previous_action(&self) -> &Action {
+        &self.previous_action
+    }
+
     pub fn orientation(&self) -> &Orientation {
         &self.orientation
     }
 
-    pub fn player_id(&self) -> PlayerId {
-        self.player_id.clone()
+    pub fn player_id(&self) -> &PlayerId {
+        &self.player_id
     }
 
     pub fn position(&self) -> &Position {
         &self.position
     }
 
-    pub fn relocate(&mut self, new_position: &Position, walk_on: Terrain) -> bool {
+    pub fn relocate(&mut self, new_position: &Position, walk_on: Terrain) {
         self.position = new_position.clone();
 
         match walk_on {
@@ -119,8 +125,6 @@ impl Context {
             Terrain::Swamp => self.mobile = false,
             _ => {}
         }
-
-        true
     }
 
     pub fn rotate(&mut self, rotation: &Rotation) {
@@ -132,6 +136,10 @@ impl Context {
 
     pub fn scanned_data(&self) -> &Option<ScanResult> {
         &self.scan
+    }
+
+    pub fn set_previous_action(&mut self, action: Action) {
+        self.previous_action = action
     }
 
     pub fn set_scanned_data(&mut self, scan: Option<ScanResult>) {
@@ -147,13 +155,13 @@ impl std::fmt::Display for Context {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = if let Some(_) = &self.scan {
             format!(
-                "{{\n   player_id: {},\n   health: {},\n   mobile: {},\n   orientation: \"{}\",\n   position: {},\n   scanned_data: present\n}}",
-                self.player_id, self.health, self.mobile, self.orientation, self.position
+                "{{\n   player_id: {},\n   health: {},\n   mobile: {},\n   previous_action: \"{}\",   orientation: \"{}\",\n   position: {},\n   scanned_data: present\n}}",
+                self.player_id, self.health, self.mobile, self.previous_action, self.orientation, self.position
             )
         } else {
             format!(
-                "{{\n   player_id: {},\n   health: {},\n   mobile: {},\n   orientation: \"{}\",\n   position: {},\n   scanned_data: absent\n}}",
-                self.player_id, self.health, self.mobile, self.orientation, self.position,
+                "{{\n   player_id: {},\n   health: {},\n   mobile: {},\n   previous_action: \"{}\",   orientation: \"{}\",\n   position: {},\n   scanned_data: absent\n}}",
+                self.player_id, self.health, self.mobile, self.previous_action, self.orientation, self.position,
             )
         };
         write!(f, "{text}")
