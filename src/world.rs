@@ -598,12 +598,21 @@ impl std::fmt::Display for World {
             } else if i >= offset && i < offset + tanks.len() {
                 if let Some(&tank) = tanks.get(i - offset) {
                     line = format!(
-                        "{line}   {}: {}\t({}%, {})",
+                        "{line}   {}: {}",
                         tank.context.player_id().avatar,
                         tank.player.name(),
+                    );
+                    let name = tank.player.name();
+                    line = match name.chars().count() {
+                        0..9 => format!("{line}\t\t\t"),
+                        9..17 => format!("{line}\t\t"),
+                        17.. => format!("{line}\t"),
+                    };
+                    line = format!(
+                        "{line}({}%, {})",
                         tank.context.health(),
                         tank.context.previous_action()
-                    );
+                    )
                 }
             }
 
