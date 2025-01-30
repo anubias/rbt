@@ -10,12 +10,20 @@
 //! offered by these data structures, and avoid re-implementing already
 //! provided behavior.
 
+use crate::DEAD_AVATAR;
+
 /// Specifies the maximum horizontal or vertical size of the game map
 pub const MAX_WORLD_SIZE: usize = 64;
 
 /// Specifies the size of the scanning data array. It should always be an odd number.
 pub const SCANNING_DISTANCE: usize = (MAX_WORLD_SIZE / DIV) - (MAX_WORLD_SIZE / DIV + 1) % 2;
 const DIV: usize = 4;
+
+/// Specifies the maximum range of a cardinal attack
+pub const CARDINAL_SHOT_DISTANCE: usize = SCANNING_DISTANCE - 1;
+
+/// Specifies the maximum range of a positional attack
+pub const POSITIONAL_SHOT_DISTANCE: usize = CARDINAL_SHOT_DISTANCE / 2 - 1;
 
 /// Public trait that players need to implement, in order for the game engine
 /// to be able to interact with the player.
@@ -91,6 +99,9 @@ impl Context {
 
     pub fn damage(&mut self, damage: u8) {
         self.health = self.health.saturating_sub(damage);
+        if self.health == 0 {
+            self.player_id.avatar = DEAD_AVATAR;
+        }
     }
 
     pub fn health(&self) -> u8 {
@@ -180,7 +191,7 @@ impl std::fmt::Display for MapCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Player(player_id, _) => write!(f, "{}", player_id.avatar),
-            Self::Terrain(t) => write!(f, "{t}"),
+            Self::Terrain(t) => write!(f, "{t}"), // 🔴
             Self::Unknown => write!(f, "⬛"),
         }
     }
@@ -478,8 +489,8 @@ impl std::fmt::Display for Rotation {
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Aiming {
-    Positional(Position),
     Cardinal(Orientation),
+    Positional(Position),
 }
 
 impl Default for Aiming {
@@ -491,8 +502,8 @@ impl Default for Aiming {
 impl std::fmt::Display for Aiming {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self {
-            Aiming::Positional(p) => format!("Positional({})", p),
             Aiming::Cardinal(o) => format!("Cardinal({})", o),
+            Aiming::Positional(p) => format!("Positional({})", p),
         };
         write!(f, "{}", text)
     }
