@@ -1,20 +1,23 @@
 use super::player::*;
 
 pub struct Siimesjarvi {
-    strategy: Box<dyn Strategy>,
+    strategy: Strategy,
 }
 
 impl Siimesjarvi {
     pub fn new() -> Self {
         Self {
-            strategy: Box::new(FireForget::default())
+            strategy: Strategy::Basic(BasicStrategy::default())
         }
     }
 }
 
 impl Player for Siimesjarvi {
     fn act(&mut self, context: Context) -> Action {
-        self.strategy.get_next_action(context)
+        match self.strategy {
+            Strategy::Basic(ref mut x) => { x.get_next_action(context) },
+            Strategy::Advanced(ref mut x) => { x.get_next_action(context) }
+        }
     }
 
     fn name(&self) -> String {
@@ -22,20 +25,20 @@ impl Player for Siimesjarvi {
     }
 }
 
-/// Decides next action
-trait Strategy {
-    fn get_next_action(&mut self, context: Context) -> Action;
+enum Strategy {
+    Basic(BasicStrategy),
+    Advanced(AdvancedStrategy)
 }
 
 /// Basic strategy to get started
 /// 
 /// Blindly fire in all directions in clockwise pattern
 #[derive(Default)]
-struct FireForget {
+struct BasicStrategy {
     orientation: Orientation
 }
 
-impl FireForget {
+impl BasicStrategy {
     /// Provides Orientation that should be used next
     /// 
     /// Updates the next orientation so repeatedly calling this will eventually
@@ -76,15 +79,37 @@ impl FireForget {
             }
         }
     }
-}
 
-impl Strategy for FireForget {
-    fn get_next_action(&mut self, _context: Context) -> Action {
+    pub fn get_next_action(&mut self, _context: Context) -> Action {
         Action::Fire(Aiming::Cardinal(self.get_next_orientation()))
     }
 }
 
+struct AdvancedStrategy {
+    previous_action: Action,
+    previous_context: Option<Context>,
+    world_map: [MapCell; MAX_WORLD_SIZE*MAX_WORLD_SIZE]
+}
 
+impl AdvancedStrategy {
+    fn new() -> Self {
+        Self {
+            previous_action: Action::Idle,
+            previous_context: Option::None,
+            world_map: [MapCell::Unknown; MAX_WORLD_SIZE*MAX_WORLD_SIZE]
+        }
+    }
+
+    fn get_next_action(&mut self, context: Context) -> Action {
+        let next_action: Action = match self.previous_action {
+            Action::Idle => { Action::Scan(ScanType::Omni)}
+            _ => Action::Idle
+        };
+        self.previous_context = Option::Some(context);
+        next_action
+    }
+
+}
 
 #[cfg(test)]
 mod tests {
@@ -98,8 +123,8 @@ mod tests {
     }
 
     #[test]
-    fn fireforget_strategy_provides_next_orientation_clockwise() {
-        let mut s: FireForget = FireForget { orientation: Orientation::North };
+    fn basic_strategy_provides_next_orientation_clockwise() {
+        let mut s: BasicStrategy = BasicStrategy { orientation: Orientation::North };
         assert_eq!(Orientation::North, s.get_next_orientation());
         assert_eq!(Orientation::NorthEast, s.get_next_orientation());
         assert_eq!(Orientation::East, s.get_next_orientation());
@@ -110,4 +135,5 @@ mod tests {
         assert_eq!(Orientation::NorthWest, s.get_next_orientation());
         assert_eq!(Orientation::North, s.get_next_orientation());
     }
+
 }
