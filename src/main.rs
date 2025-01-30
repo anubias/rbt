@@ -3,8 +3,6 @@
 mod players;
 mod world;
 
-use std::time::Duration;
-
 use players::{
     alvarez::Luis,
     armholt::Swede,
@@ -23,11 +21,14 @@ use players::{
 };
 use world::World;
 
+pub const DEAD_AVATAR: char = '💀';
+const DEFAULT_AVATAR: char = '👶';
 const AVATARS: [char; 18] = [
     '🙂', '😈', '👽', '🤡', '🤖', '🎃', '🐵', '🐶', '🐱', '🦁', '🐺', '🐻', '🐼', '🦊', '🐷', '🐰',
     '🐭', '🐸',
 ];
-const DEFAULT_AVATAR: char = '👶';
+
+const TURN_TICK_DURATION_MSEC: u64 = 1400;
 
 fn main() {
     let mut game = Game::new();
@@ -57,10 +58,10 @@ fn spawn_players(game: &mut Game) {
 
 fn avatar(player_id: usize) -> char {
     let index = player_id - 1;
-    if index >= AVATARS.len() {
-        DEFAULT_AVATAR
-    } else {
+    if index < AVATARS.len() {
         AVATARS[index]
+    } else {
+        DEFAULT_AVATAR
     }
 }
 
@@ -73,7 +74,10 @@ impl Game {
     fn new() -> Self {
         Self {
             player_count: 0,
-            world: Box::new(World::new(WorldSize { x: 60, y: 30 })),
+            world: Box::new(World::new(
+                TURN_TICK_DURATION_MSEC,
+                WorldSize { x: 60, y: 30 },
+            )),
         }
     }
 
@@ -86,8 +90,6 @@ impl Game {
     fn main_loop(&mut self) -> ! {
         loop {
             println!("{}", self.world);
-            std::thread::sleep(Duration::from_millis(1000));
-
             self.world.new_turn();
         }
     }
