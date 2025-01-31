@@ -50,6 +50,8 @@ pub trait Player {
     }
 }
 
+pub const INVALID_PLAYER_ID: PlayerId = PlayerId { avatar: ' ', id: 0 };
+
 /// Defines the player id type
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PlayerId {
@@ -59,6 +61,9 @@ pub struct PlayerId {
 
 impl PlayerId {
     pub fn new(avatar: char, id: usize) -> Self {
+        if id == 0 {
+            panic!("Invalid player id=0 used!");
+        }
         Self { avatar, id }
     }
 }
@@ -181,7 +186,9 @@ impl std::fmt::Display for Context {
 
 #[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MapCell {
+    Explosion(PlayerId, Terrain),
     Player(PlayerId, Terrain),
+    Shell(PlayerId, Terrain),
     Terrain(Terrain),
     #[default]
     Unknown,
@@ -190,8 +197,10 @@ pub enum MapCell {
 impl std::fmt::Display for MapCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Explosion(_, _) => write!(f, "💥"),
             Self::Player(player_id, _) => write!(f, "{}", player_id.avatar),
-            Self::Terrain(t) => write!(f, "{t}"), // 🔴
+            Self::Shell(_, _) => write!(f, "🔴"),
+            Self::Terrain(t) => write!(f, "{t}"),
             Self::Unknown => write!(f, "⬛"),
         }
     }

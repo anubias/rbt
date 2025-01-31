@@ -56,6 +56,7 @@ impl Player for Luis {
                 MapCell::Terrain(_) => Action::Rotate(Rotation::Clockwise),
                 MapCell::Player(_, _) => Action::Fire(Aiming::default()),
                 MapCell::Unknown => Action::Scan(ScanType::Omni),
+                _ => Action::default(),
             }
         } else {
             Action::Scan(ScanType::Omni)
