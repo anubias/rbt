@@ -28,7 +28,7 @@ const AVATARS: [char; 18] = [
     '🐭', '🐸',
 ];
 
-const TURN_TICK_DURATION_MSEC: u64 = 1400;
+const TICK_DURATION_MSEC: u64 = 100;
 
 fn main() {
     let mut game = Game::new();
@@ -74,10 +74,7 @@ impl Game {
     fn new() -> Self {
         Self {
             player_count: 0,
-            world: Box::new(World::new(
-                TURN_TICK_DURATION_MSEC,
-                WorldSize { x: 60, y: 30 },
-            )),
+            world: Box::new(World::new(TICK_DURATION_MSEC, WorldSize { x: 60, y: 30 })),
         }
     }
 

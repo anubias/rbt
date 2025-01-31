@@ -180,6 +180,7 @@ impl PlayerOne {
             MapCell::Terrain(_) => false,
             MapCell::Player(_, _) => false,
             MapCell::Unknown => false,
+            _ => false,
         }
     }
 

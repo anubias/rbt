@@ -100,6 +100,7 @@ impl Arola {
             MapCell::Terrain(Terrain::Field) => Action::Move(Direction::Forward),
             MapCell::Terrain(_) => Action::Rotate(Rotation::Clockwise),
             MapCell::Unknown => Action::Idle,
+            _ => Action::default(),
         }
     }
 }
