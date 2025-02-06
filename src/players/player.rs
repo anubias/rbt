@@ -465,14 +465,14 @@ impl From<&Orientation> for usize {
 impl std::fmt::Display for Orientation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self {
-            Self::North => "north",
-            Self::NorthEast => "north-east",
-            Self::East => "east",
-            Self::SouthEast => "south-east",
-            Self::South => "south",
-            Self::SouthWest => "south-west",
-            Self::West => "west",
-            Self::NorthWest => "north-west",
+            Self::North => " N ",
+            Self::NorthEast => "N-E",
+            Self::East => " E ",
+            Self::SouthEast => "S-E",
+            Self::South => " S ",
+            Self::SouthWest => "S-W",
+            Self::West => " W ",
+            Self::NorthWest => "N-W",
         };
 
         write!(f, "{text}")

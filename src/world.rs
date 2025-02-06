@@ -777,8 +777,10 @@ impl std::fmt::Display for World {
                         17.. => format!("{line}\t"),
                     };
                     line = format!(
-                        "{line}({}%, {})",
+                        "{line}({:03}%, {}, {}, {})",
                         tank.context.health(),
+                        tank.context.position(),
+                        tank.context.orientation(),
                         tank.context.previous_action()
                     )
                 }
