@@ -293,34 +293,25 @@ impl Position {
         }
     }
 
-    /// Computes the (x,y) delta between self and the provided `Position`
-    ///
-    /// In other words, this computes the delta between two Positions
-    /// on the X and Y axes separately.
-    ///
-    /// Please note that the distances may be negative.
-    pub fn delta(&self, other: &Position) -> (isize, isize) {
-        let dx = self.x as isize - other.x as isize;
-        let dy = self.y as isize - other.y as isize;
-
-        (dx, dy)
-    }
-
     /// Computes the manhattan distance between self and the provided `Position`
     ///
     /// The `manhattan distance` is defined as the distance between two points
     /// that it would take to navigate if one could only travel along the
     /// x and y axis (ie. not diagonally). Similar to computing the walking
     /// distance between two points in Manhattan.
-    pub fn manhattan_distance(&self, other: &Position) -> usize {
-        let (dx, dy) = self.delta(other);
+    ///
+    /// This distance is expressed separately on the X and Y axis. Please note
+    /// that the distances are relative, to allow relative positioning.
+    pub fn manhattan_distance(&self, other: &Position) -> (isize, isize) {
+        let dx = self.x as isize - other.x as isize;
+        let dy = self.y as isize - other.y as isize;
 
-        (dx.abs() + dy.abs()) as usize
+        (dx, dy)
     }
 
     /// Computes the pythagorean distance between self and the provided `Position`.
     pub fn pythagorean_distance(&self, other: &Position) -> f32 {
-        let (dx, dy) = self.delta(other);
+        let (dx, dy) = self.manhattan_distance(other);
 
         ((dx * dx + dy * dy) as f32).sqrt()
     }
@@ -578,7 +569,7 @@ mod tests {
         let manhattan = a.manhattan_distance(&b);
         let pythagorean = a.pythagorean_distance(&b);
 
-        assert_eq!(3 + 4, manhattan);
+        assert_eq!((-3, -4), manhattan);
         assert_eq!(5.0, pythagorean);
     }
 
