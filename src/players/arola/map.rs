@@ -38,11 +38,13 @@ impl Map {
 
         for y in 0..scan_result.data.len() {
             for x in 0..scan_result.data[y].len() {
-                let mut map_cell = scan_result.data[y][x];
-
-                if let MapCell::Player(_, terrain) = map_cell {
-                    map_cell = MapCell::Terrain(terrain);
-                }
+                let map_cell = match scan_result.data[y][x] {
+                    MapCell::Explosion(_, terrain) => MapCell::Terrain(terrain),
+                    MapCell::Player(_, terrain) => MapCell::Terrain(terrain),
+                    MapCell::Shell(_, terrain) => MapCell::Terrain(terrain),
+                    MapCell::Terrain(terrain) => MapCell::Terrain(terrain),
+                    MapCell::Unknown => MapCell::Unknown
+                };
 
                 let map_x = x as isize + scan_world_x;
                 let map_y = y as isize + scan_world_y;

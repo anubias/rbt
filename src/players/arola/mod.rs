@@ -53,7 +53,8 @@ impl Arola {
 
     fn attack(&mut self, context: &Context) -> (PlayerState, Action) {
         if let Some(scan_result) = context.scanned_data() {
-            let other_players = scan_result.find_other_players(context.position());
+            let other_players =
+                scan_result.find_other_players(context.player_id(), context.position());
             if !other_players.is_empty() {
                 return (
                     PlayerState::Attack,
@@ -76,7 +77,7 @@ impl Arola {
         self.map.collect_data(scan_result, context.position());
 
         if !scan_result
-            .find_other_players(context.position())
+            .find_other_players(context.player_id(), context.position())
             .is_empty()
         {
             self.attack(context)

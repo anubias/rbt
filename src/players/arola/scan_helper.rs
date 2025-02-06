@@ -50,26 +50,34 @@ impl ScanResult {
         }
     }
 
-    pub fn find_other_players(&self, my_world_position: &Position) -> Vec<(PlayerId, Position)> {
+    pub fn find_other_players(
+        &self,
+        my_id: &PlayerId,
+        my_world_position: &Position,
+    ) -> Vec<(PlayerId, Position)> {
         let mut players = Vec::new();
-        let my_position = self.get_my_position();
         let scan_position = self.get_world_position(my_world_position);
 
         for y in 0..self.data.len() {
             for x in 0..self.data[y].len() {
-                if let MapCell::Player(player_id, _) = self.data[y][x] {
-                    if (x, y) != (my_position.x, my_position.y) {
-                        let position_x = x as isize + scan_position.0;
-                        let position_y = y as isize + scan_position.1;
-                        assert!(position_x >= 0 && position_y >= 0);
-                        players.push((
-                            player_id,
-                            Position {
-                                x: position_x as usize,
-                                y: position_y as usize,
-                            },
-                        ));
-                    }
+                let player_id = match self.data[y][x] {
+                    MapCell::Explosion(player_id, _) => player_id,
+                    MapCell::Player(player_id, _) => player_id,
+                    MapCell::Shell(player_id, _) => player_id,
+                    _ => INVALID_PLAYER_ID,
+                };
+
+                if player_id != INVALID_PLAYER_ID && &player_id != my_id {
+                    let position_x = x as isize + scan_position.0;
+                    let position_y = y as isize + scan_position.1;
+                    assert!(position_x >= 0 && position_y >= 0);
+                    players.push((
+                        player_id,
+                        Position {
+                            x: position_x as usize,
+                            y: position_y as usize,
+                        },
+                    ));
                 }
             }
         }
