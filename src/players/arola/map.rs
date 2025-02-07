@@ -33,21 +33,33 @@ impl Map {
         }
     }
 
-    pub fn collect_data(&mut self, scan_result: &ScanResult, player_world_position: &Position) {
-        let (scan_world_x, scan_world_y) = scan_result.get_world_position(player_world_position);
+    pub fn collect_data(&mut self, scan_result: &ScanResult, my_world_position: &Position) {
+        let (scan_world_x, scan_world_y) = scan_result.get_world_position(my_world_position);
 
         for y in 0..scan_result.data.len() {
             for x in 0..scan_result.data[y].len() {
-                let mut map_cell = scan_result.data[y][x];
-
-                if let MapCell::Player(_, terrain) = map_cell {
-                    map_cell = MapCell::Terrain(terrain);
-                }
-
                 let map_x = x as isize + scan_world_x;
                 let map_y = y as isize + scan_world_y;
+                let map_cell = Map::resolve_cell(&scan_result.data[y][x]);
                 self.set_cell(map_x, map_y, map_cell);
             }
+        }
+    }
+
+    fn resolve_cell(map_cell: &MapCell) -> MapCell {
+        match map_cell {
+            MapCell::Player(player_id, terrain) => {
+                if player_id.is_alive() {
+                    MapCell::Terrain(terrain.clone())
+                } else {
+                    // Map dead player as an obstacle
+                    MapCell::Terrain(Terrain::Forest(TreeType::default()))
+                }
+            }
+            MapCell::Explosion(_, terrain) => MapCell::Terrain(terrain.clone()),
+            MapCell::Shell(_, terrain) => MapCell::Terrain(terrain.clone()),
+            MapCell::Terrain(terrain) => MapCell::Terrain(terrain.clone()),
+            MapCell::Unknown => MapCell::Unknown,
         }
     }
 

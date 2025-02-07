@@ -50,16 +50,30 @@ pub trait Player {
     }
 }
 
+pub const INVALID_PLAYER_ID: PlayerId = PlayerId {
+    avatar: ' ',
+    id: 0,
+    orientation: Orientation::North,
+};
+
 /// Defines the player id type
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PlayerId {
     pub avatar: char,
     pub id: usize,
+    pub orientation: Orientation,
 }
 
 impl PlayerId {
     pub fn new(avatar: char, id: usize) -> Self {
-        Self { avatar, id }
+        if id == 0 {
+            panic!("Invalid player id=0 used!");
+        }
+        Self {
+            avatar,
+            id,
+            orientation: Orientation::North,
+        }
     }
 }
 
@@ -164,7 +178,7 @@ impl Context {
 
 impl std::fmt::Display for Context {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let text = if let Some(_) = &self.scan {
+        let text = if self.scan.is_some() {
             format!(
                 "{{\n   player_id: {},\n   health: {},\n   mobile: {},\n   previous_action: \"{}\",   orientation: \"{}\",\n   position: {},\n   scanned_data: present\n}}",
                 self.player_id, self.health, self.mobile, self.previous_action, self.orientation, self.position
@@ -181,7 +195,9 @@ impl std::fmt::Display for Context {
 
 #[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MapCell {
+    Explosion(PlayerId, Terrain),
     Player(PlayerId, Terrain),
+    Shell(PlayerId, Terrain),
     Terrain(Terrain),
     #[default]
     Unknown,
@@ -190,8 +206,10 @@ pub enum MapCell {
 impl std::fmt::Display for MapCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Explosion(_, _) => write!(f, "💥"),
             Self::Player(player_id, _) => write!(f, "{}", player_id.avatar),
-            Self::Terrain(t) => write!(f, "{t}"), // 🔴
+            Self::Shell(_, _) => write!(f, "🔴"),
+            Self::Terrain(t) => write!(f, "{t}"),
             Self::Unknown => write!(f, "⬛"),
         }
     }
@@ -264,13 +282,13 @@ impl Position {
         let (mut x, mut y) = (self.x as isize, self.y as isize);
 
         match orientation {
-            Orientation::North | Orientation::NorthWest | Orientation::NorthEast => y = y - 1,
-            Orientation::South | Orientation::SouthWest | Orientation::SouthEast => y = y + 1,
+            Orientation::North | Orientation::NorthWest | Orientation::NorthEast => y -= 1,
+            Orientation::South | Orientation::SouthWest | Orientation::SouthEast => y += 1,
             _ => {}
         }
         match orientation {
-            Orientation::East | Orientation::NorthEast | Orientation::SouthEast => x = x + 1,
-            Orientation::West | Orientation::NorthWest | Orientation::SouthWest => x = x - 1,
+            Orientation::East | Orientation::NorthEast | Orientation::SouthEast => x += 1,
+            Orientation::West | Orientation::NorthWest | Orientation::SouthWest => x -= 1,
             _ => {}
         }
 
@@ -284,34 +302,25 @@ impl Position {
         }
     }
 
-    /// Computes the (x,y) delta between self and the provided `Position`
-    ///
-    /// In other words, this computes the delta between two Positions
-    /// on the X and Y axes separately.
-    ///
-    /// Please note that the distances may be negative.
-    pub fn delta(&self, other: &Position) -> (isize, isize) {
-        let dx = self.x as isize - other.x as isize;
-        let dy = self.y as isize - other.y as isize;
-
-        (dx, dy)
-    }
-
     /// Computes the manhattan distance between self and the provided `Position`
     ///
     /// The `manhattan distance` is defined as the distance between two points
     /// that it would take to navigate if one could only travel along the
     /// x and y axis (ie. not diagonally). Similar to computing the walking
     /// distance between two points in Manhattan.
-    pub fn manhattan_distance(&self, other: &Position) -> usize {
-        let (dx, dy) = self.delta(other);
+    ///
+    /// This distance is expressed separately on the X and Y axis. Please note
+    /// that the distances are relative, to allow relative positioning.
+    pub fn manhattan_distance(&self, other: &Position) -> (isize, isize) {
+        let dx = self.x as isize - other.x as isize;
+        let dy = self.y as isize - other.y as isize;
 
-        (dx.abs() + dy.abs()) as usize
+        (dx, dy)
     }
 
     /// Computes the pythagorean distance between self and the provided `Position`.
     pub fn pythagorean_distance(&self, other: &Position) -> f32 {
-        let (dx, dy) = self.delta(other);
+        let (dx, dy) = self.manhattan_distance(other);
 
         ((dx * dx + dy * dy) as f32).sqrt()
     }
@@ -340,7 +349,7 @@ impl std::fmt::Display for Direction {
     }
 }
 
-#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Orientation {
     #[default]
     North,
@@ -407,7 +416,7 @@ impl Orientation {
         let their_index: usize = other.into();
 
         if my_index < their_index {
-            my_index += Orientation::get_cardinal_direction_count() as usize;
+            my_index += Orientation::get_cardinal_direction_count();
         }
 
         let mut delta = my_index - their_index;
@@ -416,10 +425,10 @@ impl Orientation {
             4.. => Rotation::Clockwise,
         };
         if delta > 4 {
-            delta = delta % 4;
+            delta %= 4;
         }
 
-        (rotation, delta as usize)
+        (rotation, delta)
     }
 }
 
@@ -456,14 +465,14 @@ impl From<&Orientation> for usize {
 impl std::fmt::Display for Orientation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self {
-            Self::North => "north",
-            Self::NorthEast => "north-east",
-            Self::East => "east",
-            Self::SouthEast => "south-east",
-            Self::South => "south",
-            Self::SouthWest => "south-west",
-            Self::West => "west",
-            Self::NorthWest => "north-west",
+            Self::North => " N ",
+            Self::NorthEast => "N-E",
+            Self::East => " E ",
+            Self::SouthEast => "S-E",
+            Self::South => " S ",
+            Self::SouthWest => "S-W",
+            Self::West => " W ",
+            Self::NorthWest => "N-W",
         };
 
         write!(f, "{text}")
@@ -569,7 +578,7 @@ mod tests {
         let manhattan = a.manhattan_distance(&b);
         let pythagorean = a.pythagorean_distance(&b);
 
-        assert_eq!(3 + 4, manhattan);
+        assert_eq!((-3, -4), manhattan);
         assert_eq!(5.0, pythagorean);
     }
 

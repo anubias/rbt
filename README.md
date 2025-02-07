@@ -14,9 +14,9 @@ Therefore, it should not matter in which order the game engine is querying the a
 
 ### Tank capabilities
 
-Being old and rusty, the tanks have a limited number of capabilities. In addition, they can only perform one action at a time. For example tanks cannot fire while moving, or move while scanning, etc. The only exception is the GPS and compass data, which is offered in 'real-time' for free.
+Being old and rusty, the tanks have a limited number of capabilities. In addition, they can only perform one action at a time. For example tanks cannot shoot while moving, or move while scanning, etc. The only exception is the GPS and compass data, which is offered in 'real-time' for free.
 
-- Ordnance firing: in order to destroy an enemy tank, the tank may fire at it or collide with it
+- Shell shooting: in order to destroy an enemy tank, the tank may shoot at it
 - Propulsion: tanks are able to move on the world map
 - Scan: tanks have a directional radar which allows them to scan their immediate surroundings
 - GPS unit: each tank is equipped with a GPS unit to read their current position
@@ -61,7 +61,7 @@ Taking this into consideration, moving one step to the right on the map incremen
 
 ### Orientation
 
-Orientation dictates the movement and firing vectors.
+Orientation are used to describe the movement and shooting vectors (in case of `Cardinal` aiming).
 
 The game offers eight cardinal points as orientation. They are `North`, `North-East`, `East`, and so on. They are mapped so that `North` corresponds to moving up on the map, and `East` means moving right on the map, etc.
 
@@ -91,31 +91,39 @@ The area of the scanned map surface is always the same. It is represented as an 
 
 The scanned data created as the result of scanning the environment *always* contains the tank who has initiated the scan.
 
-### Firing
+### Shooting
 
-Tanks can fire ordnance on each other. It is what defines tanks. Firing depends on aiming, and there are two types of Aiming:
+Tanks can shoot shells on each other. It is what defines tanks. Shooting depends on the aiming type, and there are two types of `Aiming`:
 
-- `Positional`: this aiming defines the exact coordinate where the ordnance will hit on the map
-- `Cardinal`: this aiming defines the cardinal orientation to shoot the ordnance towards
+- `Positional`: this aiming defines the exact coordinate where the shell will hit on the map
+- `Cardinal`: this aiming defines the cardinal orientation the shell path will follow
 
 These two aiming types have different pros and cons:
 
 - `Positional`:
-  - Pro: firing is precisely at the specified `Position`
+  - Pro: shooting is precisely at the specified `Position`
   - Con: the range is limited to the area that is returned by an `Omni`-directional scan
 - `Cardinal`:
   - Pro: the range is limited to the area that is returned by a `Mono`-directional scan
-  - Con: the line of fire must be one of the eight cardinal `Orientation`
+  - Con: the line of shooting must be one of the eight cardinal `Orientation`
 
-There are two types of hits: `direct` and `indirect`.
+The shell will impact in one of these conditions:
 
-`Direct hit` is when the ordnance lands exactly on the enemy (in case of `Positional` aiming) or if the enemy is aligned perfectly along the same cardinal `Orientation` as the ordnance, with respect of the firing player (in case of `Cardinal` aiming).
+- when `Positional` aiming is used, at the requested position
+- when `Cardinal` aiming is used, if it hits directly any tank along the way, otherwise when it reaches the end of its range
 
-`Indirect hit` is when the ordnance lands on any of the immediately adjacent cells to the enemy (in case of `Positional` aiming) or if another player located on a immediately adjacent cell is directly hit.
+In all cases, regardless on where a shell lands (even if on a player, or any type of terrain -- including `Lake`), the shell will create a 3x3 `square` damage pattern. Anything located in the middle of that 3x3 square pattern will suffer a `direct hit` and anything located on the edges of that 3x3 square pattern will suffer an `indirect hit`. Damage is done exclusively to other tanks, the terrain will not suffer any changes upon a shell impact.
+
+- `Direct hit` is when the shell lands exactly on the enemy or if the enemy is aligned perfectly along the same cardinal `Orientation` as the flying shell, with respect of the shooting player (in case of `Cardinal` aiming).
+- `Indirect hit` is when the shell lands on any of the immediately adjacent cells to the enemy or if another player located on a immediately adjacent cell is directly hit.
+
+As a corolary: if a tank shoots at an enemy or a position which is located `right next to it`, it will also suffer an indirect hit, because of the damage pattern explained above. It should not be possible to perform a `direct hit` on itself (anti-suicide rule).
+
+Please note that shooting can be done in any direction, in other words the orientation of the tank and its turret are independent. Also, turret rotation is 'free', i.e. it is not performed by the game engine as an `Action`.
 
 **Examples**:
 
-In this first example, we look at `Positional` firing. The hero is is located in the of the map, and the enemy is offset. Assuming that the enemy is close enough for `Positional` firing, the hero is able to strike precisely, even if the enemy is not perfectly alligned on any cardinal `Orientation`.
+In the next scenario, we look at `Positional` shooting. The hero is is located in the middle of the map, and the enemy is offset. Assuming that the enemy is close enough for `Positional` shooting, the hero is able to strike precisely, even if the enemy is not perfectly alligned on any cardinal `Orientation`.
 
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
@@ -125,15 +133,33 @@ In this first example, we look at `Positional` firing. The hero is is located in
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥😈💥🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
     🟩🟩🟩🟩🟩🟩🟩🙂🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩  
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    
-In the second example, we look at `Cardinal` firing. In this scenario, the hero is located on the left side of the map, an the enemy is straight to the right of our hero. We can observe that the hitting distance is larger. However, if the enemy would have been just one cell higher or lower, a `Cardinal` fire would have missed it entirely.
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+
+In the next scenario, the hero shoots while the enemy is moving, and the shell lands right next to the enemy. This is an example of `indirect hit` during a `Positional` shooting.
+
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥😈💥🟩
+    🟩🟩🟩🟩🟩🟩🟩🙂🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+
+In the next scenario, we look at `Cardinal` shooting. The hero is located on the left side of the map, an the enemy is straight to the right of our hero. We can observe that the hitting distance is larger.
 
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
@@ -151,7 +177,43 @@ In the second example, we look at `Cardinal` firing. In this scenario, the hero 
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
 
-In the last example, we revisit a modified version of the previous example, where we add another enemy immediately near our main target. In this scenario, the main enemy (the one surrounded by the flames) will suffer a `direct hit`, while the enemy next to it will suffer a `indirect hit`.
+In the following scenario of `Cardinal` shooting, the enemy is slightly offset from the orientation, therefore the shell is missing, and doesn't damage the enemy. You can observe that the shell still lands at the end of its range, but in this case it doesn't damage the enemy tank.
+
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩😈💥💥
+    🙂🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+
+The next scenario is very similar to the one above, only that the enemy player is close enough to where the shell lands, and you can see how in this case the enemy suffers an `indirect hit`.
+
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩😈💥
+    🙂🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+
+In the last scenario, we revisit a modified version of a previous scenario, where we add another enemy immediately near our main target. In this scenario, the main enemy (the one surrounded by the flames) will suffer a `direct hit`, while the enemy next to it will suffer a `indirect hit`.
 
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
@@ -161,7 +223,7 @@ In the last example, we revisit a modified version of the previous example, wher
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
     🙂🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥😈💥🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩👽💥💥🟩
+    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥👽🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
@@ -169,7 +231,7 @@ In the last example, we revisit a modified version of the previous example, wher
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
 
-The direct or indirect hit logic applies similarly to both aiming techniques.
+Please note that the same damage pattern is created regardless if the shell has landed directly on another tank or on an unoccupied terrain, or if `Cardinal` or `Positional` aiming was used.
 
 ### Damage
 
@@ -177,7 +239,7 @@ The damage is expressed as a percentage of *full health*. Any damage inflicted b
 
 Tanks take damage in several scenarios:
 
-- When entering `Lake` terrain, damage is **100%** (instant death)
-- When colliding with `Forest` terrain, damage is **25%**
-- When colliding with other tanks, damage is **10%** *to both tanks*
-- When suffering an ordnance hit, damage is **75%** for direct hit, and **25%** for indirect hit
+- When entering `Lake` terrain, the damage is **100%** (instant death)
+- When colliding with `Forest` terrain, the damage is **25%**
+- When colliding with other tanks, the damage is **10%** *to both tanks*
+- The damage is **75%** for direct hits, and **25%** for indirect hits
