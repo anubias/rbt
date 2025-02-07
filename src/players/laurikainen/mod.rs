@@ -49,10 +49,10 @@ impl Player for PlayerOne {
         action
     }
 
-    fn is_ready(&self) -> bool {
-        // was born ready
-        true
-    }
+    // fn is_ready(&self) -> bool {
+    //     // was born ready
+    //     true
+    // }
 
     fn name(&self) -> String {
         String::from("PlayerOne")
@@ -66,7 +66,7 @@ impl PlayerOne {
             last_scan: None,
             scanned_map: None,
             counter: 0,
-            prev_position: None, 
+            prev_position: None,
         }
     }
 
@@ -134,9 +134,9 @@ impl PlayerOne {
         }
 
         if let Some(prev_position) = self.prev_position.as_ref() {
-            self.scanned_map.as_mut().unwrap()[prev_position.y as usize][prev_position.x as usize] = MapCell::Terrain(Terrain::Field);
+            self.scanned_map.as_mut().unwrap()[prev_position.y as usize]
+                [prev_position.x as usize] = MapCell::Terrain(Terrain::Field);
         }
-
 
         // set our current position unknown
         //if let Some(scanned_map) = self.scanned_map.as_mut() {
@@ -170,9 +170,7 @@ impl PlayerOne {
             if surroundings.valid_to_step.contains(context.orientation()) {
                 println!("Facing a direction with a valid step, move forward");
                 action = Some(Action::Move(Direction::Forward))
-            }
-            else
-            {
+            } else {
                 // loop through valid to step and find the closest one
                 let mut closest_valid_step: Option<Orientation> = None;
                 let mut closest_valid_step_distance: isize = 100;
@@ -181,7 +179,7 @@ impl PlayerOne {
                     let target = orientation.clone() as isize;
                     let clockwise_steps = (target - current + 8) % 8;
                     let counter_clockwise_steps = (current - target + 8) % 8;
-                    
+
                     let distance = if clockwise_steps <= counter_clockwise_steps {
                         clockwise_steps
                     } else {
@@ -193,7 +191,7 @@ impl PlayerOne {
                         closest_valid_step_distance = distance;
                     }
                 }
-                    
+
                 if let Some(first_valid_step) = closest_valid_step {
                     print!("Closest valid step: {first_valid_step:?}. ");
                     action = self.rotate_to(first_valid_step, context);
