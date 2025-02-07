@@ -1,5 +1,31 @@
-use super::super::super::DEAD_AVATAR;
 use super::super::player::*;
+
+impl Position {
+    pub fn get_orientation_to(&self, neighbor: &Position) -> Orientation {
+        match neighbor.manhattan_distance(self) {
+            (1, 0) => Orientation::East,
+            (1, 1) => Orientation::SouthEast,
+            (0, 1) => Orientation::South,
+            (-1, 1) => Orientation::SouthWest,
+            (-1, 0) => Orientation::West,
+            (-1, -1) => Orientation::NorthWest,
+            (0, -1) => Orientation::North,
+            (1, -1) => Orientation::NorthEast,
+            _ => panic!("Not a neighbor position {self} => {neighbor}"),
+        }
+    }
+}
+
+impl Orientation {
+    pub fn quick_turn_bidirectional(&self, other: &Self) -> (Rotation, usize) {
+        let result = self.quick_turn(other);
+        if result.1 <= 2 {
+            result
+        } else {
+            (result.0.opposite(), 4 - result.1)
+        }
+    }
+}
 
 const SCAN_TOP: usize = 0;
 const SCAN_LEFT: usize = 0;
@@ -62,7 +88,7 @@ impl ScanResult {
 
     pub fn find_other_players(
         &self,
-        my_id: &PlayerDetails,
+        my_id: PlayerId,
         my_world_position: &Position,
     ) -> Vec<(PlayerDetails, Position)> {
         let mut other_players = Vec::new();
@@ -73,8 +99,8 @@ impl ScanResult {
                 let player_details = ScanResult::get_player_details(&self.data[y][x]);
 
                 if player_details != INVALID_PLAYER
-                    && &player_details != my_id
-                    && player_details.is_alive()
+                    && player_details.id != my_id
+                    && player_details.alive
                 {
                     let position_x = x as isize + scan_world_position.0;
                     let position_y = y as isize + scan_world_position.1;
@@ -100,11 +126,5 @@ impl ScanResult {
         let scan_world_y = my_world_position.y as isize - my_scan_position.y as isize;
 
         return (scan_world_x, scan_world_y);
-    }
-}
-
-impl PlayerDetails {
-    pub fn is_alive(&self) -> bool {
-        self.avatar != DEAD_AVATAR
     }
 }
