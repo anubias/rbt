@@ -29,6 +29,7 @@ impl PlAgiAntti {
     }
 
     // Calculates how many steps are needed to reach cardinal firing range.
+    // TODO: Doesn't account for diagonal movement.
     // TODO: Doesn't account for rotation or turning along the way. Needs a proper pathfinding algorithm for that.
     fn distance_to_firing_range(&self, enemy_position: &Position) -> u32 {
         // The shortest path to reach a position that is in firing range:
@@ -172,7 +173,6 @@ impl Player for PlAgiAntti {
         self.health = context.health();
         // Store scan information.
         if let Some(_scan) = context.scanned_data() {
-            // Update the terrain map with the new scan data.
             /*for coord in scan.data.iter() {
                 match coord {
                     MapCell::Player(_, _) => {
@@ -190,10 +190,10 @@ impl Player for PlAgiAntti {
         let opportunity_level = self.evaluate_opportunity();
 
         // Decision tree based on state evaluation
-        if threat_level >= opportunity_level {
-            self.defensive_action()
-        } else if opportunity_level > 0 {
+        if opportunity_level > threat_level {
             self.offensive_action()
+        } else if threat_level > 0 {
+            self.defensive_action()
         } else {
             self.exploratory_action()
         }
@@ -215,6 +215,6 @@ impl Player for PlAgiAntti {
     }
 
     fn is_ready(&self) -> bool {
-        true
+        false
     }
 }
