@@ -50,13 +50,18 @@ pub trait Player {
     }
 }
 
-pub const INVALID_PLAYER_ID: PlayerId = PlayerId { avatar: ' ', id: 0 };
+pub const INVALID_PLAYER_ID: PlayerId = PlayerId {
+    avatar: ' ',
+    id: 0,
+    orientation: Orientation::North,
+};
 
 /// Defines the player id type
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PlayerId {
     pub avatar: char,
     pub id: usize,
+    pub orientation: Orientation,
 }
 
 impl PlayerId {
@@ -64,7 +69,11 @@ impl PlayerId {
         if id == 0 {
             panic!("Invalid player id=0 used!");
         }
-        Self { avatar, id }
+        Self {
+            avatar,
+            id,
+            orientation: Orientation::North,
+        }
     }
 }
 
@@ -169,7 +178,7 @@ impl Context {
 
 impl std::fmt::Display for Context {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let text = if let Some(_) = &self.scan {
+        let text = if self.scan.is_some() {
             format!(
                 "{{\n   player_id: {},\n   health: {},\n   mobile: {},\n   previous_action: \"{}\",   orientation: \"{}\",\n   position: {},\n   scanned_data: present\n}}",
                 self.player_id, self.health, self.mobile, self.previous_action, self.orientation, self.position
@@ -273,13 +282,13 @@ impl Position {
         let (mut x, mut y) = (self.x as isize, self.y as isize);
 
         match orientation {
-            Orientation::North | Orientation::NorthWest | Orientation::NorthEast => y = y - 1,
-            Orientation::South | Orientation::SouthWest | Orientation::SouthEast => y = y + 1,
+            Orientation::North | Orientation::NorthWest | Orientation::NorthEast => y -= 1,
+            Orientation::South | Orientation::SouthWest | Orientation::SouthEast => y += 1,
             _ => {}
         }
         match orientation {
-            Orientation::East | Orientation::NorthEast | Orientation::SouthEast => x = x + 1,
-            Orientation::West | Orientation::NorthWest | Orientation::SouthWest => x = x - 1,
+            Orientation::East | Orientation::NorthEast | Orientation::SouthEast => x += 1,
+            Orientation::West | Orientation::NorthWest | Orientation::SouthWest => x -= 1,
             _ => {}
         }
 
@@ -340,7 +349,7 @@ impl std::fmt::Display for Direction {
     }
 }
 
-#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Orientation {
     #[default]
     North,
@@ -407,7 +416,7 @@ impl Orientation {
         let their_index: usize = other.into();
 
         if my_index < their_index {
-            my_index += Orientation::get_cardinal_direction_count() as usize;
+            my_index += Orientation::get_cardinal_direction_count();
         }
 
         let mut delta = my_index - their_index;
@@ -416,10 +425,10 @@ impl Orientation {
             4.. => Rotation::Clockwise,
         };
         if delta > 4 {
-            delta = delta % 4;
+            delta %= 4;
         }
 
-        (rotation, delta as usize)
+        (rotation, delta)
     }
 }
 
