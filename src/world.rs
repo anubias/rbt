@@ -57,7 +57,7 @@ impl Shell {
                 self.current_pos = match &self.aim_type {
                     Aiming::Positional(pos) => pos.clone(),
                     Aiming::Cardinal(orientation) => {
-                        if let Some(pos) = self.current_pos.follow(&orientation, world_size) {
+                        if let Some(pos) = self.current_pos.follow(orientation, world_size) {
                             pos
                         } else {
                             self.current_pos.clone()
@@ -169,7 +169,10 @@ impl World {
                 self.size.clone(),
             );
 
-            if let Some(_) = self.try_set_player_on_cell(player_id, context.position()) {
+            if self
+                .try_set_player_on_cell(player_id, context.position())
+                .is_some()
+            {
                 self.tanks.insert(player_id, Tank { context, player });
             }
         }
@@ -220,7 +223,7 @@ impl World {
                         self.scan_surroundings(*player_id, scan_type, &world_size);
                     }
                 }
-                processed_players.push(player_id.clone());
+                processed_players.push(player_id);
             }
         }
 
@@ -236,10 +239,10 @@ impl World {
                 match shell.state {
                     ShellState::NotLaunched => {
                         shell.evolve(&self.size);
-                        self.animate_shell(&shell, false);
+                        self.animate_shell(shell, false);
                     }
                     ShellState::Flying => {
-                        self.animate_shell(&shell, true);
+                        self.animate_shell(shell, true);
                         shell.evolve(&self.size);
 
                         let landed = shell.try_to_land();
@@ -253,21 +256,21 @@ impl World {
                         if landed || collision {
                             shell.impact();
                         } else {
-                            self.animate_shell(&shell, false);
+                            self.animate_shell(shell, false);
                         }
                     }
                     ShellState::Impact => {
                         self.compute_shell_impact(&shell.current_pos);
-                        self.animate_impact(&shell);
+                        self.animate_impact(shell);
                         shell.evolve(&self.size);
                     }
                     ShellState::Explosion => {
-                        self.animate_impact(&shell);
-                        self.animate_explosion(&shell);
+                        self.animate_impact(shell);
+                        self.animate_explosion(shell);
                         shell.evolve(&self.size);
                     }
                     ShellState::Exploded => {
-                        self.animate_explosion(&shell);
+                        self.animate_explosion(shell);
                         shell.evolve(&self.size);
                     }
                     ShellState::Spent => continue,
@@ -305,9 +308,9 @@ impl World {
             MapCell::Shell(player_id, terrain) => {
                 if clear {
                     if player_id == INVALID_PLAYER_ID {
-                        self.cell_write(&position, MapCell::Terrain(terrain));
+                        self.cell_write(position, MapCell::Terrain(terrain));
                     } else {
-                        self.cell_write(&position, MapCell::Player(player_id, terrain));
+                        self.cell_write(position, MapCell::Player(player_id, terrain));
                     }
                 }
             }
@@ -329,16 +332,15 @@ impl World {
                 }
                 _ => {}
             },
-            ShellState::Explosion => match cell {
-                MapCell::Explosion(player_id, terrain) => {
+            ShellState::Explosion => {
+                if let MapCell::Explosion(player_id, terrain) = cell {
                     if player_id == INVALID_PLAYER_ID {
                         self.cell_write(position, MapCell::Terrain(terrain));
                     } else {
                         self.cell_write(position, MapCell::Player(player_id, terrain));
                     }
                 }
-                _ => {}
-            },
+            }
             _ => {}
         }
     }
@@ -357,16 +359,15 @@ impl World {
                     }
                     _ => {}
                 },
-                ShellState::Exploded => match cell {
-                    MapCell::Explosion(player_id, terrain) => {
+                ShellState::Exploded => {
+                    if let MapCell::Explosion(player_id, terrain) = cell {
                         if player_id == INVALID_PLAYER_ID {
                             self.cell_write(&position, MapCell::Terrain(terrain));
                         } else {
                             self.cell_write(&position, MapCell::Player(player_id, terrain));
                         }
                     }
-                    _ => {}
-                },
+                }
                 _ => {}
             }
         }
@@ -392,12 +393,9 @@ impl World {
 
         for tank in self.get_tanks() {
             if tank.player.is_ready() && tank.context.health() == 0 {
-                match self.cell_read(tank.context.position()) {
-                    MapCell::Player(_, terrain) => {
-                        let cell = MapCell::Player(tank.context.player_id().clone(), terrain);
-                        dead_players.push((tank.context.position().clone(), cell));
-                    }
-                    _ => {}
+                if let MapCell::Player(_, terrain) = self.cell_read(tank.context.position()) {
+                    let cell = MapCell::Player(*tank.context.player_id(), terrain);
+                    dead_players.push((tank.context.position().clone(), cell));
                 }
             }
         }
@@ -432,10 +430,8 @@ impl World {
                         if let Some(tank) = self.tanks.get_mut(&player_id) {
                             tank.context.relocate(to, terrain);
                         }
-                    } else {
-                        if let Some(tank) = self.tanks.get_mut(&player_id) {
-                            tank.context.damage(DAMAGE_COLLISION_WITH_FOREST);
-                        }
+                    } else if let Some(tank) = self.tanks.get_mut(&player_id) {
+                        tank.context.damage(DAMAGE_COLLISION_WITH_FOREST);
                     }
                 }
                 _ => {}
@@ -619,17 +615,11 @@ impl World {
     }
 
     fn is_location_free(&self, position: &Position) -> bool {
-        match self.cell_read(position) {
-            MapCell::Terrain(Terrain::Field) => true,
-            _ => false,
-        }
+        matches!(self.cell_read(position), MapCell::Terrain(Terrain::Field))
     }
 
     fn is_player_at_position(&self, position: &Position) -> bool {
-        match self.cell_read(position) {
-            MapCell::Player(_, _) => true,
-            _ => false,
-        }
+        matches!(self.cell_read(position), MapCell::Player(_, _))
     }
 
     fn get_player_at_position(&self, position: &Position) -> Option<PlayerId> {
@@ -663,14 +653,13 @@ impl World {
     fn get_adjacent_positions(&self, position: &Position) -> Vec<Position> {
         let mut adjacents = Vec::new();
 
-        let north = Orientation::North;
-        let mut orientation = north.clone();
+        let mut orientation = Orientation::North;
         loop {
             if let Some(adjacent_position) = position.follow(&orientation, &self.size) {
                 adjacents.push(adjacent_position);
             }
             orientation = orientation.rotated_clockwise();
-            if orientation == north {
+            if orientation == Orientation::North {
                 break;
             }
         }
@@ -681,9 +670,8 @@ impl World {
     fn unset_player_from_cell(&mut self, position: &Position) {
         let map_cell = self.cell_read(position);
 
-        match map_cell {
-            MapCell::Player(_, terrain) => self.cell_write(position, MapCell::Terrain(terrain)),
-            _ => {}
+        if let MapCell::Player(_, terrain) = map_cell {
+            self.cell_write(position, MapCell::Terrain(terrain));
         }
     }
 
@@ -695,16 +683,25 @@ impl World {
         let mut result = None;
         let map_cell = self.cell_read(position);
 
-        match map_cell {
-            MapCell::Terrain(terrain) => match terrain {
+        if let MapCell::Terrain(terrain) = map_cell {
+            match terrain {
                 Terrain::Field | Terrain::Lake | Terrain::Swamp => {
-                    self.cell_write(position, MapCell::Player(player_id, terrain.clone()));
-                    result = Some(terrain.clone());
+                    self.cell_write(position, MapCell::Player(player_id, terrain));
+                    result = Some(terrain);
                 }
                 _ => {}
-            },
-            _ => {}
+            }
         }
+        // match map_cell {
+        //     MapCell::Terrain(terrain) => match terrain {
+        //         Terrain::Field | Terrain::Lake | Terrain::Swamp => {
+        //             self.cell_write(position, MapCell::Player(player_id, terrain));
+        //             result = Some(terrain);
+        //         }
+        //         _ => {}
+        //     },
+        //     _ => {}
+        // }
 
         result
     }
@@ -736,7 +733,7 @@ fn compute_route(
 ) -> (Position, Position) {
     let actual_orientation = match direction {
         Direction::Backward => orientation.opposite(),
-        Direction::Forward => orientation.clone(),
+        Direction::Forward => *orientation,
     };
 
     let new_position = if let Some(pos) = start_position.follow(&actual_orientation, world_size) {
