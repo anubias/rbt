@@ -1,4 +1,6 @@
 use super::player::*;
+use core::time;
+use std::cmp::min;
 
 struct EnemyInfo {
     timestamp: u32,
@@ -24,6 +26,35 @@ impl PlAgiAntti {
             direction: Orientation::North,
             health: 0,
         }
+    }
+
+    // Calculates how many steps are needed to reach cardinal firing range.
+    // TODO: Doesn't account for rotation or turning along the way. Needs a proper pathfinding algorithm for that.
+    fn distance_to_firing_range(&self, enemy_position: &Position) -> u32 {
+        // The shortest path to reach a position that is in firing range:
+        let mut steps = 0;
+        let (mut dx, mut dy) = self.location.delta(enemy_position);
+        // 1. If already within positional firing range, return 0.
+        if self.in_positional_firing_range(enemy_position) {
+            return steps;
+        }
+        // 2. Move along the x-axis until the x-coordinate is within CARDINAL_AIMING_DISTANCE.
+        const CARDINAL_AIMING_DISTANCE: isize = SCANNING_DISTANCE as isize;
+        if dx.abs() > CARDINAL_AIMING_DISTANCE as isize {
+            steps += (dx.abs() - CARDINAL_AIMING_DISTANCE as isize) as u32;
+            // Update dx to reflect the movement.
+            dx -= (steps as isize) * dx.signum();
+        }
+        // 3. Move along the y-axis until the y-coordinate is within CARDINAL_AIMING_DISTANCE.
+        if dy.abs() > CARDINAL_AIMING_DISTANCE as isize {
+            steps += (dy.abs() - CARDINAL_AIMING_DISTANCE as isize) as u32;
+            // Update dy to reflect the movement.
+            dy -= (steps as isize) * dy.signum();
+        }
+        // 4. The position is now within cardinal firing distance.
+        //    The closest position that can be targeted with cardinal aiming is at dx==0, dy==0 or dx==dy.
+        steps += min(min(dx.abs(), dy.abs()), (dx.abs() - dy.abs()).abs()) as u32;
+        return steps;
     }
 
     // Checks if an enemy tank is close enough for positional aiming.
@@ -79,15 +110,17 @@ impl PlAgiAntti {
         let mut threat_level = 0;
         for enemy in &self.enemies {
             let time_since_observed = self.game_time - enemy.timestamp;
-            if time_since_observed < 5
-            {
-                // We have seen the enemy recently.
-                if self.in_positional_firing_range(&enemy.position)
-                    || self.in_cardinal_firing_range(&enemy.position)
-                {
-                    threat_level += time_since_observed;
+            let steps_to_firing_range = self.distance_to_firing_range(&enemy.position);
+            // The enemy poses a threat only when it has had enough time to move into firing range.
+            if time_since_observed >= steps_to_firing_range {
+                let mut threat_from_enemy = time_since_observed - steps_to_firing_range;
+                // Scale down the threat if there is a long time from the last observation.
+                if time_since_observed > 5 {
+                    threat_from_enemy = threat_from_enemy / time_since_observed;
                 }
+                threat_level += threat_from_enemy;
             }
+
         }
         return threat_level;
     }
@@ -137,6 +170,20 @@ impl Player for PlAgiAntti {
         self.location = context.position().clone();
         self.direction = context.orientation().clone();
         self.health = context.health();
+        // Store scan information.
+        if let Some(_scan) = context.scanned_data() {
+            // Update the terrain map with the new scan data.
+            /*for coord in scan.data.iter() {
+                match coord {
+                    MapCell::Player(_, _) => {
+                        // TODO: Store enemy information
+                    },
+                    MapCell::Terrain(terr) => {
+                        self.terrain_map[coord.y as usize][coord.x as usize] = terr;
+                    }
+                }
+            }*/
+        }
 
         // Evaluate the current state
         let threat_level = self.evaluate_threat();
