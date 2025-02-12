@@ -1,6 +1,7 @@
 use super::player::*;
 use core::time;
-use std::cmp::min;
+use std::cmp::{max, min};
+use std::collections::HashMap;
 
 struct EnemyInfo {
     timestamp: u32,
@@ -10,7 +11,7 @@ struct EnemyInfo {
 pub struct PlAgiAntti {
     game_time: u32,
     terrain_map: Vec<Vec<Option<Terrain>>>,
-    enemies: Vec<EnemyInfo>,
+    enemies: HashMap<PlayerId, EnemyInfo>,
     location: Position,
     direction: Orientation,
     health: u8,
@@ -21,7 +22,7 @@ impl PlAgiAntti {
         Self {
             game_time: 0,
             terrain_map: Vec::new(),
-            enemies: Vec::new(),
+            enemies: HashMap::new(),
             location: Position { x: 0, y: 0 },
             direction: Orientation::North,
             health: 0,
@@ -109,7 +110,7 @@ impl PlAgiAntti {
     fn evaluate_threat(&self) -> u32 {
         // Check if there are any enemies in the vicinity.
         let mut threat_level = 0;
-        for enemy in &self.enemies {
+        for (_, enemy) in &self.enemies {
             let time_since_observed = self.game_time - enemy.timestamp;
             let steps_to_firing_range = self.distance_to_firing_range(&enemy.position);
             // The enemy poses a threat only when it has had enough time to move into firing range.
@@ -117,11 +118,10 @@ impl PlAgiAntti {
                 let mut threat_from_enemy = time_since_observed - steps_to_firing_range;
                 // Scale down the threat if there is a long time from the last observation.
                 if time_since_observed > 5 {
-                    threat_from_enemy = threat_from_enemy / time_since_observed;
+                    threat_from_enemy = (2 * threat_from_enemy) / time_since_observed;
                 }
                 threat_level += threat_from_enemy;
             }
-
         }
         return threat_level;
     }
@@ -129,7 +129,7 @@ impl PlAgiAntti {
     fn evaluate_opportunity(&self) -> u32 {
         // Check if we know the position of any enemies.
         let mut opportunity_level = 0;
-        for enemy in &self.enemies {
+        for (_, enemy) in &self.enemies {
             if enemy.timestamp == self.game_time - 1 {
                 // We know where the enemy was on previous turn.
                 if self.in_positional_firing_range(&enemy.position)
@@ -140,7 +140,7 @@ impl PlAgiAntti {
                 }
             }
         }
-        opportunity_level
+        return opportunity_level;
     }
 
     fn defensive_action(&self) -> Action {
@@ -163,7 +163,7 @@ impl Player for PlAgiAntti {
     fn act(&mut self, context: Context) -> Action {
         if self.terrain_map.is_empty() {
             // Initialize the terrain map.
-            self.terrain_map = vec![vec![None; MAX_WORLD_SIZE]; MAX_WORLD_SIZE];
+            self.terrain_map = vec![vec![None; context.world_size().x]; context.world_size().y];
         }
         // Keep track of game time.
         self.game_time += 1;
@@ -172,17 +172,82 @@ impl Player for PlAgiAntti {
         self.direction = context.orientation().clone();
         self.health = context.health();
         // Store scan information.
-        if let Some(_scan) = context.scanned_data() {
-            /*for coord in scan.data.iter() {
-                match coord {
-                    MapCell::Player(_, _) => {
-                        // TODO: Store enemy information
-                    },
-                    MapCell::Terrain(terr) => {
-                        self.terrain_map[coord.y as usize][coord.x as usize] = terr;
+        if let Some(scan) = context.scanned_data() {
+            // Get the top-left corner of the scan area in world coordinates.
+            let own_x = self.location.x as isize;
+            let own_y = self.location.y as isize;
+            let scan_size = SCANNING_DISTANCE as isize;
+            let (scan_x, scan_y) = match &scan.scan_type {
+                ScanType::Mono(direction) => match direction {
+                    Orientation::North => (own_x - (scan_size / 2), own_y - scan_size),
+                    Orientation::NorthEast => (own_x, own_y - scan_size),
+                    Orientation::East => (own_x, own_y - (scan_size / 2)),
+                    Orientation::SouthEast => (own_x, own_y),
+                    Orientation::South => (own_x - (scan_size / 2), own_y),
+                    Orientation::SouthWest => (own_x - scan_size, own_y),
+                    Orientation::West => (own_x - scan_size, own_y - (scan_size / 2)),
+                    Orientation::NorthWest => (own_x - scan_size, own_y - scan_size),
+                },
+                ScanType::Omni => (own_x - (scan_size / 2), own_y - (scan_size / 2)),
+            };
+            // Check which part of the scan area is within the world boundaries.
+            // These are in ScanResult coordinates.
+            let offset_x = max(0, -scan_x) as usize;
+            let offset_y = max(0, -scan_y) as usize;
+            let stop_x = min(scan_size, context.world_size().x as isize - scan_x) as usize;
+            let stop_y = min(scan_size, context.world_size().y as isize - scan_y) as usize;
+
+            println!(
+                "own({},{}), scan({},{}), offset({},{}), stop({},{})",
+                own_x, own_y, scan_x, scan_y, offset_x, offset_y, stop_x, stop_y
+            );
+            // Loop through all valid coordinates in the scan result and update own data structures.
+            for y in offset_y..stop_y {
+                for x in offset_x..stop_x {
+                    let world_x = (x as isize + scan_x) as usize;
+                    let world_y = (y as isize + scan_y) as usize;
+                    match &scan.data[y][x] {
+                        MapCell::Terrain(terrain) => {
+                            self.terrain_map[world_y][world_x] = Some(terrain.clone());
+                        }
+                        MapCell::Player(player_id, terrain) => {
+                            self.terrain_map[world_y][world_x] = Some(terrain.clone());
+                            if player_id.id != context.player_id().id {
+                                self.enemies.insert(
+                                    player_id.clone(),
+                                    EnemyInfo {
+                                        timestamp: self.game_time,
+                                        position: Position {
+                                            x: world_x,
+                                            y: world_y,
+                                        },
+                                    },
+                                );
+                            }
+                        }
+                        _ => {}
                     }
                 }
-            }*/
+            }
+        }
+
+        // debug prints
+        for y in 0..self.terrain_map.len() {
+            let mut line = String::new();
+            for x in 0..self.terrain_map[y].len() {
+                if let Some(terrain) = &self.terrain_map[y][x] {
+                    line += terrain.to_string().as_str();
+                } else {
+                    line += " ";
+                };
+            }
+            println!("{}", line);
+        }
+        for (player_id, enemy) in &self.enemies {
+            println!(
+                "Enemy {:?} at ({}, {})",
+                player_id, enemy.position.x, enemy.position.y
+            );
         }
 
         // Evaluate the current state
@@ -215,6 +280,6 @@ impl Player for PlAgiAntti {
     }
 
     fn is_ready(&self) -> bool {
-        false
+        true
     }
 }
