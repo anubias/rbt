@@ -34,7 +34,12 @@ impl Rahtu {
             v.push(line);
         }
 
-        Self { sensor_data: v, actions_since_last_scan: 0, tracks: Vec::new(), current_time: 0 }
+        Self {
+            sensor_data: v,
+            actions_since_last_scan: 0,
+            tracks: Vec::new(),
+            current_time: 0,
+        }
     }
     fn update_map(&mut self, context: &Context) {
         if let Some(scanned_data) = context.scanned_data() {
@@ -42,20 +47,23 @@ impl Rahtu {
             match scanned_data.scan_type {
                 ScanType::Mono(_) => todo!(),
                 ScanType::Omni => {
-                    for scan_x in 0 .. SCANNING_DISTANCE {
-                        if context.position().x + scan_x < SCANNING_DISTANCE / 2
-                        {
+                    for scan_x in 0..SCANNING_DISTANCE {
+                        if context.position().x + scan_x < SCANNING_DISTANCE / 2 {
                             continue;
                         }
 
                         let global_x = context.position().x + scan_x - SCANNING_DISTANCE / 2;
-                        for scan_y in 0 .. SCANNING_DISTANCE {
-                            if context.position().y + scan_y < SCANNING_DISTANCE / 2
-                            {
+                        for scan_y in 0..SCANNING_DISTANCE {
+                            if context.position().y + scan_y < SCANNING_DISTANCE / 2 {
                                 continue;
                             }
                             let global_y = context.position().y + scan_y - SCANNING_DISTANCE / 2;
-                            self.store_map_tile(context, global_x, global_y, scanned_data.data[scan_y][scan_x])
+                            self.store_map_tile(
+                                context,
+                                global_x,
+                                global_y,
+                                scanned_data.data[scan_y][scan_x],
+                            )
                         }
                     }
                 }
@@ -66,48 +74,53 @@ impl Rahtu {
         }
     }
 
-    fn store_track(&mut self, context: &Context, global_x: usize, global_y: usize, id: &PlayerId) {
-        if *id != *context.player_id()
-        {
-            self.tracks.push(Track {timestamp: self.current_time as i32, x: global_x, y: global_y});
+    fn store_track(&mut self, context: &Context, global_x: usize, global_y: usize, id: PlayerId) {
+        if id != context.player_details().id {
+            self.tracks.push(Track {
+                timestamp: self.current_time as i32,
+                x: global_x,
+                y: global_y,
+            });
         }
     }
 
-    fn draw_map(&self)
-    {
+    fn draw_map(&self) {
         let mut y_num = 0;
-        for y in 0..self.sensor_data.len()  as isize {
+        for y in 0..self.sensor_data.len() as isize {
             let mut line = y_num.to_string();
             y_num += 1;
-            for x in 0..self.sensor_data[0].len() as isize
-            {
+            for x in 0..self.sensor_data[0].len() as isize {
                 line.push_str(&get_cell_char(&self.get_map_tile(x, y)));
             }
             println!("{line}");
         }
     }
 
-    fn store_map_tile(&mut self, context: &Context, global_x: usize, global_y: usize, data: MapCell)
-    {
-        if global_x >= MAX_WORLD_SIZE || global_y >= MAX_WORLD_SIZE
-        {
+    fn store_map_tile(
+        &mut self,
+        context: &Context,
+        global_x: usize,
+        global_y: usize,
+        data: MapCell,
+    ) {
+        if global_x >= MAX_WORLD_SIZE || global_y >= MAX_WORLD_SIZE {
             return;
         }
         match data {
             MapCell::Terrain(Terrain::Field) => {
                 self.sensor_data[global_x][global_y] = SensorData::Empty;
             }
-            MapCell::Player(id, terrain) => {
-                if terrain != Terrain::Field
-                {
+            MapCell::Player(player_details, terrain) => {
+                if terrain != Terrain::Field {
                     self.sensor_data[global_x][global_y] = SensorData::Empty;
-                }
-                else {
+                } else {
                     self.sensor_data[global_x][global_y] = SensorData::Blocked;
                 }
-                self.store_track(context, global_x, global_y, &id);
+                self.store_track(context, global_x, global_y, player_details.id);
             }
-            _ => { self.sensor_data[global_x][global_y] = SensorData::Blocked; }
+            _ => {
+                self.sensor_data[global_x][global_y] = SensorData::Blocked;
+            }
         }
     }
 
@@ -124,26 +137,29 @@ impl Rahtu {
         match context.orientation() {
             Orientation::North => self.get_map_tile(
                 context.position().x as isize,
-                context.position().y as isize - 1
+                context.position().y as isize - 1,
             ),
             Orientation::East => self.get_map_tile(
                 context.position().x as isize + 1,
-                context.position().y as isize
+                context.position().y as isize,
             ),
             Orientation::South => self.get_map_tile(
                 context.position().x as isize,
-                context.position().y as isize + 1
+                context.position().y as isize + 1,
             ),
             Orientation::West => self.get_map_tile(
                 context.position().x as isize - 1,
-                context.position().y as isize
+                context.position().y as isize,
             ),
             _ => SensorData::Blocked,
         }
     }
 
-    fn can_see_unexplored_terrain_in_direction(&mut self, direction: &Orientation, context: &Context) -> bool
-    {
+    fn can_see_unexplored_terrain_in_direction(
+        &mut self,
+        direction: &Orientation,
+        context: &Context,
+    ) -> bool {
         let mut x_offset = 0;
         let mut y_offset = 0;
         match direction {
@@ -151,7 +167,7 @@ impl Rahtu {
             Orientation::East => x_offset = 1,
             Orientation::South => y_offset = 1,
             Orientation::West => x_offset = -1,
-            _ => return false
+            _ => return false,
         }
         let mut x = context.position().x as isize;
         let mut y = context.position().y as isize;
@@ -172,9 +188,7 @@ impl Rahtu {
         }
     }
 
-    fn get_direction_with_unexplored_terrain(&mut self, context: &Context) -> Option<Orientation>
-    {
-
+    fn get_direction_with_unexplored_terrain(&mut self, context: &Context) -> Option<Orientation> {
         if self.can_see_unexplored_terrain_in_direction(context.orientation(), context) {
             return Some(context.orientation().clone());
         }
@@ -198,12 +212,13 @@ impl Rahtu {
         for track in &self.tracks {
             if track.timestamp == self.current_time as i32 {
                 // Current track -> fire on it!
-                return Some(Action::Fire(Aiming::Positional(Position{ x: track.x, y: track.y})));
-            }
-            else if track.timestamp > self.current_time as i32 - 3 {
+                return Some(Action::Fire(Aiming::Positional(Position {
+                    x: track.x,
+                    y: track.y,
+                })));
+            } else if track.timestamp > self.current_time as i32 - 3 {
                 // Recent track - check if it's still there to fire on..
                 found_recent_track = true;
-
             }
         }
         // TODO: This should probably somehow track the tracks (so it won't keep looking after it has killed something)
@@ -230,27 +245,23 @@ impl Rahtu {
             Orientation::NorthWest => Action::Rotate(Rotation::CounterClockwise),
             _ => match self.get_direction_with_unexplored_terrain(context) {
                 Some(direction) => {
-                    if direction == context.orientation().clone()
-                    {
+                    if direction == context.orientation().clone() {
                         match self.get_map_tile_in_front(context) {
                             SensorData::NotScanned => Action::Scan(ScanType::Omni),
                             SensorData::Empty => Action::Move(Direction::Forward),
                             SensorData::Blocked => Action::Rotate(Rotation::CounterClockwise),
                         }
-                    }
-                    else {
+                    } else {
                         // Yes, this should really figure out the correct direction to rotate, but it'd also mean fixing the diagonals above..
                         Action::Rotate(Rotation::CounterClockwise)
                     }
+                }
+                None => match self.get_map_tile_in_front(context) {
+                    SensorData::NotScanned => Action::Scan(ScanType::Omni),
+                    SensorData::Empty => Action::Move(Direction::Forward),
+                    SensorData::Blocked => Action::Rotate(Rotation::CounterClockwise),
                 },
-                None => {
-                    match self.get_map_tile_in_front(context) {
-                        SensorData::NotScanned => Action::Scan(ScanType::Omni),
-                        SensorData::Empty => Action::Move(Direction::Forward),
-                        SensorData::Blocked => Action::Rotate(Rotation::CounterClockwise),
-                    }
-                },
-            }
+            },
         };
     }
 }
@@ -278,8 +289,7 @@ impl Player for Rahtu {
     }
 }
 
-fn get_cell_char(cell_data: &SensorData) -> String
-{
+fn get_cell_char(cell_data: &SensorData) -> String {
     match cell_data {
         SensorData::NotScanned => return "-".to_string(),
         SensorData::Empty => return "_".to_string(),

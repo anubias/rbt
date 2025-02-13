@@ -48,8 +48,8 @@ impl Map {
 
     fn resolve_cell(map_cell: &MapCell) -> MapCell {
         match map_cell {
-            MapCell::Player(player_id, terrain) => {
-                if player_id.is_alive() {
+            MapCell::Player(player_details, terrain) => {
+                if player_details.is_alive() {
                     MapCell::Terrain(terrain.clone())
                 } else {
                     // Map dead player as an obstacle
