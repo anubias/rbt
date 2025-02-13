@@ -115,7 +115,7 @@ impl AdvancedStrategy {
             for map_cell in row.iter() {
                 match map_cell {
                     MapCell::Player(player_id, ..) => { 
-                        if player_id != my_player_id { return true }
+                        if player_id != my_player_id && player_id.is_alive() { return true }
                      }
                     _ => ()
                 }
@@ -126,11 +126,11 @@ impl AdvancedStrategy {
 
     fn get_players_from_scan_result(&self, scan_result: &ScanResult) -> Vec<PlayerInMap> {
         let mut players: Vec<PlayerInMap> = Vec::new();
-        for y in 0..SCANNING_DISTANCE {
-            for x in 0..SCANNING_DISTANCE {
-                match scan_result.data[x][y] {
+        for vert in 0..SCANNING_DISTANCE {
+            for hor in 0..SCANNING_DISTANCE {
+                match scan_result.data[vert][hor] {
                     MapCell::Player(player_id, ..) => { 
-                        players.push(PlayerInMap { player_id: player_id.clone(), x: x, y: y })
+                        players.push(PlayerInMap { player_id: player_id.clone(), x: hor, y: vert })
                      }
                     _ => ()
                 }
@@ -150,7 +150,7 @@ impl AdvancedStrategy {
 
     fn get_any_other_player_coordinates_from_submap(&self, my_player_id: &PlayerId, players: &Vec<PlayerInMap>) -> Option<(isize, isize)> {
         for player in players.iter() {
-            if &player.player_id != my_player_id {
+            if &player.player_id != my_player_id && player.player_id.is_alive() {
                 return Option::Some((player.x as isize, player.y as isize))
             }
         }
@@ -165,12 +165,6 @@ impl AdvancedStrategy {
         let new_x = (my_position.x as isize + delta.0) as usize;
         let new_y = (my_position.y as isize + delta.1) as usize;
         Position {x: new_x, y: new_y}
-    }
-
-
-    fn get_firing_position(&self) -> Position {
-        // if I have failed to find anything then just shoot my own tank
-        Position {x: 0 , y: 0}
     }
 
     fn get_next_action_when_scan_was_previous(&self, context: &Context) -> Action {
@@ -271,6 +265,8 @@ mod tests {
             Terrain::Field
         );
         assert_eq!(true, s.other_players_are_in_scan_result(&my_player_id, &scan_result));
+
+        // ADD TEST CASE FOR DEAD PLAYER
     }
 
 }
