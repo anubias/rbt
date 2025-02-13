@@ -12,6 +12,9 @@
 
 use crate::DEAD_AVATAR;
 
+pub type Avatar = char;
+pub type PlayerId = u8;
+
 /// Specifies the maximum horizontal or vertical size of the game map
 pub const MAX_WORLD_SIZE: usize = 64;
 
@@ -24,6 +27,14 @@ pub const CARDINAL_SHOT_DISTANCE: usize = SCANNING_DISTANCE - 1;
 
 /// Specifies the maximum range of a positional attack
 pub const POSITIONAL_SHOT_DISTANCE: usize = CARDINAL_SHOT_DISTANCE / 2;
+
+/// An invalid player details instance
+pub const INVALID_PLAYER: PlayerDetails = PlayerDetails {
+    avatar: ' ',
+    alive: false,
+    id: 0,
+    orientation: Orientation::North,
+};
 
 /// Public trait that players need to implement, in order for the game engine
 /// to be able to interact with the player.
@@ -50,34 +61,30 @@ pub trait Player {
     }
 }
 
-pub const INVALID_PLAYER_ID: PlayerId = PlayerId {
-    avatar: ' ',
-    id: 0,
-    orientation: Orientation::North,
-};
-
 /// Defines the player id type
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PlayerId {
-    pub avatar: char,
-    pub id: usize,
+pub struct PlayerDetails {
+    pub avatar: Avatar,
+    pub alive: bool,
+    pub id: PlayerId,
     pub orientation: Orientation,
 }
 
-impl PlayerId {
-    pub fn new(avatar: char, id: usize) -> Self {
+impl PlayerDetails {
+    pub fn new(avatar: char, id: PlayerId) -> Self {
         if id == 0 {
             panic!("Invalid player id=0 used!");
         }
         Self {
             avatar,
+            alive: true,
             id,
             orientation: Orientation::North,
         }
     }
 }
 
-impl std::fmt::Display for PlayerId {
+impl std::fmt::Display for PlayerDetails {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{{id: {}, avatar: {}}}", self.id, self.avatar)
     }
@@ -91,20 +98,20 @@ pub struct Context {
     mobile: bool,
     previous_action: Action,
     orientation: Orientation,
-    player_id: PlayerId,
+    player_details: PlayerDetails,
     position: Position,
     scan: Option<ScanResult>,
     world_size: WorldSize,
 }
 
 impl Context {
-    pub fn new(player_id: PlayerId, position: Position, world_size: WorldSize) -> Self {
+    pub fn new(player_details: PlayerDetails, position: Position, world_size: WorldSize) -> Self {
         Self {
             health: 100,
             mobile: true,
             previous_action: Action::default(),
             orientation: Orientation::default(),
-            player_id,
+            player_details,
             position,
             scan: None,
             world_size,
@@ -114,7 +121,7 @@ impl Context {
     pub fn damage(&mut self, damage: u8) {
         self.health = self.health.saturating_sub(damage);
         if self.health == 0 {
-            self.player_id.avatar = DEAD_AVATAR;
+            self.player_details.avatar = DEAD_AVATAR;
         }
     }
 
@@ -134,8 +141,8 @@ impl Context {
         &self.orientation
     }
 
-    pub fn player_id(&self) -> &PlayerId {
-        &self.player_id
+    pub fn player_details(&self) -> &PlayerDetails {
+        &self.player_details
     }
 
     pub fn position(&self) -> &Position {
@@ -180,13 +187,13 @@ impl std::fmt::Display for Context {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = if self.scan.is_some() {
             format!(
-                "{{\n   player_id: {},\n   health: {},\n   mobile: {},\n   previous_action: \"{}\",   orientation: \"{}\",\n   position: {},\n   scanned_data: present\n}}",
-                self.player_id, self.health, self.mobile, self.previous_action, self.orientation, self.position
+                "{{\n   player_details: {},\n   health: {},\n   mobile: {},\n   previous_action: \"{}\",   orientation: \"{}\",\n   position: {},\n   scanned_data: present\n}}",
+                self.player_details, self.health, self.mobile, self.previous_action, self.orientation, self.position
             )
         } else {
             format!(
-                "{{\n   player_id: {},\n   health: {},\n   mobile: {},\n   previous_action: \"{}\",   orientation: \"{}\",\n   position: {},\n   scanned_data: absent\n}}",
-                self.player_id, self.health, self.mobile, self.previous_action, self.orientation, self.position,
+                "{{\n   player_details: {},\n   health: {},\n   mobile: {},\n   previous_action: \"{}\",   orientation: \"{}\",\n   position: {},\n   scanned_data: absent\n}}",
+                self.player_details, self.health, self.mobile, self.previous_action, self.orientation, self.position,
             )
         };
         write!(f, "{text}")
@@ -195,9 +202,9 @@ impl std::fmt::Display for Context {
 
 #[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MapCell {
-    Explosion(PlayerId, Terrain),
-    Player(PlayerId, Terrain),
-    Shell(PlayerId, Terrain),
+    Explosion(PlayerDetails, Terrain),
+    Player(PlayerDetails, Terrain),
+    Shell(PlayerDetails, Terrain),
     Terrain(Terrain),
     #[default]
     Unknown,
@@ -207,7 +214,7 @@ impl std::fmt::Display for MapCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Explosion(_, _) => write!(f, "💥"),
-            Self::Player(player_id, _) => write!(f, "{}", player_id.avatar),
+            Self::Player(player_details, _) => write!(f, "{}", player_details.avatar),
             Self::Shell(_, _) => write!(f, "🔴"),
             Self::Terrain(t) => write!(f, "{t}"),
             Self::Unknown => write!(f, "⬛"),
