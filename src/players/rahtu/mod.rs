@@ -9,9 +9,17 @@ enum SensorData {
     Blocked,
 }
 
+struct Track {
+    x: usize,
+    y: usize,
+    timestamp: i32,
+}
+
 pub struct Rahtu {
     sensor_data: Vec<Vec<SensorData>>,
     actions_since_last_scan: i64,
+    tracks: Vec<Track>,
+    current_time: u64,
 }
 
 impl Rahtu {
@@ -26,7 +34,7 @@ impl Rahtu {
             v.push(line);
         }
 
-        Self { sensor_data: v, actions_since_last_scan: 0 }
+        Self { sensor_data: v, actions_since_last_scan: 0, tracks: Vec::new(), current_time: 0 }
     }
     fn update_map(&mut self, context: &Context) {
         if let Some(scanned_data) = context.scanned_data() {
@@ -47,7 +55,7 @@ impl Rahtu {
                                 continue;
                             }
                             let global_y = context.position().y + scan_y - SCANNING_DISTANCE / 2;
-                            self.store_map_tile(global_x, global_y, scanned_data.data[scan_y][scan_x])
+                            self.store_map_tile(context, global_x, global_y, scanned_data.data[scan_y][scan_x])
                         }
                     }
                 }
@@ -55,6 +63,13 @@ impl Rahtu {
             if DEBUG_PRINTS {
                 self.draw_map();
             }
+        }
+    }
+
+    fn store_track(&mut self, context: &Context, global_x: usize, global_y: usize, id: &PlayerId) {
+        if *id != *context.player_id()
+        {
+            self.tracks.push(Track {timestamp: self.current_time as i32, x: global_x, y: global_y});
         }
     }
 
@@ -72,20 +87,27 @@ impl Rahtu {
         }
     }
 
-    fn store_map_tile(&mut self, x: usize, y: usize, data: MapCell)
+    fn store_map_tile(&mut self, context: &Context, global_x: usize, global_y: usize, data: MapCell)
     {
-        if x >= MAX_WORLD_SIZE || y >= MAX_WORLD_SIZE
+        if global_x >= MAX_WORLD_SIZE || global_y >= MAX_WORLD_SIZE
         {
             return;
         }
         match data {
             MapCell::Terrain(Terrain::Field) => {
-                self.sensor_data[x][y] = SensorData::Empty;
+                self.sensor_data[global_x][global_y] = SensorData::Empty;
             }
-            MapCell::Player(_, _) => {
-                // Ignore - it should retain it's previous data if it was scanned before or remain not scanned
+            MapCell::Player(id, terrain) => {
+                if terrain != Terrain::Field
+                {
+                    self.sensor_data[global_x][global_y] = SensorData::Empty;
+                }
+                else {
+                    self.sensor_data[global_x][global_y] = SensorData::Blocked;
+                }
+                self.store_track(context, global_x, global_y, &id);
             }
-            _ => { self.sensor_data[x][y] = SensorData::Blocked; }
+            _ => { self.sensor_data[global_x][global_y] = SensorData::Blocked; }
         }
     }
 
@@ -171,11 +193,35 @@ impl Rahtu {
         return None;
     }
 
+    fn check_tracks(&mut self) -> Option<Action> {
+        let mut found_recent_track = false;
+        for track in &self.tracks {
+            if track.timestamp == self.current_time as i32 - 1 {
+                // Current track -> fire on it!
+                return Some(Action::Fire(Aiming::Positional(Position{ x: track.x, y: track.y})));
+            }
+            else if track.timestamp > self.current_time as i32 - 4 {
+                // Recent track - check if it's still there to fire on..
+                found_recent_track = true;
+
+            }
+        }
+        // TODO: This should probably somehow track the tracks (so it won't keep looking after it has killed something)
+        if found_recent_track {
+            return Some(Action::Scan(ScanType::Omni));
+        }
+        return None;
+    }
+
     fn get_next_action(&mut self, context: &Context) -> Action {
         if self.actions_since_last_scan > 5 {
             return Action::Scan(ScanType::Omni);
         }
         self.actions_since_last_scan += 1;
+
+        if let Some(action) = self.check_tracks() {
+            return action;
+        }
 
         return match context.orientation() {
             Orientation::NorthEast => Action::Rotate(Rotation::CounterClockwise),
@@ -211,6 +257,7 @@ impl Rahtu {
 
 impl Player for Rahtu {
     fn act(&mut self, context: Context) -> Action {
+        self.current_time += 1;
         self.update_map(&context);
         if DEBUG_PRINTS {
             println!("{context}");
