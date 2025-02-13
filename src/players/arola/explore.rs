@@ -36,7 +36,7 @@ impl Arola {
         context: &Context,
     ) -> (PlayerState, Action) {
         if !scan_result
-            .find_other_players(context.player_id(), context.position())
+            .find_other_players(context.player_details(), context.position())
             .is_empty()
         {
             self.attack(context)

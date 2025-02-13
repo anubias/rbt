@@ -51,34 +51,37 @@ impl ScanResult {
         }
     }
 
-    fn get_player_id(map_cell: &MapCell) -> PlayerId {
+    fn get_player_details(map_cell: &MapCell) -> PlayerDetails {
         match map_cell {
-            MapCell::Explosion(player_id, _) => player_id.clone(),
-            MapCell::Player(player_id, _) => player_id.clone(),
-            MapCell::Shell(player_id, _) => player_id.clone(),
-            _ => INVALID_PLAYER_ID,
+            MapCell::Explosion(player_details, _) => player_details.clone(),
+            MapCell::Player(player_details, _) => player_details.clone(),
+            MapCell::Shell(player_details, _) => player_details.clone(),
+            _ => INVALID_PLAYER,
         }
     }
 
     pub fn find_other_players(
         &self,
-        my_id: &PlayerId,
+        my_id: &PlayerDetails,
         my_world_position: &Position,
-    ) -> Vec<(PlayerId, Position)> {
+    ) -> Vec<(PlayerDetails, Position)> {
         let mut other_players = Vec::new();
         let scan_world_position = self.get_world_position(my_world_position);
 
         for y in 0..self.data.len() {
             for x in 0..self.data[y].len() {
-                let player_id = ScanResult::get_player_id(&self.data[y][x]);
+                let player_details = ScanResult::get_player_details(&self.data[y][x]);
 
-                if player_id != INVALID_PLAYER_ID && &player_id != my_id && player_id.is_alive() {
+                if player_details != INVALID_PLAYER
+                    && &player_details != my_id
+                    && player_details.is_alive()
+                {
                     let position_x = x as isize + scan_world_position.0;
                     let position_y = y as isize + scan_world_position.1;
                     assert!(position_x >= 0 && position_y >= 0);
 
                     other_players.push((
-                        player_id,
+                        player_details,
                         Position {
                             x: position_x as usize,
                             y: position_y as usize,
@@ -100,7 +103,7 @@ impl ScanResult {
     }
 }
 
-impl PlayerId {
+impl PlayerDetails {
     pub fn is_alive(&self) -> bool {
         self.avatar != DEAD_AVATAR
     }
