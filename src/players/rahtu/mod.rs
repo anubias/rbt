@@ -196,11 +196,11 @@ impl Rahtu {
     fn check_tracks(&mut self) -> Option<Action> {
         let mut found_recent_track = false;
         for track in &self.tracks {
-            if track.timestamp == self.current_time as i32 - 1 {
+            if track.timestamp == self.current_time as i32 {
                 // Current track -> fire on it!
                 return Some(Action::Fire(Aiming::Positional(Position{ x: track.x, y: track.y})));
             }
-            else if track.timestamp > self.current_time as i32 - 4 {
+            else if track.timestamp > self.current_time as i32 - 3 {
                 // Recent track - check if it's still there to fire on..
                 found_recent_track = true;
 
