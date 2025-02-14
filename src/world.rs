@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use rand::{rngs::ThreadRng, thread_rng, Rng};
+use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
 
 use crate::players::player::{
     Action, Aiming, Context, Direction, MapCell, Orientation, Player, PlayerId, Position, Rotation,
@@ -474,8 +474,9 @@ impl World {
         let mut old_pos: Option<Position> = None;
         for _ in 0..obstacle_size {
             if self.get_field_count() > 0 {
+                let mut path = Vec::new();
                 let new_pos = if let Some(p) = old_pos.as_ref() {
-                    self.get_adjacent_field_location(p, obstacle)
+                    self.get_adjacent_field_location(p, obstacle, &mut path)
                 } else {
                     Some(self.get_random_field_location())
                 };
@@ -538,6 +539,7 @@ impl World {
         &mut self,
         position: &Position,
         obstacle_type: MapCell,
+        walked_path: &mut Vec<Position>,
     ) -> Option<Position> {
         let mut orientations_bag = vec![
             Orientation::North,
@@ -545,6 +547,7 @@ impl World {
             Orientation::South,
             Orientation::West,
         ];
+        orientations_bag.shuffle(&mut self.rng);
 
         let mut result = None;
         loop {
@@ -552,13 +555,17 @@ impl World {
                 break;
             }
 
-            let index = self.rng.gen_range(0..orientations_bag.len());
-            let orientation = orientations_bag.remove(index);
-            if let Some(next_pos) = position.follow(&orientation, &self.size) {
-                if self.is_location_free(&next_pos) {
-                    result = Some(next_pos);
-                } else if self.cell_read(&next_pos) == obstacle_type {
-                    result = self.get_adjacent_field_location(&next_pos, obstacle_type)
+            if let Some(orientation) = orientations_bag.pop() {
+                if let Some(next_pos) = position.follow(&orientation, &self.size) {
+                    if walked_path.contains(&next_pos) {
+                        break;
+                    } else if self.is_location_free(&next_pos) {
+                        result = Some(next_pos);
+                    } else if self.cell_read(&next_pos) == obstacle_type {
+                        walked_path.push(next_pos.clone());
+                        result =
+                            self.get_adjacent_field_location(&next_pos, obstacle_type, walked_path);
+                    }
                 }
             }
         }
