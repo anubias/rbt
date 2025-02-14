@@ -644,10 +644,6 @@ impl World {
         matches!(self.cell_read(position), MapCell::Terrain(Terrain::Field))
     }
 
-    fn is_player_at_position(&self, position: &Position) -> bool {
-        matches!(self.cell_read(position), MapCell::Player(_, _))
-    }
-
     fn get_player_at_position(&self, position: &Position) -> Option<PlayerDetails> {
         match self.cell_read(position) {
             MapCell::Player(player_details, _) => Some(player_details),
@@ -718,16 +714,6 @@ impl World {
                 _ => {}
             }
         }
-        // match map_cell {
-        //     MapCell::Terrain(terrain) => match terrain {
-        //         Terrain::Field | Terrain::Lake | Terrain::Swamp => {
-        //             self.cell_write(position, MapCell::Player(player_details, terrain));
-        //             result = Some(terrain);
-        //         }
-        //         _ => {}
-        //     },
-        //     _ => {}
-        // }
 
         result
     }
@@ -988,23 +974,6 @@ mod tests {
         let player_details = PlayerDetails::new(DEFAULT_AVATAR, 10);
         let result = world.try_set_player_on_cell(player_details, &position);
         assert!(result.is_some());
-    }
-
-    #[test]
-    fn is_player_at_position() {
-        let mut world = generate_mini_world();
-
-        let position = Position { x: 5, y: 2 };
-        let player_details = PlayerDetails::new(DEFAULT_AVATAR, 10);
-        let result = world.try_set_player_on_cell(player_details, &position);
-        assert!(result.is_some());
-
-        let other_position = Position {
-            x: position.x + 1,
-            y: position.y,
-        };
-        assert!(world.is_player_at_position(&position));
-        assert!(!world.is_player_at_position(&other_position));
     }
 
     #[test]

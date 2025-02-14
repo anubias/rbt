@@ -324,18 +324,11 @@ impl Position {
 
         (dx, dy)
     }
-
-    /// Computes the pythagorean distance between self and the provided `Position`.
-    pub fn pythagorean_distance(&self, other: &Position) -> f32 {
-        let (dx, dy) = self.manhattan_distance(other);
-
-        ((dx * dx + dy * dy) as f32).sqrt()
-    }
 }
 
 impl std::fmt::Display for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[x: {}, y: {}]", self.x, self.y)
+        write!(f, "[x:{}, y:{}]", self.x, self.y)
     }
 }
 
@@ -583,10 +576,8 @@ mod tests {
         let b = Position { x: 5, y: 7 };
 
         let manhattan = a.manhattan_distance(&b);
-        let pythagorean = a.pythagorean_distance(&b);
 
         assert_eq!((-3, -4), manhattan);
-        assert_eq!(5.0, pythagorean);
     }
 
     #[test]
