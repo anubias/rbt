@@ -87,9 +87,11 @@ Tanks have an attached mini-radar unit which allows them to scan their vicinity.
 - `Mono`-directional: sends the radar energy beam in a single direction
 - `Omni`-directional: sends the radar energy beam in a swift pattern all around the tank
 
-The area of the scanned map surface is always the same. It is represented as an array of size `Players::SCANNING_DISTANCE`. It should be obvious that mono-directional scanns will give you data that is farther away from the tank, albeit towards one direction only.
+The shape and size of the scanned map surface is always a square with side length of `Players::SCANNING_DISTANCE`.
 
-The scanned data created as the result of scanning the environment *always* contains the tank who has initiated the scan.
+It is important to note that the scan output will _always_ include the tank who requested it. The differences between the different types of scans affect the position of the requesting tank relative to the returned result. In the case of `Omni`-directional scanning, the scanning tank will be located in the middle of the scanned area. In case of `Mono`-directional scanning, the scanning tank will be located on the edge or corner of the scanned area. For example, the scanning tank will be located on the bottom-left side of the scanned area in case of a `Mono`-directional North-East scan.
+
+It should be obvious that mono-directional scans will give you data that is farther away from the tank, albeit towards one direction only.
 
 ### Shooting
 
@@ -235,11 +237,11 @@ Please note that the same damage pattern is created regardless if the shell has 
 
 ### Damage
 
-The damage is expressed as a percentage of *full health*. Any damage inflicted by a player is not proportional with the current health level. So for example, if a certain damage is defined to be **25%**, then each such damage will inflict a decrease of health level corresponding to 25% of the full health. In ther words, maximum four consecutive such damages will kill any tank, depending on his current health level.
+The damage is expressed as a percentage of _full health_. Any damage inflicted by a player is not proportional with the current health level. So for example, if a certain damage is defined to be **25%**, then each such damage will inflict a decrease of health level corresponding to 25% of the full health. In ther words, maximum four consecutive such damages will kill any tank, depending on his current health level.
 
 Tanks take damage in several scenarios:
 
 - When entering `Lake` terrain, the damage is **100%** (instant death)
 - When colliding with `Forest` terrain, the damage is **25%**
-- When colliding with other tanks, the damage is **10%** *to both tanks*
+- When colliding with other tanks, the damage is **10%** _to both tanks_
 - The damage is **75%** for direct hits, and **25%** for indirect hits
