@@ -425,7 +425,7 @@ impl Orientation {
             4.. => Rotation::Clockwise,
         };
         if delta > 4 {
-            delta %= 4;
+            delta = Orientation::get_cardinal_direction_count() - delta;
         }
 
         (rotation, delta)
@@ -589,6 +589,12 @@ mod tests {
 
         let steps = a.quick_turn(&b);
         assert_eq!((Rotation::CounterClockwise, 3), (steps.0, steps.1));
+
+        let a = Orientation::North;
+        let b = Orientation::SouthEast;
+
+        let steps = a.quick_turn(&b);
+        assert_eq!((Rotation::Clockwise, 3), (steps.0, steps.1));
 
         let a = Orientation::West;
         let b = Orientation::North;
