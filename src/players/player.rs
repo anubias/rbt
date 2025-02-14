@@ -23,7 +23,7 @@ const DIV: usize = 4;
 pub const CARDINAL_SHOT_DISTANCE: usize = SCANNING_DISTANCE - 1;
 
 /// Specifies the maximum range of a positional attack
-pub const POSITIONAL_SHOT_DISTANCE: usize = CARDINAL_SHOT_DISTANCE / 2 - 1;
+pub const POSITIONAL_SHOT_DISTANCE: usize = CARDINAL_SHOT_DISTANCE / 2;
 
 /// Public trait that players need to implement, in order for the game engine
 /// to be able to interact with the player.

@@ -50,6 +50,17 @@ impl Shell {
         }
     }
 
+    fn possible_shot(&self) -> bool {
+        match &self.aim_type {
+            Aiming::Cardinal(_) => true,
+            Aiming::Positional(pos) => {
+                let (dx, dy) = self.fired_from.manhattan_distance(pos);
+                let (dx, dy) = (dx.abs() as usize, dy.abs() as usize);
+                dx <= POSITIONAL_SHOT_DISTANCE && dy <= POSITIONAL_SHOT_DISTANCE
+            }
+        }
+    }
+
     fn evolve(&mut self, world_size: &WorldSize) {
         match self.state {
             ShellState::NotLaunched | ShellState::Flying => {
@@ -76,8 +87,9 @@ impl Shell {
         if self.state == ShellState::Flying {
             let landed = match &self.aim_type {
                 Aiming::Cardinal(_) => {
-                    let distance = self.fired_from.pythagorean_distance(&self.current_pos) as usize;
-                    distance > self.max_fly_distance()
+                    let (dx, dy) = self.fired_from.manhattan_distance(&self.current_pos);
+                    let distance = (dx.abs() + dy.abs()) as usize;
+                    distance >= self.max_fly_distance()
                 }
                 Aiming::Positional(position) => *position == self.current_pos,
             };
@@ -230,12 +242,19 @@ impl World {
         self.fly_shells(ordnance);
     }
 
-    fn fly_shells(&mut self, mut ordnance: Vec<Shell>) {
+    fn fly_shells(&mut self, ordnance: Vec<Shell>) {
         let max_iteration = CARDINAL_SHOT_DISTANCE.max(POSITIONAL_SHOT_DISTANCE) + 3;
+        let mut possible_shots = Vec::new();
+
+        for shell in ordnance {
+            if shell.possible_shot() {
+                possible_shots.push(shell);
+            }
+        }
 
         let mut iteration = 0;
         loop {
-            for shell in ordnance.iter_mut() {
+            for shell in possible_shots.iter_mut() {
                 match shell.state {
                     ShellState::NotLaunched => {
                         shell.evolve(&self.size);
@@ -283,7 +302,7 @@ impl World {
                 break;
             }
 
-            if !ordnance.is_empty() {
+            if !possible_shots.is_empty() {
                 println!("{self}");
             }
             std::thread::sleep(Duration::from_millis(self.tick));
