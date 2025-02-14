@@ -5,9 +5,11 @@ use rand::Rng;
 
 use super::player::*;
 
-const PLAYER_LIFETIME: u8 = 4;
+const PLAYER_LIFETIME: u8 = 2;
 const SCAN_EVERY_NTH_STEP: u8 = 3;
 const DEBUG_PRINTS: bool = false;
+const CORNER_OFFSET_X: usize = 6;
+const CORNER_OFFSET_Y: usize = 4;
 
 pub struct DetectedPlayer {
     position: Position,
@@ -104,7 +106,7 @@ impl PlayerOne {
                 world_size.y
             ]));
         }
-        
+
         if DEBUG_PRINTS {
             println!(
                 "Position: {:?}, current orientation: {:?},",
@@ -188,26 +190,70 @@ impl PlayerOne {
         // check for players
         if action.is_none() {
             if let Some(detected_player) = self.get_newest_player_at_firing_distance(&context) {
-                action = Some(Action::Fire(Aiming::Positional(
-                    detected_player.position.clone(),
-                )));
-            }
-        }
-        
-        if self.scan_counter == 0 {
-            if action.is_none() {
-                if let Some(detected_player) = self.get_newest_player_at_firing_distance(&context) {
+                let dx = detected_player.position.x as isize - context.position().x as isize;
+                let dy = detected_player.position.y as isize - context.position().y as isize;
+                if dx == 0 || dy == 0 || dx == dy {
+                    let orientation = if dx == 0 {
+                        if dy > 0 {
+                            Orientation::South
+                        } else {
+                            Orientation::North
+                        }
+                    } else if dy == 0 {
+                        if dx > 0 {
+                            Orientation::East
+                        } else {
+                            Orientation::West
+                        }
+                    } else if dx > 0 {
+                        if dy > 0 {
+                            Orientation::SouthEast
+                        } else {
+                            Orientation::NorthEast
+                        }
+                    } else {
+                        if dy > 0 {
+                            Orientation::SouthWest
+                        } else {
+                            Orientation::NorthWest
+                        }
+                    };
+                    action = Some(Action::Fire(Aiming::Cardinal(orientation)));
+                } else {
                     action = Some(Action::Fire(Aiming::Positional(
                         detected_player.position.clone(),
                     )));
                 }
+            }
+        }
+
+        if action.is_none() && self.in_corner(&context) {
+            println!("in corner");
+            // figure out scan direction
+            let my_x = context.position().x;
+            let my_y = context.position().y;
+
+            if my_x == 1 {
+                if my_y == 1 {
+                    action = Some(Action::Scan(ScanType::Mono(Orientation::SouthEast)));
+                } else {
+                    action = Some(Action::Scan(ScanType::Mono(Orientation::NorthEast)));
+                }
+            } else if my_y == 1 {
+                action = Some(Action::Scan(ScanType::Mono(Orientation::SouthWest)));
+            } else {
+                action = Some(Action::Scan(ScanType::Mono(Orientation::NorthWest)));
+            }
+        }
+
+        if self.scan_counter == 0 {
+            if action.is_none() {
                 action = Some(Action::Scan(ScanType::Omni));
                 self.scan_counter = SCAN_EVERY_NTH_STEP;
             }
         } else {
             self.scan_counter -= 1;
         }
-
         // check surroundings and move
         if action.is_none() {
             let surroundings = self.check_surroundings(&context);
@@ -280,12 +326,16 @@ impl PlayerOne {
         // check for players using self.detected_players
         let mut newest_player_at_firing_distance: Option<(PlayerId, &DetectedPlayer)> = None;
         let mut newest_player_lifetime: u8 = 0;
+        let max_distance = match self.in_corner(context) {
+            true => SCANNING_DISTANCE,
+            false => SCANNING_DISTANCE / 2,
+        };
         for (player_id, detected_player) in self.detected_players.iter() {
             let y_distance =
                 (detected_player.position.y as isize - context.position().y as isize).abs();
             let x_distance =
                 (detected_player.position.x as isize - context.position().x as isize).abs();
-            if y_distance < SCANNING_DISTANCE as isize && x_distance < SCANNING_DISTANCE as isize {
+            if y_distance < max_distance as isize && x_distance < max_distance as isize {
                 if detected_player.lifetime > newest_player_lifetime {
                     newest_player_lifetime = detected_player.lifetime;
                     newest_player_at_firing_distance = Some((player_id.clone(), detected_player));
@@ -317,6 +367,15 @@ impl PlayerOne {
         if removed {
             self.scan_counter = 0;
         }
+    }
+
+    pub fn in_corner(&self, context: &Context) -> bool {
+        (context.position().x == 1 && context.position().y == 1)
+            || (context.position().x == MAX_WORLD_SIZE - CORNER_OFFSET_X
+                && context.position().y == MAX_WORLD_SIZE / 2 - CORNER_OFFSET_Y)
+            || (context.position().x == 1
+                && context.position().y == MAX_WORLD_SIZE / 2 - CORNER_OFFSET_Y)
+            || (context.position().x == MAX_WORLD_SIZE - CORNER_OFFSET_X && context.position().y == 1)
     }
 
     fn rotate_to(&self, to: Orientation, context: Context) -> Option<Action> {
