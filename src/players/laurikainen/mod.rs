@@ -83,7 +83,7 @@ impl PlayerOne {
         if self.scanned_map.is_none() {
             let world_size = context.world_size();
             self.scanned_map = Some(Box::new(vec![
-                vec![MapCell::Unknown; world_size.x];
+                vec![MapCell::Unallocated; world_size.x];
                 world_size.y
             ]));
         }
@@ -282,7 +282,7 @@ impl PlayerOne {
                         MapCell::Player(_, _) => {
                             with_players.insert(orientation);
                         }
-                        MapCell::Unknown => {
+                        MapCell::Unallocated => {
                             with_unknown.insert(orientation);
                         }
                         _ if self.is_cell_okay_to_step_on(&cell) => {
@@ -306,7 +306,7 @@ impl PlayerOne {
             MapCell::Terrain(Terrain::Field) => true,
             MapCell::Terrain(_) => false,
             MapCell::Player(_, _) => false,
-            MapCell::Unknown => false,
+            MapCell::Unallocated => false,
             _ => false,
         }
     }
