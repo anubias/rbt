@@ -207,7 +207,7 @@ pub enum MapCell {
     Shell(PlayerDetails, Terrain),
     Terrain(Terrain),
     #[default]
-    Unknown,
+    Unallocated,
 }
 
 impl std::fmt::Display for MapCell {
@@ -217,7 +217,7 @@ impl std::fmt::Display for MapCell {
             Self::Player(player_details, _) => write!(f, "{}", player_details.avatar),
             Self::Shell(_, _) => write!(f, "🔴"),
             Self::Terrain(t) => write!(f, "{t}"),
-            Self::Unknown => write!(f, "⬛"),
+            Self::Unallocated => write!(f, "⬛"),
         }
     }
 }

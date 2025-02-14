@@ -52,7 +52,7 @@ impl Arola {
 
         let front_cell = match front_position {
             Some(position) => self.map.get_cell(&position),
-            None => MapCell::Unknown,
+            None => MapCell::Unallocated,
         };
 
         match front_cell {

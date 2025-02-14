@@ -133,7 +133,7 @@ impl World {
         }
 
         let mut result = Self {
-            map: Box::new([[MapCell::Terrain(Terrain::Field); MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
+            map: Box::new([[MapCell::Unallocated; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
             rng: thread_rng(),
             size,
             tanks: HashMap::new(),
@@ -141,16 +141,31 @@ impl World {
         };
         result.generate_map_border();
 
+        // Generate obstacles
         loop {
             result.generate_obstacle(MapCell::Terrain(Terrain::Forest(TreeType::Deciduous)));
             result.generate_obstacle(MapCell::Terrain(Terrain::Forest(TreeType::Evergreen)));
             result.generate_obstacle(MapCell::Terrain(Terrain::Lake));
             result.generate_obstacle(MapCell::Terrain(Terrain::Swamp));
 
-            if result.get_field_terrain_percentage() < MAX_FIELD_AREA_PERCENTAGE {
+            if result.get_unallocated_terrain_percentage() < MAX_FIELD_AREA_PERCENTAGE {
                 break;
             }
         }
+
+        // Fill the fields
+        loop {
+            if let Some(start) = result.get_unallocated_cell_position() {
+                result.fill_with_field_cells(&start);
+            }
+            if result.get_unallocated_terrain_percentage() >= 5.0 {
+                result.reset_field_cells();
+            } else {
+                break;
+            }
+        }
+
+        result.fill_unallocated_holes();
 
         result
     }
@@ -177,7 +192,7 @@ impl World {
             let player_details = PlayerDetails::new(avatar, self.tanks.len() as PlayerId + 1);
             let context = Context::new(
                 player_details,
-                self.get_random_field_location(),
+                self.get_random_unallocated_location(),
                 self.size.clone(),
             );
 
@@ -492,12 +507,12 @@ impl World {
 
         let mut old_pos: Option<Position> = None;
         for _ in 0..obstacle_size {
-            if self.get_field_count() > 0 {
+            if self.count_cells(&MapCell::Unallocated) > 0 {
                 let mut path = Vec::new();
                 let new_pos = if let Some(p) = old_pos.as_ref() {
-                    self.get_adjacent_field_location(p, obstacle, &mut path)
+                    self.get_adjacent_unallocated_location(p, obstacle, &mut path)
                 } else {
-                    Some(self.get_random_field_location())
+                    Some(self.get_random_unallocated_location())
                 };
 
                 if let Some(pos) = new_pos {
@@ -528,13 +543,12 @@ impl World {
         false
     }
 
-    fn get_field_count(&self) -> usize {
+    fn count_cells(&self, cell: &MapCell) -> usize {
         let mut free_count = 0;
         for i in 0..self.size.y {
             for j in 0..self.size.x {
-                free_count += match self.map[i][j] {
-                    MapCell::Terrain(Terrain::Field) => 1,
-                    _ => 0,
+                if self.map[i][j] == *cell {
+                    free_count += 1;
                 }
             }
         }
@@ -542,19 +556,19 @@ impl World {
         free_count
     }
 
-    fn get_random_field_location(&mut self) -> Position {
+    fn get_random_unallocated_location(&mut self) -> Position {
         loop {
             let x = self.rng.gen_range(0..self.size.x);
             let y = self.rng.gen_range(0..self.size.y);
             let pos = Position { x, y };
 
-            if self.is_location_free(&pos) {
+            if self.is_location_unallocated(&pos) {
                 break pos;
             }
         }
     }
 
-    fn get_adjacent_field_location(
+    fn get_adjacent_unallocated_location(
         &mut self,
         position: &Position,
         obstacle_type: MapCell,
@@ -578,12 +592,15 @@ impl World {
                 if let Some(next_pos) = position.follow(&orientation, &self.size) {
                     if walked_path.contains(&next_pos) {
                         break;
-                    } else if self.is_location_free(&next_pos) {
+                    } else if self.is_location_unallocated(&next_pos) {
                         result = Some(next_pos);
                     } else if self.cell_read(&next_pos) == obstacle_type {
                         walked_path.push(next_pos.clone());
-                        result =
-                            self.get_adjacent_field_location(&next_pos, obstacle_type, walked_path);
+                        result = self.get_adjacent_unallocated_location(
+                            &next_pos,
+                            obstacle_type,
+                            walked_path,
+                        );
                     }
                 }
             }
@@ -598,7 +615,7 @@ impl World {
         position: &Position,
         world_size: &WorldSize,
     ) -> Box<[[MapCell; SCANNING_DISTANCE]; SCANNING_DISTANCE]> {
-        let mut sub_map = Box::new([[MapCell::Unknown; SCANNING_DISTANCE]; SCANNING_DISTANCE]);
+        let mut sub_map = Box::new([[MapCell::Unallocated; SCANNING_DISTANCE]; SCANNING_DISTANCE]);
 
         let (pos_x, pos_y, dist) = (
             position.x as isize,
@@ -636,12 +653,13 @@ impl World {
         sub_map
     }
 
-    fn get_field_terrain_percentage(&self) -> f32 {
-        100.0f32 * self.get_field_count() as f32 / (self.size.x * self.size.y) as f32
+    fn get_unallocated_terrain_percentage(&self) -> f32 {
+        100.0f32 * self.count_cells(&MapCell::Unallocated) as f32
+            / (self.size.x * self.size.y) as f32
     }
 
-    fn is_location_free(&self, position: &Position) -> bool {
-        matches!(self.cell_read(position), MapCell::Terrain(Terrain::Field))
+    fn is_location_unallocated(&self, position: &Position) -> bool {
+        matches!(self.cell_read(position), MapCell::Unallocated)
     }
 
     fn get_player_at_position(&self, position: &Position) -> Option<PlayerDetails> {
@@ -716,6 +734,134 @@ impl World {
         }
 
         result
+    }
+
+    fn get_unallocated_cell_position(&self) -> Option<Position> {
+        for i in 0..self.size.y {
+            for j in 0..self.size.x {
+                let position = Position { x: j, y: i };
+                if self.cell_read(&position) == MapCell::Unallocated {
+                    return Some(position);
+                }
+            }
+        }
+
+        None
+    }
+
+    fn fill_with_field_cells(&mut self, start: &Position) {
+        let mut remaining = Vec::new();
+        remaining.push(start.clone());
+
+        loop {
+            if remaining.is_empty() {
+                break;
+            }
+
+            if let Some(next) = remaining.pop() {
+                self.cell_write(&next, MapCell::Terrain(Terrain::Field));
+
+                let mut neighbors = self
+                    .get_adjacent_positions(&next)
+                    .into_iter()
+                    .filter(|x| self.cell_read(x) == MapCell::Unallocated)
+                    .collect::<Vec<Position>>();
+                remaining.append(&mut neighbors);
+            }
+        }
+    }
+
+    fn reset_field_cells(&mut self) {
+        for i in 0..self.size.y {
+            for j in 0..self.size.x {
+                let position = Position { x: j, y: i };
+                if self.cell_read(&position) == MapCell::Terrain(Terrain::Field) {
+                    self.cell_write(&position, MapCell::Terrain(Terrain::Lake));
+                }
+            }
+        }
+    }
+
+    fn fill_unallocated_holes(&mut self) {
+        loop {
+            let changes = false;
+
+            for i in 0..self.size.y {
+                for j in 0..self.size.x {
+                    let position = Position { x: j, y: i };
+
+                    if self.cell_read(&position) == MapCell::Unallocated {
+                        let cell_type = self.get_most_neihbouring_terrain(&position);
+                        self.cell_write(&position, MapCell::Terrain(cell_type));
+                    }
+                }
+            }
+
+            if !changes {
+                break;
+            }
+        }
+    }
+
+    fn get_most_neihbouring_terrain(&self, position: &Position) -> Terrain {
+        let mut field_cnt = 0;
+        let mut lake_cnt = 0;
+        let mut tree_d_cnt = 0;
+        let mut tree_e_cnt = 0;
+        let mut swamp_cnt = 0;
+
+        let neighbors = self.get_adjacent_positions(&position);
+
+        for neighbor in neighbors {
+            let cell = self.cell_read(&neighbor);
+            match cell {
+                MapCell::Terrain(terrain) => match terrain {
+                    Terrain::Field => {
+                        field_cnt += 1;
+                        if field_cnt >= 4 {
+                            return Terrain::Field;
+                        }
+                    }
+                    Terrain::Lake => {
+                        lake_cnt += 1;
+                        if lake_cnt >= 4 {
+                            return Terrain::Lake;
+                        }
+                    }
+                    Terrain::Forest(TreeType::Deciduous) => {
+                        tree_d_cnt += 1;
+                        if tree_d_cnt >= 4 {
+                            return Terrain::Forest(TreeType::Deciduous);
+                        }
+                    }
+                    Terrain::Forest(TreeType::Evergreen) => {
+                        tree_e_cnt += 1;
+                        if tree_e_cnt >= 4 {
+                            return Terrain::Forest(TreeType::Evergreen);
+                        }
+                    }
+                    Terrain::Swamp => {
+                        swamp_cnt += 1;
+                        if swamp_cnt >= 4 {
+                            return Terrain::Swamp;
+                        }
+                    }
+                },
+                _ => {}
+            }
+        }
+
+        if tree_d_cnt > 0 {
+            Terrain::Forest(TreeType::Deciduous)
+        } else if tree_e_cnt > 0 {
+            Terrain::Forest(TreeType::Evergreen)
+        } else if lake_cnt > 0 {
+            Terrain::Lake
+        } else if swamp_cnt > 0 {
+            Terrain::Swamp
+        } else {
+            Terrain::Field
+        }
     }
 
     fn cell_read(&self, position: &Position) -> MapCell {
@@ -811,7 +957,7 @@ mod tests {
 
     fn generate_mini_world() -> Box<World> {
         let world = World {
-            map: Box::new([[MapCell::Terrain(Terrain::Field); MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
+            map: Box::new([[MapCell::Unallocated; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
             rng: thread_rng(),
             size: WorldSize {
                 x: MINI_MAP_SIZE,
@@ -840,6 +986,10 @@ mod tests {
         world.map[5][5] = MapCell::Terrain(Terrain::Forest(TreeType::Deciduous));
         world.map[5][6] = MapCell::Terrain(Terrain::Forest(TreeType::Deciduous));
         world.map[6][5] = MapCell::Terrain(Terrain::Forest(TreeType::Deciduous));
+    }
+
+    fn fill_fields(world: &mut Box<World>) {
+        world.fill_with_field_cells(&Position { x: 1, y: 1 });
     }
 
     #[test]
@@ -889,26 +1039,30 @@ mod tests {
     }
 
     #[test]
-    fn test_get_field_count() {
+    fn test_get_cell_count() {
         let mut world = generate_mini_world();
-        assert_eq!(MINI_MAP_SIZE * MINI_MAP_SIZE, world.get_field_count());
+        assert_eq!(
+            MINI_MAP_SIZE * MINI_MAP_SIZE,
+            world.count_cells(&MapCell::Unallocated)
+        );
 
         world.generate_map_border();
         assert_eq!(
             MINI_MAP_SIZE * MINI_MAP_SIZE - 4 * (MINI_MAP_SIZE - 1),
-            world.get_field_count()
+            world.count_cells(&MapCell::Unallocated)
         );
     }
 
     #[test]
     fn test_get_field_terrain_percentage() {
         let mut world = generate_mini_world();
-        assert_eq!(100.0, world.get_field_terrain_percentage());
+        assert_eq!(100.0, world.get_unallocated_terrain_percentage());
 
         world.generate_map_border();
-        let percentage =
-            world.get_field_count() as f32 / (MINI_MAP_SIZE * MINI_MAP_SIZE) as f32 * 100.0;
-        assert_eq!(percentage, world.get_field_terrain_percentage());
+        let percentage = world.count_cells(&MapCell::Unallocated) as f32
+            / (MINI_MAP_SIZE * MINI_MAP_SIZE) as f32
+            * 100.0;
+        assert_eq!(percentage, world.get_unallocated_terrain_percentage());
     }
 
     #[test]
@@ -917,8 +1071,8 @@ mod tests {
         populate_mini_world(&mut world);
 
         for _ in 0..1000 {
-            let location = world.get_random_field_location();
-            assert!(world.is_location_free(&location));
+            let location = world.get_random_unallocated_location();
+            assert!(world.is_location_unallocated(&location));
         }
     }
 
@@ -926,6 +1080,7 @@ mod tests {
     fn try_set_player_on_field_cell() {
         let mut world = generate_mini_world();
         populate_mini_world(&mut world);
+        fill_fields(&mut world);
 
         let position = Position { x: 5, y: 2 };
         assert!(world.cell_read(&position) == MapCell::Terrain(Terrain::Field));
@@ -979,6 +1134,7 @@ mod tests {
     #[test]
     fn get_player_at_position() {
         let mut world = generate_mini_world();
+        fill_fields(&mut world);
 
         let position = Position { x: 5, y: 2 };
         let player_details = PlayerDetails::new(DEFAULT_AVATAR, 10);
@@ -996,6 +1152,7 @@ mod tests {
     #[test]
     fn get_hit_players() {
         let mut world = generate_mini_world();
+        fill_fields(&mut world);
 
         let position_lower_player = Position { x: 5, y: 2 };
         let lower_player_details = PlayerDetails::new(DEFAULT_AVATAR, 10);

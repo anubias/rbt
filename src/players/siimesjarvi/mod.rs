@@ -103,7 +103,7 @@ impl AdvancedStrategy {
     fn new() -> Self {
         Self {
             previous_action: Action::Idle,
-            world_map: [MapCell::Unknown; MAX_WORLD_SIZE * MAX_WORLD_SIZE],
+            world_map: [MapCell::Unallocated; MAX_WORLD_SIZE * MAX_WORLD_SIZE],
         }
     }
 

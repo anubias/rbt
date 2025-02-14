@@ -7,7 +7,7 @@ pub struct Map {
 impl Map {
     pub fn new() -> Self {
         Self {
-            map: [[MapCell::Unknown; MAX_WORLD_SIZE]; MAX_WORLD_SIZE],
+            map: [[MapCell::Unallocated; MAX_WORLD_SIZE]; MAX_WORLD_SIZE],
         }
     }
 
@@ -23,7 +23,7 @@ impl Map {
         if self.is_valid_coordinate(x, y) {
             self.map[y as usize][x as usize]
         } else {
-            MapCell::Unknown
+            MapCell::Unallocated
         }
     }
 
@@ -59,7 +59,7 @@ impl Map {
             MapCell::Explosion(_, terrain) => MapCell::Terrain(terrain.clone()),
             MapCell::Shell(_, terrain) => MapCell::Terrain(terrain.clone()),
             MapCell::Terrain(terrain) => MapCell::Terrain(terrain.clone()),
-            MapCell::Unknown => MapCell::Unknown,
+            MapCell::Unallocated => MapCell::Unallocated,
         }
     }
 
