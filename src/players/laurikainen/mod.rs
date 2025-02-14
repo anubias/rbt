@@ -68,7 +68,7 @@ impl Player for PlayerOne {
 
     fn is_ready(&self) -> bool {
         // was born ready
-        true
+        false
     }
 
     fn name(&self) -> String {
@@ -228,7 +228,6 @@ impl PlayerOne {
         }
 
         if action.is_none() && self.in_corner(&context) {
-            println!("in corner");
             // figure out scan direction
             let my_x = context.position().x;
             let my_y = context.position().y;
