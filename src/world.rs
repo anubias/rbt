@@ -192,7 +192,7 @@ impl World {
             let player_details = PlayerDetails::new(avatar, self.tanks.len() as PlayerId + 1);
             let context = Context::new(
                 player_details,
-                self.get_random_unallocated_location(),
+                self.get_random_location(MapCell::Terrain(Terrain::Field)),
                 self.size.clone(),
             );
 
@@ -512,7 +512,7 @@ impl World {
                 let new_pos = if let Some(p) = old_pos.as_ref() {
                     self.get_adjacent_unallocated_location(p, obstacle, &mut path)
                 } else {
-                    Some(self.get_random_unallocated_location())
+                    Some(self.get_random_location(MapCell::Unallocated))
                 };
 
                 if let Some(pos) = new_pos {
@@ -556,14 +556,22 @@ impl World {
         free_count
     }
 
-    fn get_random_unallocated_location(&mut self) -> Position {
-        loop {
-            let x = self.rng.gen_range(0..self.size.x);
-            let y = self.rng.gen_range(0..self.size.y);
-            let pos = Position { x, y };
+    fn get_random_location(&mut self, map_cell: MapCell) -> Position {
+        let mut bag = Vec::new();
 
-            if self.is_location_unallocated(&pos) {
-                break pos;
+        for i in 0..self.size.y {
+            for j in 0..self.size.x {
+                let position = Position { x: j, y: i };
+                if self.cell_read(&position) == map_cell {
+                    bag.push(position);
+                }
+            }
+        }
+
+        loop {
+            let index = self.rng.gen_range(0..bag.len());
+            if let Some(pos) = bag.get(index) {
+                break pos.clone();
             }
         }
     }
@@ -1071,7 +1079,7 @@ mod tests {
         populate_mini_world(&mut world);
 
         for _ in 0..1000 {
-            let location = world.get_random_unallocated_location();
+            let location = world.get_random_location(MapCell::Unallocated);
             assert!(world.is_location_unallocated(&location));
         }
     }
