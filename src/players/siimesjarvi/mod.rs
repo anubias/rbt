@@ -4,6 +4,8 @@ pub struct Siimesjarvi {
     strategy: Strategy,
 }
 
+const MIDDLE_COORDINATE: usize = SCANNING_DISTANCE / 2;
+
 impl Siimesjarvi {
     pub fn new() -> Self {
         Self {
@@ -98,6 +100,8 @@ struct PlayerInMap {
     y: usize,
 }
 
+type PointPair = ((isize, isize), (isize, isize));
+
 #[allow(dead_code)]
 impl AdvancedStrategy {
     fn new() -> Self {
@@ -107,8 +111,7 @@ impl AdvancedStrategy {
         }
     }
 
-    /// Check if any players are in scan result excluding myself
-    fn other_players_are_in_scan_result(
+    fn are_other_players_in_scan_result(
         &self,
         my_player_id: PlayerId,
         scan_result: &ScanResult,
@@ -117,7 +120,7 @@ impl AdvancedStrategy {
             for map_cell in row.iter() {
                 match map_cell {
                     MapCell::Player(player_details, ..) => {
-                        if player_details.id != my_player_id && player_details.is_alive() {
+                        if player_details.id != my_player_id && player_details.alive {
                             return true;
                         }
                     }
@@ -130,15 +133,14 @@ impl AdvancedStrategy {
 
     fn get_players_from_scan_result(&self, scan_result: &ScanResult) -> Vec<PlayerInMap> {
         let mut players: Vec<PlayerInMap> = Vec::new();
-        for vert in 0..SCANNING_DISTANCE {
-            for hor in 0..SCANNING_DISTANCE {
-                match scan_result.data[vert][hor] {
-                    MapCell::Player(player_details, ..) => players.push(PlayerInMap {
-                        player_details: player_details,
-                        x: hor,
-                        y: vert,
-                    }),
-                    _ => (),
+        for y in 0..SCANNING_DISTANCE {
+            for x in 0..SCANNING_DISTANCE {
+                // Coordinates are reversed as the array indexes
+                match scan_result.data[y][x] {
+                    MapCell::Player(player_details, ..) => { 
+                        players.push(PlayerInMap { player_details: player_details.clone(), x: x, y: y })
+                     }
+                    _ => ()
                 }
             }
         }
@@ -164,7 +166,7 @@ impl AdvancedStrategy {
         players: &Vec<PlayerInMap>,
     ) -> Option<(isize, isize)> {
         for player in players.iter() {
-            if player.player_details.id != my_player_id && player.player_details.is_alive() {
+            if player.player_details.id != my_player_id && player.player_details.alive {
                 return Option::Some((player.x as isize, player.y as isize));
             }
         }
@@ -188,49 +190,78 @@ impl AdvancedStrategy {
         Position { x: new_x, y: new_y }
     }
 
+    fn handle_scan_result_with_other_players(&self, scan_result: &ScanResult, context: &Context) -> Option<Action> {
+        let players_in_scan_result = self.get_players_from_scan_result(scan_result);
+
+        // Idle action should not be returned from here
+        // As at this point we should always have other player + our own player in result
+        let my_position = self.get_my_coordinates_from_submap(
+            context.player_details().id,
+            &players_in_scan_result,
+        )?;
+
+        let other_player_position = self.get_any_other_player_coordinates_from_submap(
+            context.player_details().id,
+            &players_in_scan_result,
+        )?;
+
+        let delta = self.calculate_relative_position(my_position, other_player_position);
+        let pos = self.calculate_firing_position(context.position(), delta);
+
+        Option::Some(Action::Fire(Aiming::Positional(pos)))
+    }
+
+    fn handle_scan_result_without_other_players(&self, scan_result: &ScanResult, context: &Context) -> Action {
+
+        let potential_moves = match &context.player_details().orientation {
+            Orientation::North => ((0, -1), (0, 1)),
+            Orientation::NorthEast => ((1, -1), (-1, 1)),
+            Orientation::East => ((1, 0), (-1, 0)),
+            Orientation::SouthEast => ((1, 1), (-1, -1)),
+            Orientation::South => ((0, 1), (0, -1)),
+            Orientation::SouthWest => ((-1, 1), (1, -1)),
+            Orientation::West => ((-1, 0), (1, 0)),
+            Orientation::NorthWest => ((-1, -1), (1, 1)),
+        };
+
+        let forward_x = MIDDLE_COORDINATE as isize + potential_moves.0.0;
+        let forward_y = MIDDLE_COORDINATE as isize + potential_moves.0.1;
+        if self.is_submap_cell_safe(scan_result, forward_x as usize, forward_y as usize) {
+            return Action::Move(Direction::Forward)
+        } 
+
+        let backward_x = MIDDLE_COORDINATE as isize + potential_moves.1.0;
+        let backward_y = MIDDLE_COORDINATE as isize + potential_moves.1.1;
+        if self.is_submap_cell_safe(scan_result, backward_x as usize, backward_y as usize) {
+            Action::Move(Direction::Backward)
+        } else {
+            Action::Rotate(Rotation::Clockwise)
+        }
+    }
+
+    fn is_submap_cell_safe(&self, scan_result: &ScanResult, x: usize, y: usize) -> bool {
+        match scan_result.data[y][x] {
+            MapCell::Terrain(Terrain::Lake) => false,
+            MapCell::Terrain(Terrain::Swamp) => false,
+            MapCell::Terrain(Terrain::Forest(..)) => false,
+            _ => true
+        }
+    }
+
     fn get_next_action_when_scan_was_previous(&self, context: &Context) -> Action {
         match context.scanned_data() {
-            None => (),
-            Some(scan_result) => {
-                if let true =
-                    self.other_players_are_in_scan_result(context.player_details().id, scan_result)
-                {
-                    let players_in_scan_result = self.get_players_from_scan_result(scan_result);
-
-                    // Idle action should not be executed as at this point we should always have other player + our own player in result
-                    let my_position = match self.get_my_coordinates_from_submap(
-                        context.player_details().id,
-                        &players_in_scan_result,
-                    ) {
-                        Some(x) => x,
-                        None => return Action::Idle,
-                    };
-                    let other_player_position = match self
-                        .get_any_other_player_coordinates_from_submap(
-                            context.player_details().id,
-                            &players_in_scan_result,
-                        ) {
-                        Some(x) => x,
-                        None => return Action::Idle,
-                    };
-
-                    let delta =
-                        self.calculate_relative_position(my_position, other_player_position);
-                    let pos = self.calculate_firing_position(context.position(), delta);
-
-                    return Action::Fire(Aiming::Positional(pos));
-                }
+            None => Action::Scan(ScanType::Omni),
+            Some(scan_result) if self.are_other_players_in_scan_result(context.player_details().id, scan_result) => {
+                self.handle_scan_result_with_other_players(scan_result, context).unwrap_or(Action::Idle)
             }
-        };
-        Action::Idle
+            Some(scan_result) => self.handle_scan_result_without_other_players(scan_result, context),
+        }
     }
 
     fn get_next_action(&mut self, context: &Context) -> Action {
         let next_action: Action = match self.previous_action {
-            Action::Idle => Action::Scan(ScanType::Omni),
             Action::Scan(..) => self.get_next_action_when_scan_was_previous(context),
-            Action::Fire(..) => Action::Scan(ScanType::Omni),
-            _ => Action::Idle,
+            _ => Action::Scan(ScanType::Omni),
         };
         self.previous_action = next_action.clone();
         next_action
@@ -267,10 +298,9 @@ mod tests {
     }
 
     #[test]
-    fn advanced_strategy_check_if_players_are_in_scan_result() {
+    fn advanced_strategy_check_players_in_scan_result() {
         let s: AdvancedStrategy = AdvancedStrategy::new();
 
-        // Scan result does not contain any players
         let mut scan_result: ScanResult = ScanResult {
             scan_type: ScanType::Omni,
             data: Box::new(
@@ -278,25 +308,32 @@ mod tests {
             ),
         };
         let my_player_details = PlayerDetails::new(avatar(1), 1);
+        // Should be false when completely empty
         assert_eq!(
             false,
-            s.other_players_are_in_scan_result(my_player_details.id, &scan_result)
+            s.are_other_players_in_scan_result(my_player_details.id, &scan_result)
         );
 
-        // Scan result has a player but the player is myself
-        scan_result.data[1][1] = MapCell::Player(PlayerDetails::new(avatar(1), 1), Terrain::Field);
+        // Should be false when scan result has a player but the player is myself
+        scan_result.data[1][1] = MapCell::Player(my_player_details, Terrain::Field);
         assert_eq!(
             false,
-            s.other_players_are_in_scan_result(my_player_details.id, &scan_result)
+            s.are_other_players_in_scan_result(my_player_details.id, &scan_result)
         );
 
-        // Scan result has myself and other player
-        scan_result.data[1][2] = MapCell::Player(PlayerDetails::new(avatar(1), 2), Terrain::Field);
+        // Should be false when scan result has dead player
+        let dead_player = PlayerDetails {avatar: avatar(1), alive: false, id: 2, orientation: Orientation::North};
+        scan_result.data[1][2] = MapCell::Player(dead_player, Terrain::Field);
+        assert_eq!(
+            false,
+            s.are_other_players_in_scan_result(my_player_details.id, &scan_result)
+        );
+
+        // Should be true if there is alive player other than myself
+        scan_result.data[1][3] = MapCell::Player(PlayerDetails::new(avatar(1), 2), Terrain::Field);
         assert_eq!(
             true,
-            s.other_players_are_in_scan_result(my_player_details.id, &scan_result)
+            s.are_other_players_in_scan_result(my_player_details.id, &scan_result)
         );
-
-        // ADD TEST CASE FOR DEAD PLAYER
     }
 }
