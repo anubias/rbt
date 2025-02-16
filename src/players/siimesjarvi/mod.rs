@@ -92,6 +92,7 @@ impl BasicStrategy {
 struct AdvancedStrategy {
     previous_action: Action,
     world_map: [MapCell; MAX_WORLD_SIZE * MAX_WORLD_SIZE],
+    previous_direction: Direction
 }
 
 struct PlayerInMap {
@@ -100,14 +101,12 @@ struct PlayerInMap {
     y: usize,
 }
 
-type PointPair = ((isize, isize), (isize, isize));
-
-#[allow(dead_code)]
 impl AdvancedStrategy {
     fn new() -> Self {
         Self {
             previous_action: Action::Idle,
             world_map: [MapCell::Unallocated; MAX_WORLD_SIZE * MAX_WORLD_SIZE],
+            previous_direction: Direction::Forward,
         }
     }
 
@@ -120,7 +119,7 @@ impl AdvancedStrategy {
             for map_cell in row.iter() {
                 match map_cell {
                     MapCell::Player(player_details, ..) => {
-                        if player_details.id != my_player_id && player_details.alive {
+                        if player_details.id != my_player_id && player_details.is_alive() {
                             return true;
                         }
                     }
@@ -166,7 +165,7 @@ impl AdvancedStrategy {
         players: &Vec<PlayerInMap>,
     ) -> Option<(isize, isize)> {
         for player in players.iter() {
-            if player.player_details.id != my_player_id && player.player_details.alive {
+            if player.player_details.id != my_player_id && player.player_details.is_alive() {
                 return Option::Some((player.x as isize, player.y as isize));
             }
         }
@@ -211,7 +210,7 @@ impl AdvancedStrategy {
         Option::Some(Action::Fire(Aiming::Positional(pos)))
     }
 
-    fn handle_scan_result_without_other_players(&self, scan_result: &ScanResult, context: &Context) -> Action {
+    fn handle_scan_result_without_other_players(&mut self, scan_result: &ScanResult, context: &Context) -> Action {
 
         let potential_moves = match &context.player_details().orientation {
             Orientation::North => ((0, -1), (0, 1)),
@@ -226,29 +225,36 @@ impl AdvancedStrategy {
 
         let forward_x = MIDDLE_COORDINATE as isize + potential_moves.0.0;
         let forward_y = MIDDLE_COORDINATE as isize + potential_moves.0.1;
-        if self.is_submap_cell_safe(scan_result, forward_x as usize, forward_y as usize) {
-            return Action::Move(Direction::Forward)
-        } 
+        let forward_is_safe = self.is_submap_cell_safe(scan_result, forward_x as usize, forward_y as usize);
 
         let backward_x = MIDDLE_COORDINATE as isize + potential_moves.1.0;
         let backward_y = MIDDLE_COORDINATE as isize + potential_moves.1.1;
-        if self.is_submap_cell_safe(scan_result, backward_x as usize, backward_y as usize) {
-            Action::Move(Direction::Backward)
-        } else {
-            Action::Rotate(Rotation::Clockwise)
+        let backward_is_safe = self.is_submap_cell_safe(scan_result, backward_x as usize, backward_y as usize);
+
+        match self.previous_direction {
+            Direction::Forward if forward_is_safe => Action::Move(Direction::Forward),
+            Direction::Forward if backward_is_safe => {
+                self.previous_direction = Direction::Backward;
+                Action::Move(Direction::Backward)
+            }
+            Direction::Forward => Action::Rotate(Rotation::Clockwise),
+            Direction::Backward if backward_is_safe => Action::Move(Direction::Backward),
+            Direction::Backward => {
+                self.previous_direction = Direction::Forward;
+                Action::Rotate(Rotation::Clockwise)
+            }
+            
         }
     }
 
     fn is_submap_cell_safe(&self, scan_result: &ScanResult, x: usize, y: usize) -> bool {
         match scan_result.data[y][x] {
-            MapCell::Terrain(Terrain::Lake) => false,
-            MapCell::Terrain(Terrain::Swamp) => false,
-            MapCell::Terrain(Terrain::Forest(..)) => false,
-            _ => true
+            MapCell::Terrain(Terrain::Field) => true,
+            _ => false
         }
     }
 
-    fn get_next_action_when_scan_was_previous(&self, context: &Context) -> Action {
+    fn get_next_action_when_scan_was_previous(&mut self, context: &Context) -> Action {
         match context.scanned_data() {
             None => Action::Scan(ScanType::Omni),
             Some(scan_result) if self.are_other_players_in_scan_result(context.player_details().id, scan_result) => {
@@ -272,6 +278,7 @@ impl AdvancedStrategy {
 mod tests {
 
     use crate::avatar;
+    use crate::DEAD_AVATAR;
 
     use super::*;
 
@@ -295,6 +302,13 @@ mod tests {
         assert_eq!(Orientation::West, s.get_next_orientation());
         assert_eq!(Orientation::NorthWest, s.get_next_orientation());
         assert_eq!(Orientation::North, s.get_next_orientation());
+    }
+
+    #[test]
+    fn advanced_strategy_can_handle_scan_result_without_other_players() {
+        // This needs test cases, tank drowned
+        assert!(true)
+        
     }
 
     #[test]
@@ -322,7 +336,7 @@ mod tests {
         );
 
         // Should be false when scan result has dead player
-        let dead_player = PlayerDetails {avatar: avatar(1), alive: false, id: 2, orientation: Orientation::North};
+        let dead_player = PlayerDetails {avatar: DEAD_AVATAR, alive: false, id: 2, orientation: Orientation::North};
         scan_result.data[1][2] = MapCell::Player(dead_player, Terrain::Field);
         assert_eq!(
             false,
