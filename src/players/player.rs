@@ -122,6 +122,7 @@ impl Context {
         self.health = self.health.saturating_sub(damage);
         if self.health == 0 {
             self.player_details.avatar = DEAD_AVATAR;
+            self.player_details.alive = false;
         }
     }
 

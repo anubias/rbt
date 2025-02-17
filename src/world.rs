@@ -228,18 +228,18 @@ impl World {
 
         for (player_details, action) in actions.iter() {
             if let Some(tank) = self.tanks.get(player_details) {
-                let world_size = tank.context.world_size().clone();
+                let world_size = self.size.clone();
+                let tank_position = tank.context.position().clone();
+
                 match action {
                     Action::Idle => {}
-                    Action::Fire(aim) => {
-                        ordnance.push(Shell::new(aim.clone(), tank.context.position().clone()))
-                    }
+                    Action::Fire(aim) => ordnance.push(Shell::new(aim.clone(), tank_position)),
                     Action::Move(direction) => {
                         let (from, to) = compute_route(
-                            tank.context.position(),
+                            &tank_position,
                             tank.context.orientation(),
                             direction,
-                            tank.context.world_size(),
+                            &world_size,
                         );
                         self.move_player(*player_details, &from, &to);
                     }
@@ -248,6 +248,7 @@ impl World {
                         self.scan_surroundings(*player_details, scan_type, &world_size);
                     }
                 }
+
                 processed_players.push(player_details);
             }
         }
