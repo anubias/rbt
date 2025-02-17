@@ -176,6 +176,7 @@ impl World {
                 let action = tank.player.act(tank.context.clone());
                 tank.context.set_previous_action(action.clone());
                 tank.context.set_scanned_data(None);
+                tank.context.turn_increment();
                 actions.push((*player_details, action));
             }
         }

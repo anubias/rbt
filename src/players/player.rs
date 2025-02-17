@@ -75,6 +75,7 @@ impl PlayerDetails {
         if id == 0 {
             panic!("Invalid player id=0 used!");
         }
+
         Self {
             avatar,
             alive: true,
@@ -101,6 +102,7 @@ pub struct Context {
     player_details: PlayerDetails,
     position: Position,
     scan: Option<ScanResult>,
+    turn: usize,
     world_size: WorldSize,
 }
 
@@ -114,6 +116,7 @@ impl Context {
             player_details,
             position,
             scan: None,
+            turn: 0,
             world_size,
         }
     }
@@ -177,6 +180,14 @@ impl Context {
 
     pub fn set_scanned_data(&mut self, scan: Option<ScanResult>) {
         self.scan = scan;
+    }
+
+    pub fn turn_increment(&mut self) {
+        self.turn += 1;
+    }
+
+    pub fn turn(&self) -> usize {
+        self.turn
     }
 
     pub fn world_size(&self) -> &WorldSize {
@@ -344,7 +355,7 @@ impl Position {
         self.within_distance(other, POSITIONAL_SHOT_DISTANCE)
     }
 
-    fn within_distance(&self, other: &Position, range: usize) -> bool {
+    pub fn within_distance(&self, other: &Position, range: usize) -> bool {
         let (dx, dy) = self.manhattan_distance(other);
 
         dx.abs() as usize <= range && dy.abs() as usize <= range
