@@ -17,6 +17,8 @@ const DAMAGE_COLLISION_WITH_PLAYER: u8 = 10;
 const DAMAGE_DIRECT_ORDNANCE_HIT: u8 = 75;
 const DAMAGE_INDIRECT_ORDNANCE_HIT: u8 = 25;
 
+const ANIMATE_SHELLS_AND_EXPLOSIONS: bool = true;
+
 struct Tank {
     context: Context,
     player: Box<dyn Player>,
@@ -317,7 +319,7 @@ impl World {
                 break;
             }
 
-            if !possible_shots.is_empty() {
+            if ANIMATE_SHELLS_AND_EXPLOSIONS && !possible_shots.is_empty() {
                 println!("{self}");
             }
             std::thread::sleep(Duration::from_millis(self.tick));
@@ -998,6 +1000,11 @@ mod tests {
 
     fn fill_fields(world: &mut Box<World>) {
         world.fill_with_field_cells(&Position { x: 1, y: 1 });
+    }
+
+    #[test]
+    fn test_animation_is_on() {
+        assert!(ANIMATE_SHELLS_AND_EXPLOSIONS);
     }
 
     #[test]
