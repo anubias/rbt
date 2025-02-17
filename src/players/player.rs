@@ -324,6 +324,30 @@ impl Position {
 
         (dx, dy)
     }
+
+    /// Indicates whether cardinal shoothing from this position towards the
+    /// `other` position, would be successful
+    pub fn could_hit_cardinally(&self, other: &Position) -> bool {
+        let (dx, dy) = self.manhattan_distance(other);
+
+        if dx == 0 || dy == 0 || dx.abs() == dy.abs() {
+            self.within_distance(other, CARDINAL_SHOT_DISTANCE)
+        } else {
+            false
+        }
+    }
+
+    /// Indicates whether positional shoothing from this position towards the
+    /// `other` position, would be successful
+    pub fn could_hit_positionally(&self, other: &Position) -> bool {
+        self.within_distance(other, POSITIONAL_SHOT_DISTANCE)
+    }
+
+    fn within_distance(&self, other: &Position, range: usize) -> bool {
+        let (dx, dy) = self.manhattan_distance(other);
+
+        dx.abs() as usize <= range && dy.abs() as usize <= range
+    }
 }
 
 impl std::fmt::Display for Position {

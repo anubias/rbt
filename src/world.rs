@@ -55,11 +55,7 @@ impl Shell {
     fn possible_shot(&self) -> bool {
         match &self.aim_type {
             Aiming::Cardinal(_) => true,
-            Aiming::Positional(pos) => {
-                let (dx, dy) = self.fired_from.manhattan_distance(pos);
-                let (dx, dy) = (dx.abs() as usize, dy.abs() as usize);
-                dx <= POSITIONAL_SHOT_DISTANCE && dy <= POSITIONAL_SHOT_DISTANCE
-            }
+            Aiming::Positional(pos) => self.fired_from.could_hit_positionally(pos),
         }
     }
 
