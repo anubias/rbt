@@ -101,6 +101,27 @@ struct PlayerInMap {
     y: usize,
 }
 
+struct OrientationMovements;
+
+impl OrientationMovements {
+    const NORTH_FORWARD: (isize, isize) = (0, -1);
+    const NORTH_BACKWARD: (isize, isize) = (0, 1);
+    const NORTH_EAST_FORWARD: (isize, isize) = (1, -1);
+    const NORTH_EAST_BACKWARD: (isize, isize) = (-1, 1);
+    const EAST_FORWARD: (isize, isize)  = (1, 0);
+    const EAST_BACKWARD: (isize, isize) = (-1, 0);
+    const SOUTH_EAST_FORWARD: (isize, isize)  = (1, 1);
+    const SOUTH_EAST_BACKWARD: (isize, isize) = (-1, -1);
+    const SOUTH_FORWARD: (isize, isize)  = (0, 1);
+    const SOUTH_BACKWARD: (isize, isize) = (0, -1);
+    const SOUTH_WEST_FORWARD: (isize, isize)  = (-1, 1);
+    const SOUTH_WEST_BACKWARD: (isize, isize) = (1, -1);
+    const WEST_FORWARD: (isize, isize)  = (-1, 0);
+    const WEST_BACKWARD: (isize, isize) = (1, 0);
+    const NORTH_WEST_FORWARD: (isize, isize)  = (-1, -1);
+    const NORTH_WEST_BACKWARD: (isize, isize) = (1, 1);
+}
+
 impl AdvancedStrategy {
     fn new() -> Self {
         Self {
@@ -210,25 +231,59 @@ impl AdvancedStrategy {
         Option::Some(Action::Fire(Aiming::Positional(pos)))
     }
 
+    fn get_next_x_coordinate_in_submap(&self, orientation: &Orientation, direction: &Direction) -> usize {
+        let z = match (orientation, direction) {
+            (Orientation::North, Direction::Forward) => { OrientationMovements::NORTH_FORWARD.0 }
+            (Orientation::North, Direction::Backward) => { OrientationMovements::NORTH_BACKWARD.0 }
+            (Orientation::NorthEast, Direction::Forward) => { OrientationMovements::NORTH_EAST_FORWARD.0 }
+            (Orientation::NorthEast, Direction::Backward) => { OrientationMovements::NORTH_EAST_BACKWARD.0 }
+            (Orientation::East, Direction::Forward) => { OrientationMovements::EAST_FORWARD.0 }
+            (Orientation::East, Direction::Backward) => { OrientationMovements::EAST_BACKWARD.0 }
+            (Orientation::SouthEast, Direction::Forward) => { OrientationMovements::SOUTH_EAST_FORWARD.0 }
+            (Orientation::SouthEast, Direction::Backward) => { OrientationMovements::SOUTH_EAST_BACKWARD.0 }
+            (Orientation::South, Direction::Forward) => { OrientationMovements::SOUTH_FORWARD.0 }
+            (Orientation::South, Direction::Backward) => { OrientationMovements::SOUTH_BACKWARD.0 }
+            (Orientation::SouthWest, Direction::Forward) => { OrientationMovements::SOUTH_WEST_FORWARD.0 }
+            (Orientation::SouthWest, Direction::Backward) => { OrientationMovements::SOUTH_WEST_BACKWARD.0 }
+            (Orientation::West, Direction::Forward) => { OrientationMovements::WEST_FORWARD.0 }
+            (Orientation::West, Direction::Backward) => { OrientationMovements::WEST_BACKWARD.0 }
+            (Orientation::NorthWest, Direction::Forward) => { OrientationMovements::NORTH_WEST_FORWARD.0 }
+            (Orientation::NorthWest, Direction::Backward) => { OrientationMovements::NORTH_WEST_BACKWARD.0 }
+        };
+        (MIDDLE_COORDINATE as isize + z) as usize
+    }
+
+    fn get_next_y_coordinate_in_submap(&self, orientation: &Orientation, direction: &Direction) -> usize {
+        let z = match (orientation, direction) {
+            (Orientation::North, Direction::Forward) => { OrientationMovements::NORTH_FORWARD.1 }
+            (Orientation::North, Direction::Backward) => { OrientationMovements::NORTH_BACKWARD.1 }
+            (Orientation::NorthEast, Direction::Forward) => { OrientationMovements::NORTH_EAST_FORWARD.1 }
+            (Orientation::NorthEast, Direction::Backward) => { OrientationMovements::NORTH_EAST_BACKWARD.1 }
+            (Orientation::East, Direction::Forward) => { OrientationMovements::EAST_FORWARD.1 }
+            (Orientation::East, Direction::Backward) => { OrientationMovements::EAST_BACKWARD.1 }
+            (Orientation::SouthEast, Direction::Forward) => { OrientationMovements::SOUTH_EAST_FORWARD.1 }
+            (Orientation::SouthEast, Direction::Backward) => { OrientationMovements::SOUTH_EAST_BACKWARD.1 }
+            (Orientation::South, Direction::Forward) => { OrientationMovements::SOUTH_FORWARD.1 }
+            (Orientation::South, Direction::Backward) => { OrientationMovements::SOUTH_BACKWARD.1 }
+            (Orientation::SouthWest, Direction::Forward) => { OrientationMovements::SOUTH_WEST_FORWARD.1 }
+            (Orientation::SouthWest, Direction::Backward) => { OrientationMovements::SOUTH_WEST_BACKWARD.1 }
+            (Orientation::West, Direction::Forward) => { OrientationMovements::WEST_FORWARD.1 }
+            (Orientation::West, Direction::Backward) => { OrientationMovements::WEST_BACKWARD.1 }
+            (Orientation::NorthWest, Direction::Forward) => { OrientationMovements::NORTH_WEST_FORWARD.1 }
+            (Orientation::NorthWest, Direction::Backward) => { OrientationMovements::NORTH_WEST_BACKWARD.1 }
+        };
+        (MIDDLE_COORDINATE as isize + z) as usize
+    }
+
+
     fn handle_scan_result_without_other_players(&mut self, scan_result: &ScanResult, context: &Context) -> Action {
 
-        let potential_moves = match &context.player_details().orientation {
-            Orientation::North => ((0, -1), (0, 1)),
-            Orientation::NorthEast => ((1, -1), (-1, 1)),
-            Orientation::East => ((1, 0), (-1, 0)),
-            Orientation::SouthEast => ((1, 1), (-1, -1)),
-            Orientation::South => ((0, 1), (0, -1)),
-            Orientation::SouthWest => ((-1, 1), (1, -1)),
-            Orientation::West => ((-1, 0), (1, 0)),
-            Orientation::NorthWest => ((-1, -1), (1, 1)),
-        };
-
-        let forward_x = MIDDLE_COORDINATE as isize + potential_moves.0.0;
-        let forward_y = MIDDLE_COORDINATE as isize + potential_moves.0.1;
+        let forward_x = self.get_next_x_coordinate_in_submap(&context.player_details().orientation, &Direction::Forward);
+        let forward_y = self.get_next_y_coordinate_in_submap(&context.player_details().orientation, &Direction::Forward);
         let forward_is_safe = self.is_submap_cell_safe(scan_result, forward_x as usize, forward_y as usize);
 
-        let backward_x = MIDDLE_COORDINATE as isize + potential_moves.1.0;
-        let backward_y = MIDDLE_COORDINATE as isize + potential_moves.1.1;
+        let backward_x = self.get_next_x_coordinate_in_submap(&context.player_details().orientation, &Direction::Backward);
+        let backward_y = self.get_next_y_coordinate_in_submap(&context.player_details().orientation, &Direction::Backward);
         let backward_is_safe = self.is_submap_cell_safe(scan_result, backward_x as usize, backward_y as usize);
 
         match self.previous_direction {
@@ -243,7 +298,6 @@ impl AdvancedStrategy {
                 self.previous_direction = Direction::Forward;
                 Action::Rotate(Rotation::Clockwise)
             }
-            
         }
     }
 
@@ -305,10 +359,24 @@ mod tests {
     }
 
     #[test]
-    fn advanced_strategy_can_handle_scan_result_without_other_players() {
+    fn advanced_strategy_is_submap_cell_safe() {
         // This needs test cases, tank drowned
+        let s: AdvancedStrategy = AdvancedStrategy::new();
+
+        let mut scan_result: ScanResult = ScanResult {
+            scan_type: ScanType::Omni,
+            data: Box::new(
+                [[MapCell::Terrain(Terrain::Field); SCANNING_DISTANCE]; SCANNING_DISTANCE],
+            ),
+        };
+        let mut my_player_details = PlayerDetails::new(avatar(1), 1);
+
+
+        scan_result.data[1][1] = MapCell::Player(my_player_details, Terrain::Field);
+        // Check combination here for safe and unsafe terrains with different orientation and directions
+        // Reset everything back to safe after
+
         assert!(true)
-        
     }
 
     #[test]
