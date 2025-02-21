@@ -29,9 +29,86 @@ impl PlAgiAntti {
         }
     }
 
+    // Estimates the cost of moving from one position to another, taking starting orientation into account.
+    // The cost is the number of steps needed to reach the target position.
+    fn movement_cost_estimate(
+        &self,
+        start_location: &Position,
+        start_orientation: &Orientation,
+        target_location: &Position,
+    ) -> u32 {
+        if start_location.eq(target_location) {
+            return 0;
+        }
+        // Check the amount of movement steps needed.
+        let (dx, dy) = start_location.delta(target_location);
+        // Diagonal movement is possible, so the maximum of dx and dy steps are needed.
+        let mut steps = max(dx.abs(), dy.abs()) as u32;
+
+        // Check the need for rotation. Maximum of 2 rotations are needed.
+        // Calculate angle of vector from start to target location. 0 degrees is East and positive angles are clockwise.
+        let angle = (dy as f64).atan2(dx as f64).to_degrees();
+        // Calculate the angle difference between the start orientation and the target angle. Value between -180 and 180.
+        let angle_difference = match start_orientation {
+            Orientation::North => angle + 90.0,
+            Orientation::NorthEast => angle + 45.0,
+            Orientation::East => angle,
+            Orientation::SouthEast => angle - 45.0,
+            Orientation::South => angle - 90.0,
+            Orientation::SouthWest => angle - 135.0,
+            Orientation::West => angle + 180.0,
+            Orientation::NorthWest => angle + 135.0,
+        }.abs();
+        // Movement backwards is as fast as forwards, so the maximum rotation need is between -90 and 90 degrees.
+        // Check how many 45 degree steps are needed to rotate to the target angle.
+        steps += (f64::min(angle_difference, 180.0 - angle_difference) / 45.0).ceil() as u32;
+
+        return steps;
+    }
+
+    // Finds the shortest path to target location using A* pathfinding.
+    // Returns the path as a vector of steps (movement or rotation), or None if no path exists.
+    fn find_path(
+        &self,
+        start_location: &Position,
+        start_orientation: &Orientation,
+        target_location: &Position,
+    ) -> Option<Vec<Action>> {
+        // A* pathfinding algorithm: https://en.wikipedia.org/wiki/A*_search_algorithm
+        // It attempts to find the path with the lowest cost (least number of steps) from start to target,
+        // using the known cost from one node to its neighbors and a heuristic estimate of the remaining cost.
+        // We use the following notation:
+        // - n is the node (position and orientation information) being evaluated.
+        type Node = (Position, Orientation);
+        // - g(n) is the cost of the path from the start node to n.
+        let mut g: HashMap<Node, u32> = HashMap::new();
+        // - h(n) is a heuristic of the cost of the cheapest path from n to the target.
+        let mut h: HashMap<Node, u32> = HashMap::new();
+        // - f(n) = g(n) + h(n) is the total cost estimate that determines which node should be evaluated next.
+        let mut f: HashMap<Node, u32> = HashMap::new();
+        // - came_from(n) is the node that was evaluated before n on the path with lowest cost.
+        let mut came_from: HashMap<Node, Node> = HashMap::new();
+        // - frontier is the set of nodes to be evaluated.
+        let mut frontier: Vec<Node> = Vec::new();
+
+        // 1. Initialize the start node with g=0 and h=heuristic(start, target).
+        let start_node = (start_location.clone(), start_orientation.clone());
+        g.insert(start_node.clone(), 0);
+        h.insert(
+            start_node.clone(),
+            self.movement_cost_estimate(start_location, start_orientation, target_location),
+        );
+        f.insert(
+            start_node.clone(),
+            g[&start_node.clone()] + h[&start_node.clone()],
+        );
+        frontier.push(start_node.clone());
+
+        return None;
+    }
+
     // Calculates how many steps are needed to reach cardinal firing range.
-    // TODO: Doesn't account for diagonal movement.
-    // TODO: Doesn't account for rotation or turning along the way. Needs a proper pathfinding algorithm for that.
+    // TODO: Replace with A* pathfinding, taking diagonal movement and terrain into account.
     fn distance_to_firing_range(&self, enemy_position: &Position) -> u32 {
         // The shortest path to reach a position that is in firing range:
         let mut steps = 0;
@@ -72,13 +149,13 @@ impl PlAgiAntti {
         const CARDINAL_AIMING_DISTANCE: isize = SCANNING_DISTANCE as isize;
         return dx.abs() < CARDINAL_AIMING_DISTANCE
             && dy.abs() < CARDINAL_AIMING_DISTANCE
-            && self.direction_to(enemy_position).is_some();
+            && Self::direction_to(&self.location, enemy_position).is_some();
     }
 
     // Checks if the line from own location to target position is along any of the eight cardinal orientations.
     // Returns the orientation if the line is cardinal, otherwise None.
-    fn direction_to(&self, target: &Position) -> Option<Orientation> {
-        let (dx, dy) = self.location.delta(target);
+    fn direction_to(source: &Position, target: &Position) -> Option<Orientation> {
+        let (dx, dy) = source.delta(target);
         if dx == 0 {
             // The positions are on the same latitude.
             match dy.signum() {
@@ -196,11 +273,6 @@ impl Player for PlAgiAntti {
             let offset_y = max(0, -scan_y) as usize;
             let stop_x = min(scan_size, context.world_size().x as isize - scan_x) as usize;
             let stop_y = min(scan_size, context.world_size().y as isize - scan_y) as usize;
-
-            println!(
-                "own({},{}), scan({},{}), offset({},{}), stop({},{})",
-                own_x, own_y, scan_x, scan_y, offset_x, offset_y, stop_x, stop_y
-            );
             // Loop through all valid coordinates in the scan result and update own data structures.
             for y in offset_y..stop_y {
                 for x in offset_x..stop_x {
