@@ -522,6 +522,15 @@ pub enum Rotation {
     CounterClockwise,
 }
 
+impl Rotation {
+    pub fn opposite(&self) -> Self {
+        match self {
+            Self::Clockwise => Self::CounterClockwise,
+            Self::CounterClockwise => Self::Clockwise,
+        }
+    }
+}
+
 impl std::fmt::Display for Rotation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = match self {
