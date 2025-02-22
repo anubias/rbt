@@ -24,6 +24,22 @@ struct Tank {
     player: Box<dyn Player>,
 }
 
+impl Tank {
+    fn get_health_bar(&self) -> String {
+        const BAR_UNIT: u8 = 20;
+
+        let length = self.context.health() / BAR_UNIT;
+        let mut bar = String::new();
+
+        for i in 0..100 / BAR_UNIT {
+            let char = if i < length { '=' } else { ' ' };
+            bar = format!("{}{}", bar, char);
+        }
+
+        bar
+    }
+}
+
 #[derive(PartialEq, Eq)]
 enum ShellState {
     NotLaunched,
@@ -940,7 +956,8 @@ impl std::fmt::Display for World {
                         17.. => format!("{line}\t"),
                     };
                     line = format!(
-                        "{line}({:03}%, {}, {}, {})",
+                        "{line}({}, {:03}%, {}, {}, {})",
+                        tank.get_health_bar(),
                         tank.context.health(),
                         tank.context.position(),
                         tank.context.orientation(),
