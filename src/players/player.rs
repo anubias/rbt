@@ -321,7 +321,7 @@ impl Position {
         }
     }
 
-    /// Computes the manhattan distance between self and the provided `Position`
+    /// Computes the manhattan distance between `self` and the provided `Position`
     ///
     /// The `manhattan distance` is defined as the distance between two points
     /// that it would take to navigate if one could only travel along the
@@ -335,6 +335,14 @@ impl Position {
         let dy = self.y as isize - other.y as isize;
 
         (dx, dy)
+    }
+
+    /// Computes the pythagorean (geometric) distance between `self` and the provided `Position`
+    pub fn pythagorean_distance(&self, other: &Position) -> f32 {
+        let (dx, dy) = self.manhattan_distance(other);
+        let pythagora = dx * dx + dy * dy;
+
+        f32::sqrt(pythagora.abs() as f32)
     }
 
     /// Indicates whether cardinal shoothing from this position towards the
