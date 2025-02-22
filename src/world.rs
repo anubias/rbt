@@ -102,8 +102,10 @@ impl Shell {
             let landed = match &self.aim_type {
                 Aiming::Cardinal(_) => {
                     let (dx, dy) = self.fired_from.manhattan_distance(&self.current_pos);
-                    let distance = (dx.abs() + dy.abs()) as usize;
-                    distance >= self.max_fly_distance()
+                    let (dx, dy) = (dx.abs() as usize, dy.abs() as usize);
+                    let max_distance = self.max_fly_distance();
+
+                    dx >= max_distance || dy >= max_distance
                 }
                 Aiming::Positional(position) => *position == self.current_pos,
             };
