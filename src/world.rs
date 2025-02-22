@@ -132,6 +132,20 @@ impl Shell {
     }
 }
 
+struct ScanRequest {
+    requester: PlayerDetails,
+    scan_type: ScanType,
+}
+
+impl ScanRequest {
+    fn new(requester: PlayerDetails, scan_type: ScanType) -> Self {
+        Self {
+            scan_type,
+            requester,
+        }
+    }
+}
+
 pub struct World {
     map: Box<[[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]>,
     rng: ThreadRng,
@@ -242,44 +256,64 @@ impl World {
 // Private functions
 impl World {
     fn process_player_actions(&mut self, actions: Vec<(PlayerDetails, Action)>) {
-        let mut ordnance = Vec::new();
-        let mut processed_players = Vec::new();
+        let mut shot_queue = Vec::new();
+        let mut scan_queue = Vec::new();
 
         for (player_details, action) in actions.iter() {
             if let Some(tank) = self.tanks.get(player_details) {
-                let world_size = self.size.clone();
                 let tank_position = tank.context.position().clone();
 
                 match action {
                     Action::Idle => {}
-                    Action::Fire(aim) => ordnance.push(Shell::new(aim.clone(), tank_position)),
+                    Action::Fire(aim) => shot_queue.push(Shell::new(aim.clone(), tank_position)),
                     Action::Move(direction) => {
-                        let (from, to) = compute_route(
+                        let (from, to) = self.compute_route(
                             &tank_position,
                             tank.context.orientation(),
                             direction,
-                            &world_size,
                         );
                         self.move_player(*player_details, &from, &to);
                     }
                     Action::Rotate(rotation) => self.rotate_player(*player_details, rotation),
                     Action::Scan(scan_type) => {
-                        self.scan_surroundings(*player_details, scan_type, &world_size);
+                        scan_queue
+                            .push(ScanRequest::new(player_details.clone(), scan_type.clone()));
                     }
                 }
-
-                processed_players.push(player_details);
             }
         }
 
-        self.fly_shells(ordnance);
+        self.process_shots(shot_queue);
+        self.update_players_on_world_map(); // we need to update the world map before processing scans
+        self.process_scans(scan_queue);
     }
 
-    fn fly_shells(&mut self, ordnance: Vec<Shell>) {
+    fn process_scans(&mut self, scan_queue: Vec<ScanRequest>) {
+        let word_size = self.size.clone();
+
+        for scan in scan_queue {
+            self.scan_surroundings(scan, &word_size);
+        }
+    }
+
+    fn update_players_on_world_map(&mut self) {
+        for i in 0..self.size.y {
+            for j in 0..self.size.x {
+                if let MapCell::Player(player_details, terrain) = self.map[i][j] {
+                    if let Some(tank) = self.tanks.get(&player_details) {
+                        self.map[i][j] =
+                            MapCell::Player(tank.context.player_details().clone(), terrain);
+                    }
+                }
+            }
+        }
+    }
+
+    fn process_shots(&mut self, shot_queue: Vec<Shell>) {
         let max_iteration = CARDINAL_SHOT_DISTANCE.max(POSITIONAL_SHOT_DISTANCE) + 3;
         let mut possible_shots = Vec::new();
 
-        for shell in ordnance {
+        for shell in shot_queue {
             if shell.possible_shot() {
                 possible_shots.push(shell);
             }
@@ -291,10 +325,10 @@ impl World {
                 match shell.state {
                     ShellState::NotLaunched => {
                         shell.evolve(&self.size);
-                        self.animate_shell(shell, false);
+                        self.animate_shell_movement(shell, false);
                     }
                     ShellState::Flying => {
-                        self.animate_shell(shell, true);
+                        self.animate_shell_movement(shell, true);
                         shell.evolve(&self.size);
 
                         let landed = shell.try_to_land();
@@ -308,21 +342,21 @@ impl World {
                         if landed || collision {
                             shell.impact();
                         } else {
-                            self.animate_shell(shell, false);
+                            self.animate_shell_movement(shell, false);
                         }
                     }
                     ShellState::Impact => {
                         self.compute_shell_impact(&shell.current_pos);
-                        self.animate_impact(shell);
+                        self.animate_shell_impact(shell);
                         shell.evolve(&self.size);
                     }
                     ShellState::Explosion => {
-                        self.animate_impact(shell);
-                        self.animate_explosion(shell);
+                        self.animate_shell_impact(shell);
+                        self.animate_shell_explosion(shell);
                         shell.evolve(&self.size);
                     }
                     ShellState::Exploded => {
-                        self.animate_explosion(shell);
+                        self.animate_shell_explosion(shell);
                         shell.evolve(&self.size);
                     }
                     ShellState::Spent => continue,
@@ -342,7 +376,7 @@ impl World {
         }
     }
 
-    fn animate_shell(&mut self, shell: &Shell, clear: bool) {
+    fn animate_shell_movement(&mut self, shell: &Shell, clear: bool) {
         let position = &shell.current_pos;
         let cell = self.cell_read(position);
 
@@ -370,7 +404,7 @@ impl World {
         }
     }
 
-    fn animate_impact(&mut self, shell: &Shell) {
+    fn animate_shell_impact(&mut self, shell: &Shell) {
         let position = &shell.current_pos;
         let cell = self.cell_read(&shell.current_pos);
 
@@ -397,7 +431,7 @@ impl World {
         }
     }
 
-    fn animate_explosion(&mut self, shell: &Shell) {
+    fn animate_shell_explosion(&mut self, shell: &Shell) {
         for position in self.get_adjacent_positions(&shell.current_pos) {
             let cell = self.cell_read(&position);
 
@@ -497,19 +531,15 @@ impl World {
         }
     }
 
-    fn scan_surroundings(
-        &mut self,
-        player_details: PlayerDetails,
-        scan_type: &ScanType,
-        world_size: &WorldSize,
-    ) {
-        if let Some(tank) = self.tanks.get(&player_details) {
+    fn scan_surroundings(&mut self, scan_request: ScanRequest, world_size: &WorldSize) {
+        if let Some(tank) = self.tanks.get(&scan_request.requester) {
             let position = tank.context.position().clone();
-            let data = self.read_directional_map_area(scan_type, &position, world_size);
+            let data =
+                self.read_directional_map_area(&scan_request.scan_type, &position, world_size);
 
-            if let Some(tank) = self.tanks.get_mut(&player_details) {
+            if let Some(tank) = self.tanks.get_mut(&scan_request.requester) {
                 let scan_result = ScanResult {
-                    scan_type: scan_type.clone(),
+                    scan_type: scan_request.scan_type.clone(),
                     data,
                 };
                 tank.context.set_scanned_data(Some(scan_result));
@@ -907,26 +937,27 @@ impl World {
             }
         }
     }
-}
 
-fn compute_route(
-    start_position: &Position,
-    orientation: &Orientation,
-    direction: &Direction,
-    world_size: &WorldSize,
-) -> (Position, Position) {
-    let actual_orientation = match direction {
-        Direction::Backward => orientation.opposite(),
-        Direction::Forward => *orientation,
-    };
+    fn compute_route(
+        &self,
+        start_position: &Position,
+        orientation: &Orientation,
+        direction: &Direction,
+    ) -> (Position, Position) {
+        let actual_orientation = match direction {
+            Direction::Backward => orientation.opposite(),
+            Direction::Forward => *orientation,
+        };
 
-    let new_position = if let Some(pos) = start_position.follow(&actual_orientation, world_size) {
-        pos
-    } else {
-        start_position.clone()
-    };
+        let new_position = if let Some(pos) = start_position.follow(&actual_orientation, &self.size)
+        {
+            pos
+        } else {
+            start_position.clone()
+        };
 
-    (start_position.clone(), new_position)
+        (start_position.clone(), new_position)
+    }
 }
 
 impl std::fmt::Display for World {
@@ -1033,12 +1064,8 @@ mod tests {
         let position = Position { x: 2, y: 3 };
         let orientation = Orientation::NorthEast;
         let direction = Direction::Backward;
-        let world_size = WorldSize {
-            x: MINI_MAP_SIZE,
-            y: MINI_MAP_SIZE,
-        };
 
-        let (from, to) = compute_route(&position, &orientation, &direction, &world_size);
+        let (from, to) = world.compute_route(&position, &orientation, &direction);
         assert_eq!((from.x, from.y), (position.x, position.y));
         assert_eq!((to.x, to.y), (1, 4));
 
@@ -1046,12 +1073,8 @@ mod tests {
         let position = Position { x: 0, y: 3 };
         let orientation = Orientation::West;
         let direction = Direction::Forward;
-        let world_size = WorldSize {
-            x: MINI_MAP_SIZE,
-            y: MINI_MAP_SIZE,
-        };
 
-        let (from, to) = compute_route(&position, &orientation, &direction, &world_size);
+        let (from, to) = world.compute_route(&position, &orientation, &direction);
         assert_eq!((from.x, from.y), (position.x, position.y));
         assert_eq!((from.x, from.y), (to.x, to.y));
     }

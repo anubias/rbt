@@ -363,6 +363,7 @@ impl Position {
         self.within_distance(other, POSITIONAL_SHOT_DISTANCE)
     }
 
+    /// Indicates whether the `other` position is within a certain range or not
     pub fn within_distance(&self, other: &Position, range: usize) -> bool {
         let (dx, dy) = self.manhattan_distance(other);
 
