@@ -4,8 +4,6 @@ pub struct Siimesjarvi {
     strategy: Strategy,
 }
 
-const MIDDLE_COORDINATE: usize = SCANNING_DISTANCE / 2;
-
 impl Siimesjarvi {
     pub fn new() -> Self {
         Self {
