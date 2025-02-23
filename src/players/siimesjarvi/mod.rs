@@ -231,7 +231,7 @@ impl AdvancedStrategy {
         Option::Some(Action::Fire(Aiming::Positional(pos)))
     }
 
-    fn get_next_x_coordinate_in_submap(&self, orientation: &Orientation, direction: &Direction) -> usize {
+    fn get_next_x_coordinate_in_submap(&self, x:isize, orientation: &Orientation, direction: &Direction) -> usize {
         let z = match (orientation, direction) {
             (Orientation::North, Direction::Forward) => { OrientationMovements::NORTH_FORWARD.0 }
             (Orientation::North, Direction::Backward) => { OrientationMovements::NORTH_BACKWARD.0 }
@@ -250,10 +250,10 @@ impl AdvancedStrategy {
             (Orientation::NorthWest, Direction::Forward) => { OrientationMovements::NORTH_WEST_FORWARD.0 }
             (Orientation::NorthWest, Direction::Backward) => { OrientationMovements::NORTH_WEST_BACKWARD.0 }
         };
-        (MIDDLE_COORDINATE as isize + z) as usize
+        (x + z) as usize
     }
 
-    fn get_next_y_coordinate_in_submap(&self, orientation: &Orientation, direction: &Direction) -> usize {
+    fn get_next_y_coordinate_in_submap(&self, y: isize, orientation: &Orientation, direction: &Direction) -> usize {
         let z = match (orientation, direction) {
             (Orientation::North, Direction::Forward) => { OrientationMovements::NORTH_FORWARD.1 }
             (Orientation::North, Direction::Backward) => { OrientationMovements::NORTH_BACKWARD.1 }
@@ -272,31 +272,38 @@ impl AdvancedStrategy {
             (Orientation::NorthWest, Direction::Forward) => { OrientationMovements::NORTH_WEST_FORWARD.1 }
             (Orientation::NorthWest, Direction::Backward) => { OrientationMovements::NORTH_WEST_BACKWARD.1 }
         };
-        (MIDDLE_COORDINATE as isize + z) as usize
+        (y+ z) as usize
     }
 
 
-    fn handle_scan_result_without_other_players(&mut self, scan_result: &ScanResult, context: &Context) -> Action {
+    fn handle_scan_result_without_other_players(&mut self, scan_result: &ScanResult, context: &Context) -> Option<Action> {
 
-        let forward_x = self.get_next_x_coordinate_in_submap(&context.player_details().orientation, &Direction::Forward);
-        let forward_y = self.get_next_y_coordinate_in_submap(&context.player_details().orientation, &Direction::Forward);
+        let players_in_scan_result = self.get_players_from_scan_result(scan_result);
+        let my_position = self.get_my_coordinates_from_submap(
+            context.player_details().id,
+            &players_in_scan_result,
+        )?;
+
+        // Can get stuck in loop following same path and finding no players
+        let forward_x = self.get_next_x_coordinate_in_submap(my_position.0, &context.orientation(), &Direction::Forward);
+        let forward_y = self.get_next_y_coordinate_in_submap(my_position.1, &context.orientation(), &Direction::Forward);
         let forward_is_safe = self.is_submap_cell_safe(scan_result, forward_x as usize, forward_y as usize);
 
-        let backward_x = self.get_next_x_coordinate_in_submap(&context.player_details().orientation, &Direction::Backward);
-        let backward_y = self.get_next_y_coordinate_in_submap(&context.player_details().orientation, &Direction::Backward);
+        let backward_x = self.get_next_x_coordinate_in_submap(my_position.0, &context.orientation(), &Direction::Backward);
+        let backward_y = self.get_next_y_coordinate_in_submap(my_position.1, &context.orientation(), &Direction::Backward);
         let backward_is_safe = self.is_submap_cell_safe(scan_result, backward_x as usize, backward_y as usize);
 
         match self.previous_direction {
-            Direction::Forward if forward_is_safe => Action::Move(Direction::Forward),
+            Direction::Forward if forward_is_safe => Option::Some(Action::Move(Direction::Forward)),
             Direction::Forward if backward_is_safe => {
                 self.previous_direction = Direction::Backward;
-                Action::Move(Direction::Backward)
+                Option::Some(Action::Move(Direction::Backward))
             }
-            Direction::Forward => Action::Rotate(Rotation::Clockwise),
-            Direction::Backward if backward_is_safe => Action::Move(Direction::Backward),
+            Direction::Forward => Option::Some(Action::Rotate(Rotation::Clockwise)),
+            Direction::Backward if backward_is_safe => Option::Some(Action::Move(Direction::Backward)),
             Direction::Backward => {
                 self.previous_direction = Direction::Forward;
-                Action::Rotate(Rotation::Clockwise)
+                Option::Some(Action::Rotate(Rotation::Clockwise))
             }
         }
     }
@@ -314,7 +321,7 @@ impl AdvancedStrategy {
             Some(scan_result) if self.are_other_players_in_scan_result(context.player_details().id, scan_result) => {
                 self.handle_scan_result_with_other_players(scan_result, context).unwrap_or(Action::Idle)
             }
-            Some(scan_result) => self.handle_scan_result_without_other_players(scan_result, context),
+            Some(scan_result) => self.handle_scan_result_without_other_players(scan_result, context).unwrap_or(Action::Idle),
         }
     }
 
@@ -360,7 +367,6 @@ mod tests {
 
     #[test]
     fn advanced_strategy_is_submap_cell_safe() {
-        // This needs test cases, tank drowned
         let s: AdvancedStrategy = AdvancedStrategy::new();
 
         let mut scan_result: ScanResult = ScanResult {
@@ -369,14 +375,13 @@ mod tests {
                 [[MapCell::Terrain(Terrain::Field); SCANNING_DISTANCE]; SCANNING_DISTANCE],
             ),
         };
-        let mut my_player_details = PlayerDetails::new(avatar(1), 1);
-
+        let my_player_details = PlayerDetails::new(avatar(1), 1);
 
         scan_result.data[1][1] = MapCell::Player(my_player_details, Terrain::Field);
-        // Check combination here for safe and unsafe terrains with different orientation and directions
-        // Reset everything back to safe after
 
-        assert!(true)
+        assert_eq!(true, s.is_submap_cell_safe(&scan_result, 1, 0));
+        scan_result.data[0][1] = MapCell::Unallocated;
+        assert_eq!(false, s.is_submap_cell_safe(&scan_result, 1, 0));
     }
 
     #[test]
