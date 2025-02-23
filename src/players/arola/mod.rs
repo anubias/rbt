@@ -1,8 +1,8 @@
 use super::player::*;
 mod attack;
 mod explore;
+mod helpers;
 mod map;
-mod scan_helper;
 
 enum PlayerState {
     Start,
@@ -14,6 +14,7 @@ pub struct Arola {
     state: PlayerState,
     map: map::Map,
     previous_scan_direction: Orientation,
+    target_position: Option<Position>,
 }
 
 impl Arola {
@@ -22,6 +23,7 @@ impl Arola {
             state: PlayerState::Start,
             map: map::Map::new(),
             previous_scan_direction: Orientation::North,
+            target_position: None,
         }
     }
 }

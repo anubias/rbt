@@ -119,7 +119,7 @@ impl AdvancedStrategy {
             for map_cell in row.iter() {
                 match map_cell {
                     MapCell::Player(player_details, ..) => {
-                        if player_details.id != my_player_id && player_details.is_alive() {
+                        if player_details.id != my_player_id && player_details.alive {
                             return true;
                         }
                     }
@@ -165,7 +165,7 @@ impl AdvancedStrategy {
         players: &Vec<PlayerInMap>,
     ) -> Option<(isize, isize)> {
         for player in players.iter() {
-            if player.player_details.id != my_player_id && player.player_details.is_alive() {
+            if player.player_details.id != my_player_id && player.player_details.alive {
                 return Option::Some((player.x as isize, player.y as isize));
             }
         }

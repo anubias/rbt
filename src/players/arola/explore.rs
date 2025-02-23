@@ -1,3 +1,5 @@
+use rand::Rng;
+
 use super::super::player::*;
 use super::Arola;
 use super::PlayerState;
@@ -36,7 +38,7 @@ impl Arola {
         context: &Context,
     ) -> (PlayerState, Action) {
         if !scan_result
-            .find_other_players(context.player_details(), context.position())
+            .find_other_players(context.player_details().id, context.position())
             .is_empty()
         {
             self.attack(context)
@@ -45,20 +47,74 @@ impl Arola {
         }
     }
 
-    fn get_moving_action(&self, context: &Context) -> Action {
-        let front_position = context
-            .position()
-            .follow(context.orientation(), context.world_size());
-
-        let front_cell = match front_position {
-            Some(position) => self.map.get_cell(&position),
-            None => MapCell::Unallocated,
-        };
-
-        match front_cell {
-            MapCell::Terrain(Terrain::Field) => Action::Move(Direction::Forward),
-            MapCell::Terrain(_) => Action::Rotate(Rotation::Clockwise),
-            _ => Action::Idle,
+    fn get_moving_action(&mut self, context: &Context) -> Action {
+        if self.target_position.is_none() {
+            self.target_position = Some(self.generate_random_position(context.world_size()));
         }
+
+        let path = self.target_position.as_ref().and_then(|target_position| {
+            self.map.find_path(
+                context.position().clone(),
+                context.orientation().clone(),
+                target_position,
+            )
+        });
+
+        if let Some(action) = self.move_along_path(context, &path) {
+            return action;
+        } else {
+            // No valid moving action => clear target position to try again in future
+            self.target_position = None;
+            return Action::Idle;
+        }
+    }
+
+    fn generate_random_position(&self, world_size: &WorldSize) -> Position {
+        let mut rng = rand::thread_rng();
+        loop {
+            let position = Position {
+                x: rng.gen_range(1..world_size.x - 1),
+                y: rng.gen_range(1..world_size.y - 1),
+            };
+
+            if matches!(
+                self.map.get_cell(&position),
+                MapCell::Terrain(Terrain::Field) | MapCell::Unallocated
+            ) {
+                return position;
+            }
+        }
+    }
+
+    fn move_along_path(&self, context: &Context, path: &Option<Vec<Position>>) -> Option<Action> {
+        if let Some(path) = &path {
+            let front_position = context
+                .position()
+                .follow(context.orientation(), context.world_size());
+
+            let back_position = context
+                .position()
+                .follow(&context.orientation().opposite(), context.world_size());
+
+            if let Some(front_position) = front_position {
+                if let Some(back_position) = back_position {
+                    if front_position == path[0] {
+                        return Some(Action::Move(Direction::Forward));
+                    } else if back_position == path[0] {
+                        return Some(Action::Move(Direction::Backward));
+                    } else {
+                        let target_orientation = context.position().get_orientation_to(&path[0]);
+                        return Some(Action::Rotate(
+                            context
+                                .orientation()
+                                .quick_turn_bidirectional(&target_orientation)
+                                .0,
+                        ));
+                    }
+                }
+            }
+        }
+
+        return None;
     }
 }
