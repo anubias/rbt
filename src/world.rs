@@ -52,7 +52,7 @@ enum ShellState {
 
 #[derive(PartialEq, Eq)]
 struct Shell {
-    current_pos: Position,
+    current_pos: Option<Position>,
     fired_from: Position,
     aim_type: Aiming,
     state: ShellState,
@@ -61,7 +61,7 @@ struct Shell {
 impl Shell {
     fn new(aim_type: Aiming, fired_from: Position) -> Self {
         Self {
-            current_pos: fired_from.clone(),
+            current_pos: Some(fired_from.clone()),
             fired_from,
             aim_type,
             state: ShellState::NotLaunched,
@@ -79,16 +79,12 @@ impl Shell {
         match self.state {
             ShellState::NotLaunched | ShellState::Flying => {
                 self.state = ShellState::Flying;
-                self.current_pos = match &self.aim_type {
-                    Aiming::Positional(pos) => pos.clone(),
-                    Aiming::Cardinal(orientation) => {
-                        if let Some(pos) = self.current_pos.follow(orientation, world_size) {
-                            pos
-                        } else {
-                            self.current_pos.clone()
-                        }
-                    }
-                };
+                if let Some(pos) = &self.current_pos {
+                    self.current_pos = match &self.aim_type {
+                        Aiming::Positional(p) => Some(p.clone()),
+                        Aiming::Cardinal(orientation) => pos.follow(orientation, world_size),
+                    };
+                }
             }
             ShellState::Impact => self.state = ShellState::Explosion,
             ShellState::Explosion => self.state = ShellState::Exploded,
@@ -99,21 +95,27 @@ impl Shell {
 
     fn try_to_land(&mut self) -> bool {
         if self.state == ShellState::Flying {
-            let landed = match &self.aim_type {
-                Aiming::Cardinal(_) => {
-                    let (dx, dy) = self.fired_from.manhattan_distance(&self.current_pos);
-                    let (dx, dy) = (dx.unsigned_abs(), dy.unsigned_abs());
-                    let max_distance = self.max_fly_distance();
+            if let Some(cur_pos) = &self.current_pos {
+                let landed = match &self.aim_type {
+                    Aiming::Cardinal(_) => {
+                        let (dx, dy) = self.fired_from.manhattan_distance(cur_pos);
+                        let (dx, dy) = (dx.unsigned_abs(), dy.unsigned_abs());
+                        let max_distance = self.max_fly_distance();
 
-                    dx >= max_distance || dy >= max_distance
+                        dx >= max_distance || dy >= max_distance
+                    }
+                    Aiming::Positional(position) => *position == *cur_pos,
+                };
+                if landed {
+                    self.impact();
                 }
-                Aiming::Positional(position) => *position == self.current_pos,
-            };
-            if landed {
-                self.impact();
+                landed
+            } else {
+                // no current position
+                false
             }
-            landed
         } else {
+            // not flying
             false
         }
     }
@@ -331,13 +333,16 @@ impl World {
                         shell.evolve(&self.size);
 
                         let landed = shell.try_to_land();
-                        let collision = if let Some(player_details) =
-                            self.get_player_at_position(&shell.current_pos)
-                        {
-                            self.is_player_alive(&player_details)
+                        let collision = if let Some(position) = &shell.current_pos {
+                            if let Some(player_details) = self.get_player_at_position(position) {
+                                self.is_player_alive(&player_details)
+                            } else {
+                                false
+                            }
                         } else {
                             false
                         };
+
                         if landed || collision {
                             shell.impact();
                         } else {
@@ -345,7 +350,7 @@ impl World {
                         }
                     }
                     ShellState::Impact => {
-                        self.compute_shell_impact(&shell.current_pos);
+                        self.compute_shell_impact(shell.current_pos.clone());
                         self.animate_shell_impact(shell);
                         shell.evolve(&self.size);
                     }
@@ -376,80 +381,26 @@ impl World {
     }
 
     fn animate_shell_movement(&mut self, shell: &Shell, clear: bool) {
-        let position = &shell.current_pos;
-        let cell = self.cell_read(position);
+        if let Some(position) = &shell.current_pos {
+            let cell = self.cell_read(position);
 
-        match cell {
-            MapCell::Player(player_details, terrain) => {
-                if !clear {
-                    self.cell_write(position, MapCell::Shell(player_details, terrain));
-                }
-            }
-            MapCell::Terrain(terrain) => {
-                if !clear {
-                    self.cell_write(position, MapCell::Shell(INVALID_PLAYER, terrain));
-                }
-            }
-            MapCell::Shell(player_details, terrain) => {
-                if clear {
-                    if player_details == INVALID_PLAYER {
-                        self.cell_write(position, MapCell::Terrain(terrain));
-                    } else {
-                        self.cell_write(position, MapCell::Player(player_details, terrain));
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn animate_shell_impact(&mut self, shell: &Shell) {
-        let position = &shell.current_pos;
-        let cell = self.cell_read(&shell.current_pos);
-
-        match shell.state {
-            ShellState::Impact => match cell {
+            match cell {
                 MapCell::Player(player_details, terrain) => {
-                    self.cell_write(position, MapCell::Explosion(player_details, terrain))
+                    if !clear {
+                        self.cell_write(position, MapCell::Shell(player_details, terrain));
+                    }
                 }
                 MapCell::Terrain(terrain) => {
-                    self.cell_write(position, MapCell::Explosion(INVALID_PLAYER, terrain))
-                }
-                _ => {}
-            },
-            ShellState::Explosion => {
-                if let MapCell::Explosion(player_details, terrain) = cell {
-                    if player_details == INVALID_PLAYER {
-                        self.cell_write(position, MapCell::Terrain(terrain));
-                    } else {
-                        self.cell_write(position, MapCell::Player(player_details, terrain));
+                    if !clear {
+                        self.cell_write(position, MapCell::Shell(INVALID_PLAYER, terrain));
                     }
                 }
-            }
-            _ => {}
-        }
-    }
-
-    fn animate_shell_explosion(&mut self, shell: &Shell) {
-        for position in self.get_adjacent_positions(&shell.current_pos) {
-            let cell = self.cell_read(&position);
-
-            match shell.state {
-                ShellState::Explosion => match cell {
-                    MapCell::Player(player_details, terrain) => {
-                        self.cell_write(&position, MapCell::Explosion(player_details, terrain))
-                    }
-                    MapCell::Terrain(terrain) => {
-                        self.cell_write(&position, MapCell::Explosion(INVALID_PLAYER, terrain))
-                    }
-                    _ => {}
-                },
-                ShellState::Exploded => {
-                    if let MapCell::Explosion(player_details, terrain) = cell {
+                MapCell::Shell(player_details, terrain) => {
+                    if clear {
                         if player_details == INVALID_PLAYER {
-                            self.cell_write(&position, MapCell::Terrain(terrain));
+                            self.cell_write(position, MapCell::Terrain(terrain));
                         } else {
-                            self.cell_write(&position, MapCell::Player(player_details, terrain));
+                            self.cell_write(position, MapCell::Player(player_details, terrain));
                         }
                     }
                 }
@@ -458,17 +409,78 @@ impl World {
         }
     }
 
-    fn compute_shell_impact(&mut self, position: &Position) {
-        let (directly_hit, indirectly_hit) = self.get_hit_players(position);
+    fn animate_shell_impact(&mut self, shell: &Shell) {
+        if let Some(position) = &shell.current_pos {
+            let cell = self.cell_read(position);
 
-        for player in directly_hit {
-            if let Some(tank) = self.tanks.get_mut(&player) {
-                tank.context.damage(DAMAGE_DIRECT_ORDNANCE_HIT);
+            match shell.state {
+                ShellState::Impact => match cell {
+                    MapCell::Player(player_details, terrain) => {
+                        self.cell_write(position, MapCell::Explosion(player_details, terrain))
+                    }
+                    MapCell::Terrain(terrain) => {
+                        self.cell_write(position, MapCell::Explosion(INVALID_PLAYER, terrain))
+                    }
+                    _ => {}
+                },
+                ShellState::Explosion => {
+                    if let MapCell::Explosion(player_details, terrain) = cell {
+                        if player_details == INVALID_PLAYER {
+                            self.cell_write(position, MapCell::Terrain(terrain));
+                        } else {
+                            self.cell_write(position, MapCell::Player(player_details, terrain));
+                        }
+                    }
+                }
+                _ => {}
             }
         }
-        for player in indirectly_hit {
-            if let Some(tank) = self.tanks.get_mut(&player) {
-                tank.context.damage(DAMAGE_INDIRECT_ORDNANCE_HIT);
+    }
+
+    fn animate_shell_explosion(&mut self, shell: &Shell) {
+        if let Some(position) = &shell.current_pos {
+            for adjacent_pos in self.get_adjacent_positions(position) {
+                let cell = self.cell_read(&adjacent_pos);
+
+                match shell.state {
+                    ShellState::Explosion => match cell {
+                        MapCell::Player(player_details, terrain) => self
+                            .cell_write(&adjacent_pos, MapCell::Explosion(player_details, terrain)),
+                        MapCell::Terrain(terrain) => self
+                            .cell_write(&adjacent_pos, MapCell::Explosion(INVALID_PLAYER, terrain)),
+                        _ => {}
+                    },
+                    ShellState::Exploded => {
+                        if let MapCell::Explosion(player_details, terrain) = cell {
+                            if player_details == INVALID_PLAYER {
+                                self.cell_write(&adjacent_pos, MapCell::Terrain(terrain));
+                            } else {
+                                self.cell_write(
+                                    &adjacent_pos,
+                                    MapCell::Player(player_details, terrain),
+                                );
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    fn compute_shell_impact(&mut self, position: Option<Position>) {
+        if let Some(pos) = position {
+            let (directly_hit, indirectly_hit) = self.get_hit_players(&pos);
+
+            for player in directly_hit {
+                if let Some(tank) = self.tanks.get_mut(&player) {
+                    tank.context.damage(DAMAGE_DIRECT_ORDNANCE_HIT);
+                }
+            }
+            for player in indirectly_hit {
+                if let Some(tank) = self.tanks.get_mut(&player) {
+                    tank.context.damage(DAMAGE_INDIRECT_ORDNANCE_HIT);
+                }
             }
         }
     }
