@@ -102,7 +102,7 @@ impl Shell {
             let landed = match &self.aim_type {
                 Aiming::Cardinal(_) => {
                     let (dx, dy) = self.fired_from.manhattan_distance(&self.current_pos);
-                    let (dx, dy) = (dx.abs() as usize, dy.abs() as usize);
+                    let (dx, dy) = (dx.unsigned_abs(), dy.unsigned_abs());
                     let max_distance = self.max_fly_distance();
 
                     dx >= max_distance || dy >= max_distance
@@ -133,15 +133,15 @@ impl Shell {
 }
 
 struct ScanRequest {
-    requester: PlayerDetails,
+    requester_id: PlayerId,
     scan_type: ScanType,
 }
 
 impl ScanRequest {
-    fn new(requester: PlayerDetails, scan_type: ScanType) -> Self {
+    fn new(requester: PlayerId, scan_type: ScanType) -> Self {
         Self {
+            requester_id: requester,
             scan_type,
-            requester,
         }
     }
 }
@@ -150,7 +150,7 @@ pub struct World {
     map: Box<[[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]>,
     rng: ThreadRng,
     size: WorldSize,
-    tanks: HashMap<PlayerDetails, Tank>,
+    tanks: HashMap<PlayerId, Tank>,
     tick: u64,
 }
 
@@ -231,7 +231,8 @@ impl World {
                 .try_set_player_on_cell(player_details, context.position())
                 .is_some()
             {
-                self.tanks.insert(player_details, Tank { context, player });
+                self.tanks
+                    .insert(player_details.id, Tank { context, player });
             }
         }
     }
@@ -255,12 +256,12 @@ impl World {
 
 // Private functions
 impl World {
-    fn process_player_actions(&mut self, actions: Vec<(PlayerDetails, Action)>) {
+    fn process_player_actions(&mut self, actions: Vec<(PlayerId, Action)>) {
         let mut shot_queue = Vec::new();
         let mut scan_queue = Vec::new();
 
-        for (player_details, action) in actions.iter() {
-            if let Some(tank) = self.tanks.get(player_details) {
+        for (player_id, action) in actions.iter() {
+            if let Some(tank) = self.tanks.get(player_id) {
                 let tank_position = tank.context.position().clone();
 
                 match action {
@@ -272,12 +273,11 @@ impl World {
                             tank.context.orientation(),
                             direction,
                         );
-                        self.move_player(*player_details, &from, &to);
+                        self.move_player(*player_id, &from, &to);
                     }
-                    Action::Rotate(rotation) => self.rotate_player(*player_details, rotation),
+                    Action::Rotate(rotation) => self.rotate_player(*player_id, rotation),
                     Action::Scan(scan_type) => {
-                        scan_queue
-                            .push(ScanRequest::new(player_details.clone(), scan_type.clone()));
+                        scan_queue.push(ScanRequest::new(*player_id, scan_type.clone()));
                     }
                 }
             }
@@ -300,9 +300,8 @@ impl World {
         for i in 0..self.size.y {
             for j in 0..self.size.x {
                 if let MapCell::Player(player_details, terrain) = self.map[i][j] {
-                    if let Some(tank) = self.tanks.get(&player_details) {
-                        self.map[i][j] =
-                            MapCell::Player(tank.context.player_details().clone(), terrain);
+                    if let Some(tank) = self.tanks.get(&player_details.id) {
+                        self.map[i][j] = MapCell::Player(*tank.context.player_details(), terrain);
                     }
                 }
             }
@@ -491,53 +490,60 @@ impl World {
         }
     }
 
-    fn move_player(&mut self, player_details: PlayerDetails, from: &Position, to: &Position) {
-        let can_move = if let Some(tank) = self.tanks.get(&player_details) {
-            tank.context.is_mobile()
+    fn move_player(&mut self, player_id: PlayerId, from: &Position, to: &Position) {
+        let to_cell = self.cell_read(to);
+
+        let tank_context = if let Some(tank) = self.tanks.get_mut(&player_id) {
+            Some(tank.context.clone())
         } else {
-            false
+            None
         };
 
-        if can_move {
-            let to_cell = self.cell_read(to);
-            match to_cell {
-                MapCell::Player(other_id, _) => {
-                    if let Some(tank) = self.tanks.get_mut(&player_details) {
-                        tank.context.damage(DAMAGE_COLLISION_WITH_PLAYER);
-                    }
-                    if let Some(tank) = self.tanks.get_mut(&other_id) {
-                        tank.context.damage(DAMAGE_COLLISION_WITH_PLAYER);
-                    }
-                }
-                MapCell::Terrain(_) => {
-                    if let Some(terrain) = self.try_set_player_on_cell(player_details, to) {
-                        self.unset_player_from_cell(from);
-
-                        if let Some(tank) = self.tanks.get_mut(&player_details) {
-                            tank.context.relocate(to, terrain);
+        if let Some(mut temp_context) = tank_context {
+            if temp_context.is_mobile() {
+                match to_cell {
+                    MapCell::Player(other_details, _) => {
+                        temp_context.damage(DAMAGE_COLLISION_WITH_PLAYER);
+                        if let Some(other_tank) = self.tanks.get_mut(&other_details.id) {
+                            other_tank.context.damage(DAMAGE_COLLISION_WITH_PLAYER);
                         }
-                    } else if let Some(tank) = self.tanks.get_mut(&player_details) {
-                        tank.context.damage(DAMAGE_COLLISION_WITH_FOREST);
                     }
+                    MapCell::Terrain(_) => {
+                        if let Some(terrain) =
+                            self.try_set_player_on_cell(*temp_context.player_details(), to)
+                        {
+                            self.unset_player_from_cell(from);
+
+                            temp_context.relocate(to, terrain);
+                        } else {
+                            // only terrain we cannot move into is `Terrain::Forest`
+                            temp_context.damage(DAMAGE_COLLISION_WITH_FOREST);
+                        }
+                    }
+                    _ => {}
                 }
-                _ => {}
+
+                // Update new context
+                if let Some(tank) = self.tanks.get_mut(&player_id) {
+                    tank.context = temp_context;
+                }
             }
         }
     }
 
-    fn rotate_player(&mut self, player_details: PlayerDetails, rotation: &Rotation) {
-        if let Some(tank) = self.tanks.get_mut(&player_details) {
+    fn rotate_player(&mut self, player_id: PlayerId, rotation: &Rotation) {
+        if let Some(tank) = self.tanks.get_mut(&player_id) {
             tank.context.rotate(rotation);
         }
     }
 
     fn scan_surroundings(&mut self, scan_request: ScanRequest, world_size: &WorldSize) {
-        if let Some(tank) = self.tanks.get(&scan_request.requester) {
+        if let Some(tank) = self.tanks.get(&scan_request.requester_id) {
             let position = tank.context.position().clone();
             let data =
                 self.read_directional_map_area(&scan_request.scan_type, &position, world_size);
 
-            if let Some(tank) = self.tanks.get_mut(&scan_request.requester) {
+            if let Some(tank) = self.tanks.get_mut(&scan_request.requester_id) {
                 let scan_result = ScanResult {
                     scan_type: scan_request.scan_type.clone(),
                     data,
@@ -728,18 +734,18 @@ impl World {
     /// Returns the list of hit players at a position as a tuple of vectors, where the first element
     /// of the tuple is a vector containing the players directly hit, and the second element of the
     /// tuple is a vector containing the players indirectly hit.
-    fn get_hit_players(&self, position: &Position) -> (Vec<PlayerDetails>, Vec<PlayerDetails>) {
+    fn get_hit_players(&self, position: &Position) -> (Vec<PlayerId>, Vec<PlayerId>) {
         let mut direct_hit = Vec::new();
         let mut indirect_hit = Vec::new();
 
         if let Some(direct_hit_player) = self.get_player_at_position(position) {
-            direct_hit.push(direct_hit_player);
+            direct_hit.push(direct_hit_player.id);
         }
 
         let adjacent_positions = self.get_adjacent_positions(position);
         for adjacent in adjacent_positions {
             if let Some(player) = self.get_player_at_position(&adjacent) {
-                indirect_hit.push(player);
+                indirect_hit.push(player.id);
             }
         }
 
@@ -866,12 +872,11 @@ impl World {
         let mut tree_e_cnt = 0;
         let mut swamp_cnt = 0;
 
-        let neighbors = self.get_adjacent_positions(&position);
+        let neighbors = self.get_adjacent_positions(position);
 
         for neighbor in neighbors {
-            let cell = self.cell_read(&neighbor);
-            match cell {
-                MapCell::Terrain(terrain) => match terrain {
+            if let MapCell::Terrain(terrain) = self.cell_read(&neighbor) {
+                match terrain {
                     Terrain::Field => {
                         field_cnt += 1;
                         if field_cnt >= 4 {
@@ -902,8 +907,7 @@ impl World {
                             return Terrain::Swamp;
                         }
                     }
-                },
-                _ => {}
+                }
             }
         }
 
@@ -1228,21 +1232,27 @@ mod tests {
             world.get_hit_players(&firing_position_1);
         assert!(!direct_hit_players_1.is_empty());
         assert!(!indirect_hit_players_1.is_empty());
-        assert_eq!(*direct_hit_players_1.first().unwrap(), upper_player_details);
+        assert_eq!(
+            *direct_hit_players_1.first().unwrap(),
+            upper_player_details.id
+        );
         assert_eq!(
             *indirect_hit_players_1.first().unwrap(),
-            lower_player_details
+            lower_player_details.id
         );
 
         let firing_position_2 = position_lower_player.clone();
         let (direct_hit_players_2, indirect_hit_players_2) =
             world.get_hit_players(&firing_position_2);
         assert!(!direct_hit_players_2.is_empty());
-        assert_eq!(*direct_hit_players_2.first().unwrap(), lower_player_details);
+        assert_eq!(
+            *direct_hit_players_2.first().unwrap(),
+            lower_player_details.id
+        );
         assert!(!indirect_hit_players_2.is_empty());
         assert_eq!(
             *indirect_hit_players_2.first().unwrap(),
-            upper_player_details
+            upper_player_details.id
         );
 
         let firing_position_3 = position_lower_player
@@ -1254,7 +1264,7 @@ mod tests {
         assert!(!indirect_hit_players_3.is_empty());
         assert_eq!(
             *indirect_hit_players_3.first().unwrap(),
-            lower_player_details
+            lower_player_details.id
         );
 
         let firing_position_4 = firing_position_3

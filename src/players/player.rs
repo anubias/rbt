@@ -367,7 +367,7 @@ impl Position {
     pub fn within_distance(&self, other: &Position, range: usize) -> bool {
         let (dx, dy) = self.manhattan_distance(other);
 
-        dx.abs() as usize <= range && dy.abs() as usize <= range
+        dx.unsigned_abs() <= range && dy.unsigned_abs() <= range
     }
 }
 
