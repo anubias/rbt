@@ -134,7 +134,7 @@ impl Rahtu {
         return self.sensor_data[x as usize][y as usize].clone();
     }
     fn get_map_tile_in_front(&mut self, context: &Context) -> SensorData {
-        match context.orientation() {
+        match context.player_details().orientation {
             Orientation::North => self.get_map_tile(
                 context.position().x as isize,
                 context.position().y as isize - 1,
@@ -189,8 +189,10 @@ impl Rahtu {
     }
 
     fn get_direction_with_unexplored_terrain(&mut self, context: &Context) -> Option<Orientation> {
-        if self.can_see_unexplored_terrain_in_direction(context.orientation(), context) {
-            return Some(context.orientation().clone());
+        if self
+            .can_see_unexplored_terrain_in_direction(&context.player_details().orientation, context)
+        {
+            return Some(context.player_details().orientation.clone());
         }
         if self.can_see_unexplored_terrain_in_direction(&Orientation::North, context) {
             return Some(Orientation::North);
@@ -238,14 +240,14 @@ impl Rahtu {
             return action;
         }
 
-        return match context.orientation() {
+        return match context.player_details().orientation {
             Orientation::NorthEast => Action::Rotate(Rotation::CounterClockwise),
             Orientation::SouthEast => Action::Rotate(Rotation::CounterClockwise),
             Orientation::SouthWest => Action::Rotate(Rotation::CounterClockwise),
             Orientation::NorthWest => Action::Rotate(Rotation::CounterClockwise),
             _ => match self.get_direction_with_unexplored_terrain(context) {
                 Some(direction) => {
-                    if direction == context.orientation().clone() {
+                    if direction == context.player_details().orientation.clone() {
                         match self.get_map_tile_in_front(context) {
                             SensorData::NotScanned => Action::Scan(ScanType::Omni),
                             SensorData::Empty => Action::Move(Direction::Forward),

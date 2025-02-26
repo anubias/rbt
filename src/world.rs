@@ -270,7 +270,7 @@ impl World {
                     Action::Move(direction) => {
                         let (from, to) = self.compute_route(
                             &tank_position,
-                            tank.context.orientation(),
+                            &tank.context.player_details().orientation,
                             direction,
                         );
                         self.move_player(*player_id, &from, &to);
@@ -997,7 +997,7 @@ impl std::fmt::Display for World {
                         tank.get_health_bar(),
                         tank.context.health(),
                         tank.context.position(),
-                        tank.context.orientation(),
+                        tank.context.player_details().orientation,
                         tank.context.previous_action()
                     )
                 }

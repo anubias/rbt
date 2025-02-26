@@ -283,12 +283,12 @@ impl AdvancedStrategy {
         )?;
 
         // Can get stuck in loop following same path and finding no players
-        let forward_x = self.get_next_x_coordinate_in_submap(my_position.0, &context.orientation(), &Direction::Forward);
-        let forward_y = self.get_next_y_coordinate_in_submap(my_position.1, &context.orientation(), &Direction::Forward);
+        let forward_x = self.get_next_x_coordinate_in_submap(my_position.0, &context.player_details().orientation, &Direction::Forward);
+        let forward_y = self.get_next_y_coordinate_in_submap(my_position.1, &context.player_details().orientation, &Direction::Forward);
         let forward_is_safe = self.is_submap_cell_safe(scan_result, forward_x as usize, forward_y as usize);
 
-        let backward_x = self.get_next_x_coordinate_in_submap(my_position.0, &context.orientation(), &Direction::Backward);
-        let backward_y = self.get_next_y_coordinate_in_submap(my_position.1, &context.orientation(), &Direction::Backward);
+        let backward_x = self.get_next_x_coordinate_in_submap(my_position.0, &context.player_details().orientation, &Direction::Backward);
+        let backward_y = self.get_next_y_coordinate_in_submap(my_position.1, &context.player_details().orientation, &Direction::Backward);
         let backward_is_safe = self.is_submap_cell_safe(scan_result, backward_x as usize, backward_y as usize);
 
         match self.previous_direction {

@@ -108,7 +108,10 @@ impl Joonas {
     }
 
     fn get_terrain_ahead(&self, ctx: &Context) -> MapCell {
-        if let Some(cell_ahead) = ctx.position().follow(ctx.orientation(), ctx.world_size()) {
+        if let Some(cell_ahead) = ctx
+            .position()
+            .follow(&ctx.player_details().orientation, ctx.world_size())
+        {
             return self.map[cell_ahead.y][cell_ahead.x];
         }
         MapCell::Unallocated
@@ -150,7 +153,7 @@ impl Player for Joonas {
         // Update our own details
         self.id = context.player_details().id.clone();
         self.last_action = context.previous_action().clone();
-        self.orientation = context.orientation().clone();
+        self.orientation = context.player_details().orientation.clone();
         self.position = context.position().clone();
 
         let next_action = match context.previous_action() {

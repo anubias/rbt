@@ -17,7 +17,7 @@ impl Arola {
 
         return (
             PlayerState::Explore,
-            Action::Scan(ScanType::Mono(context.orientation().clone())),
+            Action::Scan(ScanType::Mono(context.player_details().orientation.clone())),
         );
     }
 }

@@ -21,7 +21,7 @@ impl Player for Luis {
         if let Some(scan_data) = context.scanned_data() {
             // Cache map data (just if uncomplete?)
 
-            let orientation = context.orientation();
+            let orientation = context.player_details().orientation;
             let center = SCANNING_DISTANCE / 2;
             let mut next_cell_x = center;
             let mut next_cell_y = center;

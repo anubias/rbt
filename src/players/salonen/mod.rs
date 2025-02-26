@@ -19,7 +19,7 @@ impl Player for Es {
         }
 
         if let Some(scanned_data) = context.scanned_data() {
-            let orientation = context.orientation();
+            let orientation = context.player_details().orientation;
 
             // The tank is at [7][7] for now
             let center = SCANNING_DISTANCE / 2;
