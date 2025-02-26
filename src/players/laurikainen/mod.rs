@@ -91,7 +91,7 @@ impl PlayerOne {
         println!(
             "Position: {:?}, current orientation: {:?},",
             context.position(),
-            context.orientation()
+            context.player_details().orientation
         );
 
         if let Some(scanned_data) = context.scanned_data() {
@@ -167,7 +167,10 @@ impl PlayerOne {
         // check for okay cells to step on
         if action.is_none() {
             // check if our current orientation is valid to step on
-            if surroundings.valid_to_step.contains(context.orientation()) {
+            if surroundings
+                .valid_to_step
+                .contains(&context.player_details().orientation)
+            {
                 println!("Facing a direction with a valid step, move forward");
                 action = Some(Action::Move(Direction::Forward))
             } else {
@@ -175,7 +178,7 @@ impl PlayerOne {
                 let mut closest_valid_step: Option<Orientation> = None;
                 let mut closest_valid_step_distance: isize = 100;
                 for orientation in surroundings.valid_to_step.iter() {
-                    let current = context.orientation().clone() as isize;
+                    let current = context.player_details().orientation.clone() as isize;
                     let target = orientation.clone() as isize;
                     let clockwise_steps = (target - current + 8) % 8;
                     let counter_clockwise_steps = (current - target + 8) % 8;
@@ -217,13 +220,13 @@ impl PlayerOne {
     }
 
     fn rotate_to(&self, to: Orientation, context: Context) -> Option<Action> {
-        if *context.orientation() == to {
+        if context.player_details().orientation == to {
             // Already facing the direction
             return None;
         }
 
         // Calculate the current orientation and target orientation as indices
-        let current = context.orientation().clone() as isize;
+        let current = context.player_details().orientation.clone() as isize;
         let target = to as isize;
 
         // Calculate the clockwise and counterclockwise steps
@@ -232,7 +235,7 @@ impl PlayerOne {
 
         println!(
             "Rotating from {:?} to {:?}",
-            context.orientation().clone(),
+            context.player_details().orientation.clone(),
             target
         );
 

@@ -55,7 +55,7 @@ impl Arola {
         let path = self.target_position.as_ref().and_then(|target_position| {
             self.map.find_path(
                 context.position().clone(),
-                context.orientation().clone(),
+                context.player_details().orientation.clone(),
                 target_position,
             )
         });
@@ -90,11 +90,12 @@ impl Arola {
         if let Some(path) = &path {
             let front_position = context
                 .position()
-                .follow(context.orientation(), context.world_size());
+                .follow(&context.player_details().orientation, context.world_size());
 
-            let back_position = context
-                .position()
-                .follow(&context.orientation().opposite(), context.world_size());
+            let back_position = context.position().follow(
+                &context.player_details().orientation.opposite(),
+                context.world_size(),
+            );
 
             if let Some(front_position) = front_position {
                 if let Some(back_position) = back_position {
@@ -106,7 +107,8 @@ impl Arola {
                         let target_orientation = context.position().get_orientation_to(&path[0]);
                         return Some(Action::Rotate(
                             context
-                                .orientation()
+                                .player_details()
+                                .orientation
                                 .quick_turn_bidirectional(&target_orientation)
                                 .0,
                         ));

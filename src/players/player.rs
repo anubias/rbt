@@ -80,7 +80,7 @@ impl PlayerDetails {
             avatar,
             alive: true,
             id,
-            orientation: Orientation::North,
+            orientation: Orientation::default(),
         }
     }
 }
@@ -98,7 +98,6 @@ pub struct Context {
     health: u8,
     mobile: bool,
     previous_action: Action,
-    orientation: Orientation,
     player_details: PlayerDetails,
     position: Position,
     scan: Option<ScanResult>,
@@ -112,7 +111,6 @@ impl Context {
             health: 100,
             mobile: true,
             previous_action: Action::default(),
-            orientation: Orientation::default(),
             player_details,
             position,
             scan: None,
@@ -141,10 +139,6 @@ impl Context {
         &self.previous_action
     }
 
-    pub fn orientation(&self) -> &Orientation {
-        &self.orientation
-    }
-
     pub fn player_details(&self) -> &PlayerDetails {
         &self.player_details
     }
@@ -164,9 +158,11 @@ impl Context {
     }
 
     pub fn rotate(&mut self, rotation: &Rotation) {
-        self.orientation = match rotation {
-            Rotation::Clockwise => self.orientation.rotated_clockwise(),
-            Rotation::CounterClockwise => self.orientation.rotated_counter_clockwise(),
+        self.player_details.orientation = match rotation {
+            Rotation::Clockwise => self.player_details.orientation.rotated_clockwise(),
+            Rotation::CounterClockwise => {
+                self.player_details.orientation.rotated_counter_clockwise()
+            }
         }
     }
 
@@ -199,13 +195,13 @@ impl std::fmt::Display for Context {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let text = if self.scan.is_some() {
             format!(
-                "{{\n   player_details: {},\n   health: {},\n   mobile: {},\n   previous_action: \"{}\",   orientation: \"{}\",\n   position: {},\n   scanned_data: present\n}}",
-                self.player_details, self.health, self.mobile, self.previous_action, self.orientation, self.position
+                "{{\n   player_details: {},\n   health: {},\n   mobile: {},\n   previous_action: \"{}\",\n   position: {},\n   scanned_data: present\n}}",
+                self.player_details, self.health, self.mobile, self.previous_action, self.position
             )
         } else {
             format!(
-                "{{\n   player_details: {},\n   health: {},\n   mobile: {},\n   previous_action: \"{}\",   orientation: \"{}\",\n   position: {},\n   scanned_data: absent\n}}",
-                self.player_details, self.health, self.mobile, self.previous_action, self.orientation, self.position,
+                "{{\n   player_details: {},\n   health: {},\n   mobile: {},\n   previous_action: \"{}\",\n   position: {},\n   scanned_data: absent\n}}",
+                self.player_details, self.health, self.mobile, self.previous_action, self.position,
             )
         };
         write!(f, "{text}")

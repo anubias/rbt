@@ -56,7 +56,7 @@ impl Player for Niemisto {
                 ch = read_last_character(stream);
             }
 
-            let ori = _context.orientation();
+            let ori = _context.player_details().orientation;
             let good = false;
             let mut rot: Rotation;
             if ch == 'a' {
