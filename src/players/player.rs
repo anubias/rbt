@@ -36,6 +36,18 @@ pub const INVALID_PLAYER: PlayerDetails = PlayerDetails {
     orientation: Orientation::North,
 };
 
+/// Private consts
+
+const DAMAGE_COLLISION_WITH_FOREST: u8 = 25;
+const DAMAGE_COLLISION_WITH_PLAYER: u8 = 10;
+const DAMAGE_DIRECT_HIT: u8 = 75;
+const DAMAGE_INDIRECT_HIT: u8 = 25;
+
+const SCORE_INDIRECT_HIT_BONUS: usize = 1;
+const SCORE_DIRECT_HIT_BONUS: usize = 2;
+const SCORE_KILLING_BONUS: usize = 3;
+const SCORE_SURVIVOR_BONUS: usize = 5;
+
 /// Public trait that players need to implement, in order for the game engine
 /// to be able to interact with the player.
 pub trait Player {
@@ -91,6 +103,17 @@ impl std::fmt::Display for PlayerDetails {
     }
 }
 
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Score {
+    value: usize,
+}
+
+impl Score {
+    fn increment(&mut self, points: usize) {
+        self.value += points;
+    }
+}
+
 /// Represents the context that the game engine is sharing with the player logic with
 /// every interaction.
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -101,6 +124,7 @@ pub struct Context {
     player_details: PlayerDetails,
     position: Position,
     scan: Option<ScanResult>,
+    score: Score,
     turn: usize,
     world_size: WorldSize,
 }
@@ -114,16 +138,40 @@ impl Context {
             player_details,
             position,
             scan: None,
+            score: Score { value: 0 },
             turn: 0,
             world_size,
         }
     }
 
-    pub fn damage(&mut self, damage: u8) {
-        self.health = self.health.saturating_sub(damage);
-        if self.health == 0 {
-            self.player_details.avatar = DEAD_AVATAR;
-            self.player_details.alive = false;
+    pub fn damage_collision_forest(&mut self) {
+        self.damage(DAMAGE_COLLISION_WITH_FOREST);
+    }
+
+    pub fn damage_collision_player(&mut self, other: &mut Self) {
+        self.damage(DAMAGE_COLLISION_WITH_PLAYER);
+        other.damage(DAMAGE_COLLISION_WITH_PLAYER);
+    }
+
+    pub fn damage_direct_hit(&mut self, shooter: &mut Self) {
+        if self.health > 0 {
+            self.damage(DAMAGE_DIRECT_HIT);
+            shooter.reward(SCORE_DIRECT_HIT_BONUS);
+
+            if self.health == 0 {
+                shooter.reward(SCORE_KILLING_BONUS);
+            }
+        }
+    }
+
+    pub fn damage_indirect_hit(&mut self, shooter: &mut Self) {
+        if self.health > 0 {
+            self.damage(DAMAGE_INDIRECT_HIT);
+            shooter.reward(SCORE_INDIRECT_HIT_BONUS);
+
+            if self.health == 0 {
+                shooter.reward(SCORE_KILLING_BONUS);
+            }
         }
     }
 
@@ -170,6 +218,10 @@ impl Context {
         &self.scan
     }
 
+    pub fn score(&self) -> usize {
+        self.score.value
+    }
+
     pub fn set_previous_action(&mut self, action: Action) {
         self.previous_action = action
     }
@@ -188,6 +240,22 @@ impl Context {
 
     pub fn world_size(&self) -> &WorldSize {
         &self.world_size
+    }
+}
+
+impl Context {
+    fn damage(&mut self, amount: u8) {
+        self.health = self.health.saturating_sub(amount);
+        if self.health == 0 {
+            self.player_details.avatar = DEAD_AVATAR;
+            self.player_details.alive = false;
+        }
+    }
+
+    fn reward(&mut self, amount: usize) {
+        if self.health > 0 {
+            self.score.increment(amount);
+        }
     }
 }
 
