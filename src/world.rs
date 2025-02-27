@@ -18,6 +18,7 @@ const DAMAGE_DIRECT_ORDNANCE_HIT: u8 = 75;
 const DAMAGE_INDIRECT_ORDNANCE_HIT: u8 = 25;
 
 const ANIMATE_SHELLS_AND_EXPLOSIONS: bool = true;
+const MAX_GAME_TURN_COUNT: usize = 1000;
 
 struct Tank {
     context: Context,
@@ -238,6 +239,16 @@ impl World {
                     .insert(player_details.id, Tank { context, player });
             }
         }
+    }
+
+    pub fn game_over(&self) -> bool {
+        let players = self
+            .tanks
+            .iter()
+            .filter(|&t| t.1.context.player_details().alive)
+            .count();
+
+        players <= 1 || self.turn_number >= MAX_GAME_TURN_COUNT
     }
 
     /// Indicates whether there are any ready players

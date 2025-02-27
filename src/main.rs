@@ -84,10 +84,11 @@ impl Game {
         self.world.spawn_player(player, avatar(self.player_count));
     }
 
-    fn main_loop(&mut self) -> ! {
-        loop {
-            println!("{}", self.world);
+    fn main_loop(&mut self) {
+        println!("{}", self.world);
+        while !self.world.game_over() {
             self.world.new_turn();
+            println!("{}", self.world);
         }
     }
 }
