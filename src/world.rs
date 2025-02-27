@@ -153,6 +153,7 @@ pub struct World {
     rng: ThreadRng,
     size: WorldSize,
     tanks: HashMap<PlayerId, Tank>,
+    turn_number: usize,
     tick: u64,
 }
 
@@ -169,6 +170,7 @@ impl World {
             rng: thread_rng(),
             size,
             tanks: HashMap::new(),
+            turn_number: 0,
             tick,
         };
         result.generate_map_border();
@@ -210,18 +212,17 @@ impl World {
                 let action = tank.player.act(tank.context.clone());
                 tank.context.set_previous_action(action.clone());
                 tank.context.set_scanned_data(None);
-                tank.context.turn_increment();
+                tank.context.set_turn(self.turn_number);
                 actions.push((*player_details, action));
             }
         }
+        self.turn_number += 1;
 
         self.process_player_actions(actions)
     }
 
     pub fn spawn_player(&mut self, mut player: Box<dyn Player>, avatar: char) {
         if player.is_ready() && player.initialized() {
-            println!("Player {} is ready for action!", player.name());
-
             let player_details = PlayerDetails::new(avatar, self.tanks.len() as PlayerId + 1);
             let context = Context::new(
                 player_details,
@@ -575,6 +576,12 @@ impl World {
             result.push(tank);
         }
 
+        result.sort_by(|&a, &b| {
+            a.player
+                .name()
+                .partial_cmp(&b.player.name())
+                .expect("Unable to sort player names!")
+        });
         result
     }
 
@@ -957,7 +964,7 @@ impl World {
 
 impl std::fmt::Display for World {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let offset = 5;
+        let offset = 7;
         let tanks = self.get_tanks();
 
         for i in 0..self.size.y {
@@ -966,9 +973,13 @@ impl std::fmt::Display for World {
                 line = format!("{line}{}", self.map[i][j]);
             }
 
-            if i == offset - 3 {
+            if i == offset - 6 {
+                line = format!("{line}   TURN: {}", self.turn_number);
+            } else if i == offset - 5 {
+                line = format!("{line}   -----------");
+            } else if i == offset - 3 {
                 line = format!("{line}   ACTIVE PLAYERS");
-            } else if i == offset - 2 {
+            } else if i == offset - 5 || i == offset - 2 {
                 line = format!("{line}   ==============");
             } else if i >= offset && i < offset + tanks.len() {
                 if let Some(&tank) = tanks.get(i - offset) {
@@ -984,9 +995,9 @@ impl std::fmt::Display for World {
                         17.. => format!("{line}\t"),
                     };
                     line = format!(
-                        "{line}({}, {:03}%, {}, {}, {})",
-                        tank.get_health_bar(),
+                        "{line}{:03}% [{}], {}, {}, {})",
                         tank.context.health(),
+                        tank.get_health_bar(),
                         tank.context.position(),
                         tank.context.player_details().orientation,
                         tank.context.previous_action()
@@ -1017,6 +1028,7 @@ mod tests {
                 y: MINI_MAP_SIZE,
             },
             tanks: HashMap::new(),
+            turn_number: 0,
             tick: 100,
         };
 

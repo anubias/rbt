@@ -178,8 +178,8 @@ impl Context {
         self.scan = scan;
     }
 
-    pub fn turn_increment(&mut self) {
-        self.turn += 1;
+    pub fn set_turn(&mut self, turn: usize) {
+        self.turn = turn;
     }
 
     pub fn turn(&self) -> usize {
@@ -369,7 +369,7 @@ impl Position {
 
 impl std::fmt::Display for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[x:{}, y:{}]", self.x, self.y)
+        write!(f, "[x:{:02}, y:{:02}]", self.x, self.y)
     }
 }
 
