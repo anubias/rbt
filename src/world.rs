@@ -12,11 +12,6 @@ const MAX_FIELD_AREA_PERCENTAGE: f32 = 75.0;
 const MIN_OBSTACLE_SIZE_PERCENTAGE: f32 = 0.5;
 const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.5;
 
-const DAMAGE_COLLISION_WITH_FOREST: u8 = 25;
-const DAMAGE_COLLISION_WITH_PLAYER: u8 = 10;
-const DAMAGE_DIRECT_ORDNANCE_HIT: u8 = 75;
-const DAMAGE_INDIRECT_ORDNANCE_HIT: u8 = 25;
-
 const ANIMATE_SHELLS_AND_EXPLOSIONS: bool = true;
 const MAX_GAME_TURN_COUNT: usize = 1000;
 
@@ -26,6 +21,10 @@ struct Tank {
 }
 
 impl Tank {
+    fn new(player: Box<dyn Player>, context: Context) -> Self {
+        Self { context, player }
+    }
+
     fn get_health_bar(&self) -> String {
         const BAR_UNIT: u8 = 20;
 
@@ -236,7 +235,7 @@ impl World {
                 .is_some()
             {
                 self.tanks
-                    .insert(player_details.id, Tank { context, player });
+                    .insert(player_details.id, Tank::new(player, context));
             }
         }
     }
@@ -372,7 +371,7 @@ impl World {
                     }
                     ShellState::Exploded => {
                         self.animate_indirect_shell_explosion(shell);
-                        self.compute_shell_damage(shell.current_pos.clone());
+                        self.compute_shell_damage(shell);
                         shell.evolve(&self.size);
                     }
                     ShellState::Spent => continue,
@@ -459,18 +458,34 @@ impl World {
         }
     }
 
-    fn compute_shell_damage(&mut self, position: Option<Position>) {
-        if let Some(pos) = position {
-            let (directly_hit, indirectly_hit) = self.get_hit_players(&pos);
+    fn compute_shell_damage(&mut self, shell: &Shell) {
+        if let Some(at) = &shell.current_pos {
+            let (directly_hit, indirectly_hit) = self.get_hit_players(at);
 
-            for player in directly_hit {
-                if let Some(tank) = self.tanks.get_mut(&player) {
-                    tank.context.damage(DAMAGE_DIRECT_ORDNANCE_HIT);
-                }
-            }
-            for player in indirectly_hit {
-                if let Some(tank) = self.tanks.get_mut(&player) {
-                    tank.context.damage(DAMAGE_INDIRECT_ORDNANCE_HIT);
+            if let Some(shooter_details) = self.get_player_at_position(&shell.fired_from) {
+                let shooter_context = if let Some(shooter) = self.tanks.get_mut(&shooter_details.id)
+                {
+                    Some(shooter.context.clone())
+                } else {
+                    None
+                };
+
+                if let Some(mut temp_context) = shooter_context {
+                    for player_id in directly_hit {
+                        if let Some(tank) = self.tanks.get_mut(&player_id) {
+                            tank.context.damage_direct_hit(&mut temp_context);
+                        }
+                    }
+
+                    for player_id in indirectly_hit {
+                        if let Some(tank) = self.tanks.get_mut(&player_id) {
+                            tank.context.damage_indirect_hit(&mut temp_context);
+                        }
+                    }
+
+                    if let Some(shooter) = self.tanks.get_mut(&shooter_details.id) {
+                        shooter.context = temp_context;
+                    }
                 }
             }
         }
@@ -506,9 +521,8 @@ impl World {
             if temp_context.is_mobile() {
                 match to_cell {
                     MapCell::Player(other_details, _) => {
-                        temp_context.damage(DAMAGE_COLLISION_WITH_PLAYER);
                         if let Some(other_tank) = self.tanks.get_mut(&other_details.id) {
-                            other_tank.context.damage(DAMAGE_COLLISION_WITH_PLAYER);
+                            temp_context.damage_collision_player(&mut other_tank.context);
                         }
                     }
                     MapCell::Terrain(_) => {
@@ -520,7 +534,7 @@ impl World {
                             temp_context.relocate(to, terrain);
                         } else {
                             // only terrain we cannot move into is `Terrain::Forest`
-                            temp_context.damage(DAMAGE_COLLISION_WITH_FOREST);
+                            temp_context.damage_collision_forest();
                         }
                     }
                     _ => {}
@@ -1006,7 +1020,8 @@ impl std::fmt::Display for World {
                         17.. => format!("{line}\t"),
                     };
                     line = format!(
-                        "{line}{:03}% [{}], {}, {}, {})",
+                        "{line}{:02} pts, {:03}% [{}], {}, {}, {})",
+                        tank.context.score(),
                         tank.context.health(),
                         tank.get_health_bar(),
                         tank.context.position(),
