@@ -350,17 +350,17 @@ impl World {
                         }
                     }
                     ShellState::Impact => {
-                        self.compute_shell_impact(shell.current_pos.clone());
-                        self.animate_shell_impact(shell);
+                        self.animate_direct_shell_explosion(shell);
                         shell.evolve(&self.size);
                     }
                     ShellState::Explosion => {
-                        self.animate_shell_impact(shell);
-                        self.animate_shell_explosion(shell);
+                        self.animate_direct_shell_explosion(shell);
+                        self.animate_indirect_shell_explosion(shell);
                         shell.evolve(&self.size);
                     }
                     ShellState::Exploded => {
-                        self.animate_shell_explosion(shell);
+                        self.animate_indirect_shell_explosion(shell);
+                        self.compute_shell_damage(shell.current_pos.clone());
                         shell.evolve(&self.size);
                     }
                     ShellState::Spent => continue,
@@ -409,66 +409,45 @@ impl World {
         }
     }
 
-    fn animate_shell_impact(&mut self, shell: &Shell) {
+    fn animate_direct_shell_explosion(&mut self, shell: &Shell) {
         if let Some(position) = &shell.current_pos {
-            let cell = self.cell_read(position);
+            self.animate_cell_explosion(position, shell.state == ShellState::Impact);
+        }
+    }
 
-            match shell.state {
-                ShellState::Impact => match cell {
-                    MapCell::Player(player_details, terrain) => {
-                        self.cell_write(position, MapCell::Explosion(player_details, terrain))
-                    }
-                    MapCell::Terrain(terrain) => {
-                        self.cell_write(position, MapCell::Explosion(INVALID_PLAYER, terrain))
-                    }
-                    _ => {}
-                },
-                ShellState::Explosion => {
-                    if let MapCell::Explosion(player_details, terrain) = cell {
-                        if player_details == INVALID_PLAYER {
-                            self.cell_write(position, MapCell::Terrain(terrain));
-                        } else {
-                            self.cell_write(position, MapCell::Player(player_details, terrain));
-                        }
-                    }
+    fn animate_indirect_shell_explosion(&mut self, shell: &Shell) {
+        if let Some(position) = &shell.current_pos {
+            for adjacent_pos in self.get_adjacent_positions(position) {
+                self.animate_cell_explosion(&adjacent_pos, shell.state == ShellState::Explosion);
+            }
+        }
+    }
+
+    fn animate_cell_explosion(&mut self, position: &Position, exploding: bool) {
+        let cell = self.cell_read(position);
+
+        if exploding {
+            match cell {
+                MapCell::Player(player_details, terrain) => {
+                    self.cell_write(position, MapCell::Explosion(player_details, terrain))
+                }
+                MapCell::Terrain(terrain) => {
+                    self.cell_write(position, MapCell::Explosion(INVALID_PLAYER, terrain))
                 }
                 _ => {}
             }
-        }
-    }
-
-    fn animate_shell_explosion(&mut self, shell: &Shell) {
-        if let Some(position) = &shell.current_pos {
-            for adjacent_pos in self.get_adjacent_positions(position) {
-                let cell = self.cell_read(&adjacent_pos);
-
-                match shell.state {
-                    ShellState::Explosion => match cell {
-                        MapCell::Player(player_details, terrain) => self
-                            .cell_write(&adjacent_pos, MapCell::Explosion(player_details, terrain)),
-                        MapCell::Terrain(terrain) => self
-                            .cell_write(&adjacent_pos, MapCell::Explosion(INVALID_PLAYER, terrain)),
-                        _ => {}
-                    },
-                    ShellState::Exploded => {
-                        if let MapCell::Explosion(player_details, terrain) = cell {
-                            if player_details == INVALID_PLAYER {
-                                self.cell_write(&adjacent_pos, MapCell::Terrain(terrain));
-                            } else {
-                                self.cell_write(
-                                    &adjacent_pos,
-                                    MapCell::Player(player_details, terrain),
-                                );
-                            }
-                        }
-                    }
-                    _ => {}
+        } else {
+            if let MapCell::Explosion(player_details, terrain) = cell {
+                if player_details == INVALID_PLAYER {
+                    self.cell_write(position, MapCell::Terrain(terrain));
+                } else {
+                    self.cell_write(position, MapCell::Player(player_details, terrain));
                 }
             }
         }
     }
 
-    fn compute_shell_impact(&mut self, position: Option<Position>) {
+    fn compute_shell_damage(&mut self, position: Option<Position>) {
         if let Some(pos) = position {
             let (directly_hit, indirectly_hit) = self.get_hit_players(&pos);
 
