@@ -129,7 +129,7 @@ impl Map {
     fn get_neighbors(&self, position: &Position) -> Vec<Position> {
         let mut neighbors = Vec::with_capacity(8);
 
-        for neighbor in [
+        for (delta_x, delta_y) in [
             (1, 0),
             (1, 1),
             (0, 1),
@@ -139,8 +139,8 @@ impl Map {
             (0, -1),
             (1, -1),
         ] {
-            let neighbor_x = position.x as isize + neighbor.0;
-            let neighbor_y = position.y as isize + neighbor.1;
+            let neighbor_x = position.x as isize + delta_x;
+            let neighbor_y = position.y as isize + delta_y;
             if self.is_valid_coordinate(neighbor_x, neighbor_y) {
                 neighbors.push(Position {
                     x: neighbor_x as usize,

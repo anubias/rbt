@@ -8,28 +8,43 @@ impl Arola {
     pub(super) fn explore(&mut self, context: &Context) -> (PlayerState, Action) {
         // Effectively scan every second round and move/rotate every second
         match context.scanned_data() {
-            None => self.request_scan(),
+            None => self.request_scan(context.position(), context.world_size()),
             Some(scan_result) => self.process_explore_scan(scan_result, context),
         }
     }
 
-    fn request_scan(&mut self) -> (PlayerState, Action) {
+    fn request_scan(
+        &mut self,
+        position: &Position,
+        world_size: &WorldSize,
+    ) -> (PlayerState, Action) {
         // Scan in radar style: NE => SE => SW => NW => NE => ...
-        // TODO: If at the edge of the world, some of the scan directions would not make sense
-        let scan_direction = match self.previous_scan_direction {
-            Orientation::NorthEast => Orientation::SouthEast,
-            Orientation::SouthEast => Orientation::SouthWest,
-            Orientation::SouthWest => Orientation::NorthWest,
-            Orientation::NorthWest => Orientation::NorthEast,
-            _ => Orientation::NorthEast,
-        };
+        // But skip non-meaningful scan directions at the edge of the world
+        fn accept_scan_direction(
+            scan_direction: &Orientation,
+            position: &Position,
+            world_size: &WorldSize,
+        ) -> bool {
+            match scan_direction {
+                Orientation::NorthEast => position.x < world_size.x - 2 && position.y > 1,
+                Orientation::SouthEast => {
+                    position.x < world_size.x - 2 && position.y < world_size.y - 2
+                }
+                Orientation::SouthWest => position.x > 1 && position.y < world_size.y - 2,
+                Orientation::NorthWest => position.x > 1 && position.y > 1,
+                _ => false,
+            }
+        }
 
-        self.previous_scan_direction = scan_direction.clone();
-
-        return (
-            PlayerState::Explore,
-            Action::Scan(ScanType::Mono(scan_direction)),
-        );
+        loop {
+            self.scan_direction = self.scan_direction.rotated_clockwise();
+            if accept_scan_direction(&self.scan_direction, position, world_size) {
+                return (
+                    PlayerState::Explore,
+                    Action::Scan(ScanType::Mono(self.scan_direction)),
+                );
+            }
+        }
     }
 
     fn process_explore_scan(
@@ -97,12 +112,23 @@ impl Arola {
                 context.world_size(),
             );
 
+            let can_move_to_position = |position: &Position| -> bool {
+                matches!(
+                    self.map.get_cell(position),
+                    MapCell::Terrain(Terrain::Field)
+                )
+            };
+
             if let Some(front_position) = front_position {
                 if let Some(back_position) = back_position {
                     if front_position == path[0] {
-                        return Some(Action::Move(Direction::Forward));
+                        if can_move_to_position(&front_position) {
+                            return Some(Action::Move(Direction::Forward));
+                        }
                     } else if back_position == path[0] {
-                        return Some(Action::Move(Direction::Backward));
+                        if can_move_to_position(&back_position) {
+                            return Some(Action::Move(Direction::Backward));
+                        }
                     } else {
                         let target_orientation = context.position().get_orientation_to(&path[0]);
                         return Some(Action::Rotate(

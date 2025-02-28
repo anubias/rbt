@@ -13,7 +13,7 @@ enum PlayerState {
 pub struct Arola {
     state: PlayerState,
     map: map::Map,
-    previous_scan_direction: Orientation,
+    scan_direction: Orientation,
     target_position: Option<Position>,
 }
 
@@ -22,7 +22,7 @@ impl Arola {
         Self {
             state: PlayerState::Start,
             map: map::Map::new(),
-            previous_scan_direction: Orientation::North,
+            scan_direction: Orientation::North,
             target_position: None,
         }
     }
