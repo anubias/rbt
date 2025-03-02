@@ -25,13 +25,15 @@ impl Arola {
             position: &Position,
             world_size: &WorldSize,
         ) -> bool {
+            let limit_min = 1;
+            let limit_x_max = world_size.x - 2;
+            let limit_y_max = world_size.y - 2;
+
             match scan_direction {
-                Orientation::NorthEast => position.x < world_size.x - 2 && position.y > 1,
-                Orientation::SouthEast => {
-                    position.x < world_size.x - 2 && position.y < world_size.y - 2
-                }
-                Orientation::SouthWest => position.x > 1 && position.y < world_size.y - 2,
-                Orientation::NorthWest => position.x > 1 && position.y > 1,
+                Orientation::NorthEast => position.x < limit_x_max && position.y > limit_min,
+                Orientation::SouthEast => position.x < limit_x_max && position.y < limit_y_max,
+                Orientation::SouthWest => position.x > limit_min && position.y < limit_y_max,
+                Orientation::NorthWest => position.x > limit_min && position.y > limit_min,
                 _ => false,
             }
         }
@@ -102,47 +104,60 @@ impl Arola {
     }
 
     fn move_along_path(&self, context: &Context, path: &Option<Vec<Position>>) -> Option<Action> {
-        if let Some(path) = &path {
-            let front_position = context
-                .position()
-                .follow(&context.player_details().orientation, context.world_size());
-
-            let back_position = context.position().follow(
-                &context.player_details().orientation.opposite(),
-                context.world_size(),
-            );
-
-            let can_move_to_position = |position: &Position| -> bool {
-                matches!(
-                    self.map.get_cell(position),
-                    MapCell::Terrain(Terrain::Field)
-                )
-            };
-
-            if let Some(front_position) = front_position {
-                if let Some(back_position) = back_position {
-                    if front_position == path[0] {
-                        if can_move_to_position(&front_position) {
-                            return Some(Action::Move(Direction::Forward));
-                        }
-                    } else if back_position == path[0] {
-                        if can_move_to_position(&back_position) {
-                            return Some(Action::Move(Direction::Backward));
-                        }
-                    } else {
-                        let target_orientation = context.position().get_orientation_to(&path[0]);
-                        return Some(Action::Rotate(
-                            context
-                                .player_details()
-                                .orientation
-                                .quick_turn_bidirectional(&target_orientation)
-                                .0,
-                        ));
-                    }
-                }
-            }
+        if path.as_ref().is_none_or(|path| path.is_empty()) {
+            return None;
         }
 
-        return None;
+        let target_position = path.as_ref().unwrap().first().unwrap();
+
+        let front_position = context
+            .position()
+            .follow(&context.player_details().orientation, context.world_size())
+            .expect("Should always be in position where front position exists");
+
+        let back_position = context
+            .position()
+            .follow(
+                &context.player_details().orientation.opposite(),
+                context.world_size(),
+            )
+            .expect("Should always be in position where back position exists");
+
+        let try_move = |position: &Position,
+                        orientation: Orientation,
+                        direction: Direction|
+         -> Option<Action> {
+            match self.map.get_cell(position) {
+                // Cell is unknown, request for scan
+                MapCell::Unallocated => Some(Action::Scan(ScanType::Mono(orientation))),
+                // Cell is ok to enter, move there
+                MapCell::Terrain(Terrain::Field) => Some(Action::Move(direction)),
+                // Cell is not ok to enter, this should not happen (bug in path finding)
+                _ => panic!("Can't enter cell {position}"),
+            }
+        };
+
+        if &front_position == target_position {
+            return try_move(
+                &front_position,
+                context.player_details().orientation,
+                Direction::Forward,
+            );
+        } else if &back_position == target_position {
+            return try_move(
+                &back_position,
+                context.player_details().orientation.opposite(),
+                Direction::Backward,
+            );
+        } else {
+            let target_orientation = context.position().get_orientation_to(target_position);
+            return Some(Action::Rotate(
+                context
+                    .player_details()
+                    .orientation
+                    .quick_turn_bidirectional(&target_orientation)
+                    .0,
+            ));
+        }
     }
 }
