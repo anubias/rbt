@@ -38,6 +38,7 @@ pub const INVALID_PLAYER: PlayerDetails = PlayerDetails {
 
 /// Private consts
 
+const DAMAGE_SINKING_INTO_LAKE: u8 = 100;
 const DAMAGE_COLLISION_WITH_FOREST: u8 = 25;
 const DAMAGE_COLLISION_WITH_PLAYER: u8 = 10;
 const DAMAGE_DIRECT_HIT: u8 = 75;
@@ -203,7 +204,7 @@ impl Context {
         self.position = new_position.clone();
 
         match walk_on {
-            Terrain::Lake => self.health = 0,
+            Terrain::Lake => self.damage(DAMAGE_SINKING_INTO_LAKE),
             Terrain::Swamp => self.mobile = false,
             _ => {}
         }
