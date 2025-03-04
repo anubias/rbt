@@ -175,6 +175,10 @@ impl Context {
         }
     }
 
+    pub fn reward_survivor(&mut self) {
+        self.score.increment(SCORE_SURVIVOR_BONUS);
+    }
+
     pub fn health(&self) -> u8 {
         self.health
     }

@@ -86,9 +86,24 @@ impl Game {
 
     fn main_loop(&mut self) {
         println!("{}", self.world);
-        while !self.world.game_over() {
+        while !self.world.is_game_over() {
             self.world.new_turn();
             println!("{}", self.world);
+        }
+
+        println!("Game over!");
+        self.world.reward_survivors();
+
+        let mut players = self.world.get_ready_players();
+        players.sort_by(|&a, &b| a.context().score().cmp(&b.context().score()));
+        players.reverse();
+
+        for player in players {
+            println!(
+                "{:02} -- {}",
+                player.context().score(),
+                player.player().name()
+            )
         }
     }
 }
@@ -102,7 +117,7 @@ mod tests {
         let mut game = Game::new();
         spawn_players(&mut game);
 
-        assert!(!game.world.has_ready_players());
+        assert!(game.world.get_ready_players().is_empty());
     }
 
     #[test]
