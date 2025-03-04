@@ -15,9 +15,19 @@ const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.5;
 const ANIMATE_SHELLS_AND_EXPLOSIONS: bool = true;
 const MAX_GAME_TURN_COUNT: usize = 1000;
 
-struct Tank {
+pub struct Tank {
     context: Context,
     player: Box<dyn Player>,
+}
+
+impl Tank {
+    pub fn context(&self) -> &Context {
+        &self.context
+    }
+
+    pub fn player(&self) -> &Box<dyn Player> {
+        &self.player
+    }
 }
 
 impl Tank {
@@ -37,6 +47,10 @@ impl Tank {
         }
 
         bar
+    }
+
+    fn survivor_bonus(&mut self) {
+        self.context.reward_survivor();
     }
 }
 
@@ -240,7 +254,7 @@ impl World {
         }
     }
 
-    pub fn game_over(&self) -> bool {
+    pub fn is_game_over(&self) -> bool {
         let players = self
             .tanks
             .iter()
@@ -250,20 +264,19 @@ impl World {
         players <= 1 || self.turn_number >= MAX_GAME_TURN_COUNT
     }
 
-    /// Indicates whether there are any ready players
-    ///
-    /// Reason is to allow testing whether all the players are not ready by default
-    /// which eases development for each developer, since no other player's code is
-    /// running by default.
-    #[allow(dead_code)]
-    pub fn has_ready_players(&self) -> bool {
-        let mut result = false;
+    pub fn reward_survivors(&mut self) {
+        self.tanks
+            .iter_mut()
+            .filter(|(_, t)| t.player.is_ready() && t.context.player_details().alive)
+            .map(|(_, t)| t.survivor_bonus())
+            .count();
+    }
 
-        for tank in self.tanks.values() {
-            result |= tank.player.is_ready()
-        }
-
-        result
+    pub fn get_ready_players(&self) -> Vec<&Tank> {
+        self.tanks
+            .iter()
+            .filter_map(|(_, tank)| tank.player.is_ready().then(|| tank))
+            .collect()
     }
 }
 
