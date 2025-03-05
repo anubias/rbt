@@ -1,8 +1,16 @@
 #![deny(unsafe_code)]
 
+mod display_printer;
 mod players;
 mod world;
 
+use std::{thread, time::Duration};
+
+use crossterm::{
+    event::{poll, read, Event, KeyCode},
+    terminal::{disable_raw_mode, enable_raw_mode},
+};
+use display_printer::DisplayPrinter;
 use players::{
     alvarez::Luis,
     armholt::Swede,
@@ -30,14 +38,19 @@ const AVATARS: [char; 18] = [
 
 const TICK_DURATION_MSEC: u64 = 100;
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let mut game = Game::new();
+
+    game.setup()?;
+
     spawn_players(&mut game);
     game.main_loop();
+
+    game.teardown()
 }
 
 fn spawn_players(game: &mut Game) {
-    println!("Spawning players...");
+    DisplayPrinter::println_str("Spawning players...");
 
     game.spawn_single_player(Box::new(Luis::new()));
     game.spawn_single_player(Box::new(Swede::new()));
@@ -53,7 +66,7 @@ fn spawn_players(game: &mut Game) {
     game.spawn_single_player(Box::new(Siimesjarvi::new()));
     game.spawn_single_player(Box::new(PlAgiAntti::new()));
 
-    println!("Players spawned.");
+    DisplayPrinter::println_str("Players spawned.");
 }
 
 fn avatar(player_id: usize) -> char {
@@ -78,6 +91,14 @@ impl Game {
         }
     }
 
+    fn setup(&self) -> std::io::Result<()> {
+        enable_raw_mode()
+    }
+
+    fn teardown(&self) -> std::io::Result<()> {
+        disable_raw_mode()
+    }
+
     fn spawn_single_player(&mut self, player: Box<dyn Player>) {
         self.player_count += 1;
 
@@ -85,25 +106,60 @@ impl Game {
     }
 
     fn main_loop(&mut self) {
-        println!("{}", self.world);
+        DisplayPrinter::clear();
+        DisplayPrinter::println(self.world.to_string());
+
+        let mut pause = false;
         while !self.world.is_game_over() {
+            if let Ok(true) = poll(Duration::from_millis(1)) {
+                if let Ok(event) = read() {
+                    if event == Event::Key(KeyCode::Char('q').into())
+                        || event == Event::Key(KeyCode::Char('Q').into())
+                    {
+                        break;
+                    } else if event == Event::Key(KeyCode::Char('p').into())
+                        || event == Event::Key(KeyCode::Char('P').into())
+                    {
+                        pause = !pause;
+                    }
+                }
+            }
+
+            if pause {
+                thread::sleep(Duration::from_micros(TICK_DURATION_MSEC));
+                continue;
+            }
+
             self.world.new_turn();
-            println!("{}", self.world);
+
+            DisplayPrinter::clear();
+            DisplayPrinter::println(self.world.to_string());
         }
 
-        println!("Game over!");
+        if self.world.is_game_over() {
+            DisplayPrinter::println_str("[Game ended]\n");
+        } else {
+            DisplayPrinter::println_str("[Game interrupted]\n");
+        }
+
         self.world.reward_survivors();
 
         let mut players = self.world.get_ready_players();
         players.sort_by(|&a, &b| a.context().score().cmp(&b.context().score()));
         players.reverse();
 
-        for player in players {
-            println!(
-                "{:02} -- {}",
+        DisplayPrinter::println_str("[RANKING]");
+        DisplayPrinter::println_str("=========\n");
+        DisplayPrinter::println_str("RANK  SCORE  PLAYER");
+        DisplayPrinter::println_str("----  -----  -------------------------");
+        for (place, player) in players.iter().enumerate() {
+            let text = format!(
+                " {:02}    {:03}   {}",
+                place + 1,
                 player.context().score(),
                 player.player().name()
-            )
+            );
+            DisplayPrinter::println(text);
         }
     }
 }
