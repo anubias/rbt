@@ -10,7 +10,7 @@
 //! offered by these data structures, and avoid re-implementing already
 //! provided behavior.
 
-use crate::DEAD_AVATAR;
+use crate::{terminal::Terminal, DEAD_AVATAR};
 
 pub type Avatar = char;
 pub type PlayerId = u8;
