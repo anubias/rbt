@@ -221,16 +221,18 @@ impl World {
     pub fn new_turn(&mut self) {
         let mut actions = Vec::new();
 
+        self.turn_number += 1;
         for (player_details, tank) in self.tanks.iter_mut() {
             if tank.player.is_ready() && tank.context.health() > 0 {
                 let action = tank.player.act(tank.context.clone());
+
                 tank.context.set_previous_action(action.clone());
                 tank.context.set_scanned_data(None);
                 tank.context.set_turn(self.turn_number);
+
                 actions.push((*player_details, action));
             }
         }
-        self.turn_number += 1;
 
         self.process_player_actions(actions)
     }
