@@ -8,6 +8,7 @@ use crate::players::player::{
     INVALID_PLAYER, MAX_WORLD_SIZE, POSITIONAL_SHOT_DISTANCE, SCANNING_DISTANCE,
 };
 
+const SEA_WORLD_PERCENTAGE: f32 = 20.0;
 const MAX_FIELD_AREA_PERCENTAGE: f32 = 75.0;
 const MIN_OBSTACLE_SIZE_PERCENTAGE: f32 = 0.5;
 const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.5;
@@ -179,43 +180,13 @@ impl World {
             );
         }
 
-        let mut result = Self {
-            map: Box::new([[MapCell::Unallocated; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
-            rng: thread_rng(),
-            size,
-            tanks: HashMap::new(),
-            turn_number: 0,
-            tick,
-        };
-        result.generate_map_border();
-
-        // Generate obstacles
         loop {
-            result.generate_obstacle(MapCell::Terrain(Terrain::Forest(TreeType::Deciduous)));
-            result.generate_obstacle(MapCell::Terrain(Terrain::Forest(TreeType::Evergreen)));
-            result.generate_obstacle(MapCell::Terrain(Terrain::Lake));
-            result.generate_obstacle(MapCell::Terrain(Terrain::Swamp));
+            let result = World::generate_world(size.clone(), tick);
 
-            if result.get_unallocated_terrain_percentage() < MAX_FIELD_AREA_PERCENTAGE {
-                break;
+            if !result.sea_world() {
+                break result;
             }
         }
-
-        // Fill the fields
-        loop {
-            if let Some(start) = result.get_unallocated_cell_position() {
-                result.fill_with_field_cells(&start);
-            }
-            if result.get_unallocated_terrain_percentage() >= 5.0 {
-                result.reset_field_cells();
-            } else {
-                break;
-            }
-        }
-
-        result.fill_unallocated_holes();
-
-        result
     }
 
     pub fn new_turn(&mut self) {
@@ -238,20 +209,20 @@ impl World {
     }
 
     pub fn spawn_player(&mut self, mut player: Box<dyn Player>, avatar: char) {
-        if player.is_ready() && player.initialized() {
-            let player_details = PlayerDetails::new(avatar, self.tanks.len() as PlayerId + 1);
-            let context = Context::new(
-                player_details,
-                self.get_random_location(MapCell::Terrain(Terrain::Field)),
-                self.size.clone(),
-            );
+        let random = self.get_random_location(MapCell::Terrain(Terrain::Field));
 
-            if self
-                .try_set_player_on_cell(player_details, context.position())
-                .is_some()
-            {
-                self.tanks
-                    .insert(player_details.id, Tank::new(player, context));
+        if let Some(position) = random {
+            if player.is_ready() && player.initialized() {
+                let player_details = PlayerDetails::new(avatar, self.tanks.len() as PlayerId + 1);
+                let context = Context::new(player_details, position, self.size.clone());
+
+                if self
+                    .try_set_player_on_cell(player_details, context.position())
+                    .is_some()
+                {
+                    self.tanks
+                        .insert(player_details.id, Tank::new(player, context));
+                }
             }
         }
     }
@@ -598,7 +569,11 @@ impl World {
                 let new_pos = if let Some(p) = old_pos.as_ref() {
                     self.get_adjacent_unallocated_location(p, obstacle, &mut path)
                 } else {
-                    Some(self.get_random_location(MapCell::Unallocated))
+                    if let Some(pos) = self.get_random_location(MapCell::Unallocated) {
+                        Some(pos)
+                    } else {
+                        None
+                    }
                 };
 
                 if let Some(pos) = new_pos {
@@ -648,7 +623,7 @@ impl World {
         free_count
     }
 
-    fn get_random_location(&mut self, map_cell: MapCell) -> Position {
+    fn get_random_location(&mut self, map_cell: MapCell) -> Option<Position> {
         let mut bag = Vec::new();
 
         for i in 0..self.size.y {
@@ -660,10 +635,14 @@ impl World {
             }
         }
 
-        loop {
+        if bag.is_empty() {
+            None
+        } else {
             let index = self.rng.gen_range(0..bag.len());
             if let Some(pos) = bag.get(index) {
-                break pos.clone();
+                Some(pos.clone())
+            } else {
+                None
             }
         }
     }
@@ -753,9 +732,8 @@ impl World {
         sub_map
     }
 
-    fn get_unallocated_terrain_percentage(&self) -> f32 {
-        100.0f32 * self.count_cells(&MapCell::Unallocated) as f32
-            / (self.size.x * self.size.y) as f32
+    fn compute_terrain_percentage(&self, cell_count: usize) -> f32 {
+        100.0f32 * cell_count as f32 / (self.size.x * self.size.y) as f32
     }
 
     fn is_location_unallocated(&self, position: &Position) -> bool {
@@ -836,19 +814,6 @@ impl World {
         result
     }
 
-    fn get_unallocated_cell_position(&self) -> Option<Position> {
-        for i in 0..self.size.y {
-            for j in 0..self.size.x {
-                let position = Position { x: j, y: i };
-                if self.cell_read(&position) == MapCell::Unallocated {
-                    return Some(position);
-                }
-            }
-        }
-
-        None
-    }
-
     fn fill_with_field_cells(&mut self, start: &Position) {
         let mut remaining = Vec::new();
         remaining.push(start.clone());
@@ -871,7 +836,7 @@ impl World {
         }
     }
 
-    fn reset_field_cells(&mut self) {
+    fn flood_fields(&mut self) {
         for i in 0..self.size.y {
             for j in 0..self.size.x {
                 let position = Position { x: j, y: i };
@@ -999,6 +964,55 @@ impl World {
         };
 
         (start_position.clone(), new_position)
+    }
+
+    fn sea_world(&self) -> bool {
+        let lakes = self.count_cells(&MapCell::Terrain(Terrain::Lake));
+        let percentage = self.compute_terrain_percentage(lakes);
+
+        percentage >= SEA_WORLD_PERCENTAGE
+    }
+
+    fn generate_world(size: WorldSize, tick: u64) -> Self {
+        let mut result = Self {
+            map: Box::new([[MapCell::Unallocated; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
+            rng: thread_rng(),
+            size,
+            tanks: HashMap::new(),
+            turn_number: 0,
+            tick,
+        };
+        result.generate_map_border();
+
+        // Generate obstacles
+        loop {
+            result.generate_obstacle(MapCell::Terrain(Terrain::Forest(TreeType::Deciduous)));
+            result.generate_obstacle(MapCell::Terrain(Terrain::Forest(TreeType::Evergreen)));
+            result.generate_obstacle(MapCell::Terrain(Terrain::Lake));
+            result.generate_obstacle(MapCell::Terrain(Terrain::Swamp));
+
+            let cell_count = result.count_cells(&MapCell::Unallocated);
+            if result.compute_terrain_percentage(cell_count) < MAX_FIELD_AREA_PERCENTAGE {
+                break;
+            }
+        }
+
+        // Fill the fields
+        loop {
+            if let Some(start) = result.get_random_location(MapCell::Unallocated) {
+                result.fill_with_field_cells(&start);
+            }
+            let cell_count = result.count_cells(&MapCell::Unallocated);
+            if result.compute_terrain_percentage(cell_count) >= 5.0 {
+                result.flood_fields();
+            } else {
+                break;
+            }
+        }
+
+        result.fill_unallocated_holes();
+
+        result
     }
 }
 
@@ -1158,14 +1172,9 @@ mod tests {
 
     #[test]
     fn test_get_field_terrain_percentage() {
-        let mut world = generate_mini_world();
-        assert_eq!(100.0, world.get_unallocated_terrain_percentage());
-
-        world.generate_map_border();
-        let percentage = world.count_cells(&MapCell::Unallocated) as f32
-            / (MINI_MAP_SIZE * MINI_MAP_SIZE) as f32
-            * 100.0;
-        assert_eq!(percentage, world.get_unallocated_terrain_percentage());
+        let world = generate_mini_world();
+        let unallocated_cells = world.count_cells(&MapCell::Unallocated);
+        assert_eq!(100.0, world.compute_terrain_percentage(unallocated_cells));
     }
 
     #[test]
@@ -1174,8 +1183,9 @@ mod tests {
         populate_mini_world(&mut world);
 
         for _ in 0..1000 {
-            let location = world.get_random_location(MapCell::Unallocated);
-            assert!(world.is_location_unallocated(&location));
+            let random = world.get_random_location(MapCell::Unallocated);
+            assert!(random.is_some());
+            assert!(world.is_location_unallocated(&random.unwrap()));
         }
     }
 
