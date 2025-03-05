@@ -2,10 +2,14 @@ use std::{collections::HashMap, time::Duration};
 
 use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
 
-use crate::players::player::{
-    Action, Aiming, Context, Direction, MapCell, Orientation, Player, PlayerDetails, PlayerId,
-    Position, Rotation, ScanResult, ScanType, Terrain, TreeType, WorldSize, CARDINAL_SHOT_DISTANCE,
-    INVALID_PLAYER, MAX_WORLD_SIZE, POSITIONAL_SHOT_DISTANCE, SCANNING_DISTANCE,
+use crate::{
+    players::player::{
+        Action, Aiming, Context, Direction, MapCell, Orientation, Player, PlayerDetails, PlayerId,
+        Position, Rotation, ScanResult, ScanType, Terrain, TreeType, WorldSize,
+        CARDINAL_SHOT_DISTANCE, INVALID_PLAYER, MAX_WORLD_SIZE, POSITIONAL_SHOT_DISTANCE,
+        SCANNING_DISTANCE,
+    },
+    terminal::Terminal,
 };
 
 const SEA_WORLD_PERCENTAGE: f32 = 20.0;
@@ -13,7 +17,6 @@ const MAX_FIELD_AREA_PERCENTAGE: f32 = 75.0;
 const MIN_OBSTACLE_SIZE_PERCENTAGE: f32 = 0.5;
 const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.5;
 
-const ANIMATE_SHELLS_AND_EXPLOSIONS: bool = true;
 const MAX_GAME_TURN_COUNT: usize = 1000;
 
 pub struct Tank {
@@ -189,7 +192,7 @@ impl World {
         }
     }
 
-    pub fn new_turn(&mut self) {
+    pub fn new_turn(&mut self, terminal: &mut Terminal, animation: bool) {
         let mut actions = Vec::new();
 
         self.turn_number += 1;
@@ -205,7 +208,7 @@ impl World {
             }
         }
 
-        self.process_player_actions(actions)
+        self.process_player_actions(terminal, animation, actions)
     }
 
     pub fn spawn_player(&mut self, mut player: Box<dyn Player>, avatar: char) {
@@ -228,13 +231,7 @@ impl World {
     }
 
     pub fn is_game_over(&self) -> bool {
-        let players = self
-            .tanks
-            .iter()
-            .filter(|&t| t.1.context.player_details().alive)
-            .count();
-
-        players <= 1 || self.turn_number >= MAX_GAME_TURN_COUNT
+        self.count_live_players() <= 1 || self.turn_number >= MAX_GAME_TURN_COUNT
     }
 
     pub fn reward_survivors(&mut self) {
@@ -254,7 +251,12 @@ impl World {
 
 // Private functions
 impl World {
-    fn process_player_actions(&mut self, actions: Vec<(PlayerId, Action)>) {
+    fn process_player_actions(
+        &mut self,
+        terminal: &mut Terminal,
+        animation: bool,
+        actions: Vec<(PlayerId, Action)>,
+    ) {
         let mut shot_queue = Vec::new();
         let mut scan_queue = Vec::new();
 
@@ -281,7 +283,7 @@ impl World {
             }
         }
 
-        self.process_shots(shot_queue);
+        self.process_shots(terminal, animation, shot_queue);
         self.update_players_on_world_map(); // we need to update the world map before processing scans
         self.process_scans(scan_queue);
     }
@@ -306,7 +308,7 @@ impl World {
         }
     }
 
-    fn process_shots(&mut self, shot_queue: Vec<Shell>) {
+    fn process_shots(&mut self, terminal: &mut Terminal, animation: bool, shot_queue: Vec<Shell>) {
         let max_iteration = CARDINAL_SHOT_DISTANCE.max(POSITIONAL_SHOT_DISTANCE) + 3;
         let mut possible_shots = Vec::new();
 
@@ -369,8 +371,9 @@ impl World {
                 break;
             }
 
-            if ANIMATE_SHELLS_AND_EXPLOSIONS && !possible_shots.is_empty() {
-                println!("{self}");
+            if animation && !possible_shots.is_empty() {
+                terminal.move_caret_to_origin();
+                terminal.println(self.to_string());
             }
             std::thread::sleep(Duration::from_millis(self.tick));
         }
@@ -613,6 +616,13 @@ impl World {
         }
 
         free_count
+    }
+
+    fn count_live_players(&self) -> usize {
+        self.tanks
+            .iter()
+            .filter(|&t| t.1.context.player_details().alive)
+            .count()
     }
 
     fn get_random_location(&mut self, map_cell: MapCell) -> Option<Position> {
@@ -1010,7 +1020,12 @@ impl World {
 
 impl std::fmt::Display for World {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let offset = 7;
+        const PRINT_OFFSET: usize = 1;
+        const HELP_SECTION_OFFSET: usize = PRINT_OFFSET;
+        const STATS_SECTION_OFFSET: usize = HELP_SECTION_OFFSET + 7;
+        const PLAYERS_SECTION_OFFSET: usize = STATS_SECTION_OFFSET + 6;
+        const PLAYERS_LIST_OFSSET: usize = PLAYERS_SECTION_OFFSET + 2;
+
         let tanks = self.get_tanks();
 
         for i in 0..self.size.y {
@@ -1019,16 +1034,33 @@ impl std::fmt::Display for World {
                 line = format!("{line}{}", self.map[i][j]);
             }
 
-            if i == offset - 6 {
-                line = format!("{line}   TURN: {}", self.turn_number);
-            } else if i == offset - 5 {
-                line = format!("{line}   -----------");
-            } else if i == offset - 3 {
-                line = format!("{line}   ACTIVE PLAYERS");
-            } else if i == offset - 5 || i == offset - 2 {
-                line = format!("{line}   ==============");
-            } else if i >= offset && i < offset + tanks.len() {
-                if let Some(&tank) = tanks.get(i - offset) {
+            if i == HELP_SECTION_OFFSET {
+                line = format!("{line}   [USER KEYS]");
+            } else if i == HELP_SECTION_OFFSET + 1 {
+                line = format!("{line}   ===========");
+            } else if i == HELP_SECTION_OFFSET + 2 {
+                line = format!("{line}   Esc - Interrupt game after current turn");
+            } else if i == HELP_SECTION_OFFSET + 3 {
+                line = format!("{line}   A   - Toggle shell animation after current turn");
+            } else if i == HELP_SECTION_OFFSET + 4 {
+                line = format!("{line}   P   - Toggle pause game after current turn");
+            } else if i == STATS_SECTION_OFFSET {
+                line = format!("{line}   [GAME STATS]");
+            } else if i == STATS_SECTION_OFFSET + 1 {
+                line = format!("{line}   ============");
+            } else if i == STATS_SECTION_OFFSET + 2 {
+                line = format!(
+                    "{line}   Turn:\t\t{} / {MAX_GAME_TURN_COUNT}",
+                    self.turn_number
+                );
+            } else if i == STATS_SECTION_OFFSET + 3 {
+                line = format!("{line}   Players alive:\t{}   ", self.count_live_players());
+            } else if i == PLAYERS_SECTION_OFFSET {
+                line = format!("{line}   [ACTIVE PLAYERS]");
+            } else if i == PLAYERS_SECTION_OFFSET + 1 {
+                line = format!("{line}   ================");
+            } else if i >= PLAYERS_LIST_OFSSET && i < PLAYERS_LIST_OFSSET + tanks.len() {
+                if let Some(&tank) = tanks.get(i - PLAYERS_LIST_OFSSET) {
                     line = format!(
                         "{line}   {}: {}",
                         tank.context.player_details().avatar,
@@ -1102,11 +1134,6 @@ mod tests {
 
     fn fill_fields(world: &mut Box<World>) {
         world.fill_with_field_cells(&Position { x: 1, y: 1 });
-    }
-
-    #[test]
-    fn test_animation_is_on() {
-        assert!(ANIMATE_SHELLS_AND_EXPLOSIONS);
     }
 
     #[test]
@@ -1270,8 +1297,6 @@ mod tests {
         let upper_player_details = PlayerDetails::new(DEFAULT_AVATAR, lower_player_details.id + 1);
         let result = world.try_set_player_on_cell(upper_player_details, &position_upper_player);
         assert!(result.is_some());
-
-        println!("{world}");
 
         let firing_position_1 = position_upper_player.clone();
         let (direct_hit_players_1, indirect_hit_players_1) =

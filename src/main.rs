@@ -1,8 +1,12 @@
 #![deny(unsafe_code)]
 
 mod players;
+mod terminal;
 mod world;
 
+use std::time::Duration;
+
+use crossterm::event::{poll, read, Event, KeyCode};
 use players::{
     alvarez::Luis,
     armholt::Swede,
@@ -19,6 +23,7 @@ use players::{
     siimesjarvi::Siimesjarvi,
     terava::PlAgiAntti,
 };
+use terminal::Terminal;
 use world::World;
 
 pub const DEAD_AVATAR: char = '💀';
@@ -28,17 +33,18 @@ const AVATARS: [char; 18] = [
     '🐭', '🐸',
 ];
 
-const TICK_DURATION_MSEC: u64 = 100;
+const ENABLE_SHELL_ANIMATION: bool = true;
+const USER_INPUT_POLL_TIME_MSEC: u64 = 5;
+const GAME_TICK_DURATION_MSEC: u64 = 20;
 
 fn main() {
     let mut game = Game::new();
+
     spawn_players(&mut game);
     game.main_loop();
 }
 
 fn spawn_players(game: &mut Game) {
-    println!("Spawning players...");
-
     game.spawn_single_player(Box::new(Luis::new()));
     game.spawn_single_player(Box::new(Swede::new()));
     game.spawn_single_player(Box::new(Arola::new()));
@@ -52,8 +58,6 @@ fn spawn_players(game: &mut Game) {
     game.spawn_single_player(Box::new(Es::new()));
     game.spawn_single_player(Box::new(Siimesjarvi::new()));
     game.spawn_single_player(Box::new(PlAgiAntti::new()));
-
-    println!("Players spawned.");
 }
 
 fn avatar(player_id: usize) -> char {
@@ -74,7 +78,10 @@ impl Game {
     fn new() -> Self {
         Self {
             player_count: 0,
-            world: Box::new(World::new(TICK_DURATION_MSEC, WorldSize { x: 60, y: 30 })),
+            world: Box::new(World::new(
+                GAME_TICK_DURATION_MSEC,
+                WorldSize { x: 60, y: 30 },
+            )),
         }
     }
 
@@ -85,26 +92,73 @@ impl Game {
     }
 
     fn main_loop(&mut self) {
-        println!("{}", self.world);
+        Terminal::enter_raw_mode();
+
+        let mut terminal = Terminal::new();
+        terminal.clear_screen();
+        terminal.println(self.world.to_string());
+
+        let mut pause = false;
+        let mut animation = ENABLE_SHELL_ANIMATION;
+
         while !self.world.is_game_over() {
-            self.world.new_turn();
-            println!("{}", self.world);
+            if let Ok(true) = poll(Duration::from_millis(USER_INPUT_POLL_TIME_MSEC)) {
+                if let Ok(event) = read() {
+                    if event == Event::Key(KeyCode::Esc.into()) {
+                        break;
+                    } else if event == Event::Key(KeyCode::Char('a').into())
+                        || event == Event::Key(KeyCode::Char('A').into())
+                    {
+                        animation = !animation;
+                    } else if event == Event::Key(KeyCode::Char('p').into())
+                        || event == Event::Key(KeyCode::Char('P').into())
+                    {
+                        pause = !pause;
+                    }
+                }
+            }
+
+            if pause {
+                continue;
+            }
+
+            self.world.new_turn(&mut terminal, animation);
+
+            terminal.move_caret_to_origin();
+            terminal.println(self.world.to_string());
         }
 
-        println!("Game over!");
+        if self.world.is_game_over() {
+            terminal.println("[Game ended]\n");
+        } else {
+            terminal.println("[Game interrupted]\n");
+        }
+
         self.world.reward_survivors();
 
         let mut players = self.world.get_ready_players();
         players.sort_by(|&a, &b| a.context().score().cmp(&b.context().score()));
         players.reverse();
 
-        for player in players {
-            println!(
-                "{:02} -- {}",
+        terminal.println("[RANKING]");
+        terminal.println("=========\n");
+        terminal.println("RANK  SCORE  PLAYER");
+        terminal.println("----  -----  -------------------------");
+        for (place, player) in players.iter().enumerate() {
+            let text = format!(
+                " {:02}    {:03}   {}",
+                place + 1,
                 player.context().score(),
                 player.player().name()
-            )
+            );
+            terminal.println(text);
         }
+    }
+}
+
+impl Drop for Game {
+    fn drop(&mut self) {
+        Terminal::exit_raw_mode();
     }
 }
 
@@ -118,5 +172,10 @@ mod tests {
         spawn_players(&mut game);
 
         assert!(game.world.get_ready_players().is_empty());
+    }
+
+    #[test]
+    fn test_animation_is_on() {
+        assert!(ENABLE_SHELL_ANIMATION);
     }
 }
