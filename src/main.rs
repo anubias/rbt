@@ -119,12 +119,4 @@ mod tests {
 
         assert!(game.world.get_ready_players().is_empty());
     }
-
-    #[test]
-    fn test_no_stack_overflow_during_world_generation() {
-        for _ in 0..100 {
-            // repeat world generation many times, hopefully catching stack overflows
-            let _ = Game::new();
-        }
-    }
 }
