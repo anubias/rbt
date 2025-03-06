@@ -16,11 +16,10 @@ pub type Avatar = char;
 pub type PlayerId = u8;
 
 /// Specifies the maximum horizontal or vertical size of the game map
-pub const MAX_WORLD_SIZE: usize = 64;
+pub const MAX_WORLD_SIZE: usize = 128;
 
 /// Specifies the size of the scanning data array. It should always be an odd number.
-pub const SCANNING_DISTANCE: usize = (MAX_WORLD_SIZE / DIV) - (MAX_WORLD_SIZE / DIV + 1) % 2;
-const DIV: usize = 4;
+pub const SCANNING_DISTANCE: usize = 15;
 
 /// Specifies the maximum range of a cardinal attack
 pub const CARDINAL_SHOT_DISTANCE: usize = SCANNING_DISTANCE - 1;
