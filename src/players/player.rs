@@ -38,11 +38,11 @@ pub const INVALID_PLAYER: PlayerDetails = PlayerDetails {
 
 /// Private consts
 
-const DAMAGE_SINKING_INTO_LAKE: u8 = 100;
-const DAMAGE_COLLISION_WITH_FOREST: u8 = 25;
-const DAMAGE_COLLISION_WITH_PLAYER: u8 = 10;
-const DAMAGE_DIRECT_HIT: u8 = 75;
-const DAMAGE_INDIRECT_HIT: u8 = 25;
+const DAMAGE_SINKING_INTO_LAKE: usize = 100;
+const DAMAGE_COLLISION_WITH_FOREST: usize = 25;
+const DAMAGE_COLLISION_WITH_PLAYER: usize = 10;
+const DAMAGE_DIRECT_HIT: usize = 75;
+const DAMAGE_INDIRECT_HIT: usize = 25;
 
 const SCORE_INDIRECT_HIT_BONUS: usize = 1;
 const SCORE_DIRECT_HIT_BONUS: usize = 2;
@@ -146,38 +146,32 @@ impl Context {
     }
 
     pub fn damage_collision_forest(&mut self) {
-        self.damage(DAMAGE_COLLISION_WITH_FOREST);
+        self.generic_damage(DAMAGE_COLLISION_WITH_FOREST);
     }
 
     pub fn damage_collision_player(&mut self, other: &mut Self) {
-        self.damage(DAMAGE_COLLISION_WITH_PLAYER);
-        other.damage(DAMAGE_COLLISION_WITH_PLAYER);
+        self.generic_damage(DAMAGE_COLLISION_WITH_PLAYER);
+        other.generic_damage(DAMAGE_COLLISION_WITH_PLAYER);
     }
 
-    pub fn damage_direct_hit(&mut self, shooter: &mut Self) {
-        if self.health > 0 {
-            self.damage(DAMAGE_DIRECT_HIT);
-            shooter.reward(SCORE_DIRECT_HIT_BONUS);
-
-            if self.health == 0 {
-                shooter.reward(SCORE_KILLING_BONUS);
-            }
-        }
+    pub fn damage_direct_hit(&mut self, shooter_id: u8) -> usize {
+        self.hit_damage(shooter_id, DAMAGE_DIRECT_HIT, SCORE_DIRECT_HIT_BONUS)
     }
 
-    pub fn damage_indirect_hit(&mut self, shooter: &mut Self) {
-        if self.health > 0 {
-            self.damage(DAMAGE_INDIRECT_HIT);
-            shooter.reward(SCORE_INDIRECT_HIT_BONUS);
-
-            if self.health == 0 {
-                shooter.reward(SCORE_KILLING_BONUS);
-            }
-        }
+    pub fn damage_indirect_hit(&mut self, shooter_id: u8) -> usize {
+        self.hit_damage(shooter_id, DAMAGE_INDIRECT_HIT, SCORE_INDIRECT_HIT_BONUS)
     }
 
     pub fn reward_survivor(&mut self) {
-        self.score.increment(SCORE_SURVIVOR_BONUS);
+        if self.health > 0 {
+            self.score.increment(SCORE_SURVIVOR_BONUS);
+        }
+    }
+
+    pub fn reward_hits(&mut self, amount: usize) {
+        if self.health > 0 {
+            self.score.increment(amount);
+        }
     }
 
     pub fn health(&self) -> u8 {
@@ -204,7 +198,7 @@ impl Context {
         self.position = new_position.clone();
 
         match walk_on {
-            Terrain::Lake => self.damage(DAMAGE_SINKING_INTO_LAKE),
+            Terrain::Lake => self.generic_damage(DAMAGE_SINKING_INTO_LAKE),
             Terrain::Swamp => self.mobile = false,
             _ => {}
         }
@@ -249,18 +243,30 @@ impl Context {
 }
 
 impl Context {
-    fn damage(&mut self, amount: u8) {
-        self.health = self.health.saturating_sub(amount);
+    fn generic_damage(&mut self, amount: usize) {
+        self.health = self.health.saturating_sub(amount as u8);
         if self.health == 0 {
             self.player_details.avatar = DEAD_AVATAR;
             self.player_details.alive = false;
         }
     }
 
-    fn reward(&mut self, amount: usize) {
+    fn hit_damage(&mut self, shooter_id: u8, damage_amount: usize, reward_amount: usize) -> usize {
+        let mut reward = 0;
+
         if self.health > 0 {
-            self.score.increment(amount);
+            self.generic_damage(damage_amount);
+
+            if self.player_details.id != shooter_id {
+                reward += reward_amount;
+
+                if self.health == 0 {
+                    reward += SCORE_KILLING_BONUS;
+                }
+            }
         }
+
+        reward
     }
 }
 
@@ -419,17 +425,17 @@ impl Position {
     pub fn could_hit_cardinally(&self, other: &Position) -> bool {
         let (dx, dy) = self.manhattan_distance(other);
 
-        if dx == 0 || dy == 0 || dx.abs() == dy.abs() {
-            self.within_distance(other, CARDINAL_SHOT_DISTANCE)
-        } else {
-            false
-        }
+        (dx.abs() + dy.abs() > 0)
+            && (dx * dy == 0 || dx.abs() == dy.abs())
+            && self.within_distance(other, CARDINAL_SHOT_DISTANCE)
     }
 
     /// Indicates whether positional shoothing from this position towards the
     /// `other` position, would be successful
     pub fn could_hit_positionally(&self, other: &Position) -> bool {
-        self.within_distance(other, POSITIONAL_SHOT_DISTANCE)
+        let (dx, dy) = self.manhattan_distance(other);
+
+        (dx.abs() + dy.abs() > 0) && self.within_distance(other, POSITIONAL_SHOT_DISTANCE)
     }
 
     /// Indicates whether the `other` position is within a certain range or not
