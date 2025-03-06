@@ -240,7 +240,6 @@ impl World {
     pub fn reward_survivors(&mut self) {
         self.tanks
             .iter_mut()
-            .filter(|(_, t)| t.player.is_ready() && t.context.player_details().alive)
             .map(|(_, t)| t.survivor_bonus())
             .count();
     }
@@ -449,29 +448,22 @@ impl World {
             let (directly_hit, indirectly_hit) = self.get_hit_players(at);
 
             if let Some(shooter_details) = self.get_player_at_position(&shell.fired_from) {
-                let shooter_context = if let Some(shooter) = self.tanks.get_mut(&shooter_details.id)
-                {
-                    Some(shooter.context.clone())
-                } else {
-                    None
-                };
+                let mut reward = 0;
 
-                if let Some(mut temp_context) = shooter_context {
-                    for player_id in directly_hit {
-                        if let Some(tank) = self.tanks.get_mut(&player_id) {
-                            tank.context.damage_direct_hit(&mut temp_context);
-                        }
+                for player_id in directly_hit {
+                    if let Some(tank) = self.tanks.get_mut(&player_id) {
+                        reward += tank.context.damage_direct_hit(shooter_details.id);
                     }
+                }
 
-                    for player_id in indirectly_hit {
-                        if let Some(tank) = self.tanks.get_mut(&player_id) {
-                            tank.context.damage_indirect_hit(&mut temp_context);
-                        }
+                for player_id in indirectly_hit {
+                    if let Some(tank) = self.tanks.get_mut(&player_id) {
+                        reward += tank.context.damage_indirect_hit(shooter_details.id);
                     }
+                }
 
-                    if let Some(shooter) = self.tanks.get_mut(&shooter_details.id) {
-                        shooter.context = temp_context;
-                    }
+                if let Some(shooter) = self.tanks.get_mut(&shooter_details.id) {
+                    shooter.context.reward_hits(reward);
                 }
             }
         }
