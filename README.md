@@ -278,10 +278,10 @@ The damage is expressed as a percentage of _full health_. Any damage inflicted b
 
 Tanks take damage in several scenarios:
 
-- When entering `Lake` terrain, the damage is **100%** (instant death)
-- When colliding with `Forest` terrain, the damage is **25%**
-- When colliding with other tanks, the damage is **10%** _to both tanks_
+- When entering `Lake` terrain, the damage is **100%** (instant death, by drowning)
 - The damage is **75%** for direct hits, and **25%** for indirect hits
+- When colliding with other tanks, the damage is **25%** _to both tanks_
+- When colliding with `Forest` terrain, the damage is **10%**
 
 ## Strategy
 

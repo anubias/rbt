@@ -10,7 +10,7 @@
 //! offered by these data structures, and avoid re-implementing already
 //! provided behavior.
 
-use crate::{terminal::Terminal, DEAD_AVATAR};
+use crate::DEAD_AVATAR;
 
 pub type Avatar = char;
 pub type PlayerId = u8;
@@ -38,10 +38,10 @@ pub const INVALID_PLAYER: PlayerDetails = PlayerDetails {
 /// Private consts
 
 const DAMAGE_SINKING_INTO_LAKE: usize = 100;
-const DAMAGE_COLLISION_WITH_FOREST: usize = 25;
-const DAMAGE_COLLISION_WITH_PLAYER: usize = 10;
 const DAMAGE_DIRECT_HIT: usize = 75;
 const DAMAGE_INDIRECT_HIT: usize = 25;
+const DAMAGE_COLLISION_WITH_PLAYER: usize = 25;
+const DAMAGE_COLLISION_WITH_FOREST: usize = 10;
 
 const SCORE_INDIRECT_HIT_BONUS: usize = 1;
 const SCORE_DIRECT_HIT_BONUS: usize = 2;
