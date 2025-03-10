@@ -9,7 +9,7 @@ use crossterm::{
     ExecutableCommand, QueueableCommand,
 };
 
-const DEBUG_MODE: bool = false;
+const DEBUG_MODE: bool = true;
 
 /// This structure should be used when trying to print anything to the console.
 /// It encapsulates and wraps up behaviour needed to redraw the screen to avoid
@@ -69,9 +69,20 @@ impl Terminal {
     fn println_text(&mut self, text: String) {
         for line in text.split('\n').collect::<Vec<&str>>() {
             let _ = write!(self.stdout, "{line}");
+            let _ = self.stdout.queue(Clear(ClearType::UntilNewLine));
             let _ = self.stdout.queue(MoveToNextLine(1));
         }
 
         let _ = self.stdout.flush();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_debug_mode_is_on() {
+        assert!(DEBUG_MODE);
     }
 }
