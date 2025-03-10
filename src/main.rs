@@ -33,7 +33,7 @@ const AVATARS: [char; 18] = [
     '🐭', '🐸',
 ];
 
-const ENABLE_SHELL_ANIMATION: bool = true;
+const ENABLE_SHELL_ANIMATION: bool = false;
 const USER_INPUT_POLL_TIME_MSEC: u64 = 5;
 const GAME_TICK_DURATION_MSEC: u64 = 20;
 
@@ -175,7 +175,7 @@ mod tests {
     }
 
     #[test]
-    fn test_animation_is_on() {
-        assert!(ENABLE_SHELL_ANIMATION);
+    fn test_animation_is_off() {
+        assert!(!ENABLE_SHELL_ANIMATION);
     }
 }
