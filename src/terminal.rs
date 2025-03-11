@@ -44,8 +44,14 @@ impl Terminal {
 
     pub fn clear_screen(&mut self) {
         if !DEBUG_MODE {
-            let _ = self.stdout.execute(Clear(ClearType::All));
+            let _ = self.stdout.queue(Clear(ClearType::All));
             self.move_caret_to_origin();
+        }
+    }
+
+    pub fn clear_below(&mut self) {
+        if !DEBUG_MODE {
+            let _ = self.stdout.execute(Clear(ClearType::FromCursorDown));
         }
     }
 

@@ -17,8 +17,6 @@ const MAX_FIELD_AREA_PERCENTAGE: f32 = 75.0;
 const MIN_OBSTACLE_SIZE_PERCENTAGE: f32 = 0.5;
 const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.5;
 
-const MAX_GAME_TURN_COUNT: usize = 1000;
-
 pub struct Tank {
     context: Context,
     player: Box<dyn Player>,
@@ -168,6 +166,7 @@ impl ScanRequest {
 
 pub struct World {
     map: Box<[[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]>,
+    max_turns: usize,
     rng: ThreadRng,
     size: WorldSize,
     tanks: HashMap<PlayerId, Tank>,
@@ -188,6 +187,8 @@ impl World {
 
             if !result.sea_world() {
                 break result;
+            } else {
+                println!("Rejecting sea world...");
             }
         }
     }
@@ -231,7 +232,7 @@ impl World {
     }
 
     pub fn is_game_over(&self) -> bool {
-        self.count_live_players() <= 1 || self.turn_number >= MAX_GAME_TURN_COUNT
+        self.count_live_players() <= 1 || self.turn_number >= self.max_turns
     }
 
     pub fn reward_survivors(&mut self) {
@@ -978,6 +979,7 @@ impl World {
     fn generate_world(size: WorldSize, tick: u64) -> Self {
         let mut result = Self {
             map: Box::new([[MapCell::Unallocated; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
+            max_turns: compute_game_turns(&size),
             rng: thread_rng(),
             size,
             tanks: HashMap::new(),
@@ -1050,8 +1052,8 @@ impl std::fmt::Display for World {
                 line = format!("{line}   ============");
             } else if i == STATS_SECTION_OFFSET + 2 {
                 line = format!(
-                    "{line}   Turn:\t\t{} / {MAX_GAME_TURN_COUNT}",
-                    self.turn_number
+                    "{line}   Turn:\t\t{} / {}",
+                    self.turn_number, self.max_turns,
                 );
             } else if i == STATS_SECTION_OFFSET + 3 {
                 line = format!("{line}   Players alive:\t{}   ", self.count_live_players());
@@ -1091,6 +1093,13 @@ impl std::fmt::Display for World {
     }
 }
 
+/// Computes a balanced number of turns for the game, in relation with the world size
+fn compute_game_turns(world_size: &WorldSize) -> usize {
+    let cell_count = (world_size.x * world_size.y) as f64;
+
+    (cell_count.sqrt() * f64::log2(cell_count * cell_count)) as usize
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1099,13 +1108,15 @@ mod tests {
     const MINI_MAP_SIZE: usize = 10;
 
     fn generate_mini_world() -> Box<World> {
+        let size = WorldSize {
+            x: MINI_MAP_SIZE,
+            y: MINI_MAP_SIZE,
+        };
         let world = World {
             map: Box::new([[MapCell::Unallocated; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
+            max_turns: compute_game_turns(&size),
             rng: thread_rng(),
-            size: WorldSize {
-                x: MINI_MAP_SIZE,
-                y: MINI_MAP_SIZE,
-            },
+            size,
             tanks: HashMap::new(),
             turn_number: 0,
             tick: 100,

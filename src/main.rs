@@ -153,6 +153,9 @@ impl Game {
             );
             terminal.println(text);
         }
+
+        terminal.println("");
+        terminal.clear_below();
     }
 }
 
