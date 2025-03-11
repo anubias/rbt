@@ -417,7 +417,7 @@ impl World {
 
     fn animate_indirect_shell_explosion(&mut self, shell: &Shell) {
         if let Some(position) = &shell.current_pos {
-            for adjacent_pos in self.get_adjacent_positions(position) {
+            for adjacent_pos in position.list_adjacent_positions(&self.size) {
                 self.animate_cell_explosion(&adjacent_pos, shell.state == ShellState::Explosion);
             }
         }
@@ -761,7 +761,7 @@ impl World {
             direct_hit.push(direct_hit_player.id);
         }
 
-        let adjacent_positions = self.get_adjacent_positions(position);
+        let adjacent_positions = position.list_adjacent_positions(&self.size);
         for adjacent in adjacent_positions {
             if let Some(player) = self.get_player_at_position(&adjacent) {
                 indirect_hit.push(player.id);
@@ -769,23 +769,6 @@ impl World {
         }
 
         (direct_hit, indirect_hit)
-    }
-
-    fn get_adjacent_positions(&self, position: &Position) -> Vec<Position> {
-        let mut adjacents = Vec::new();
-
-        let mut orientation = Orientation::North;
-        loop {
-            if let Some(adjacent_position) = position.follow(&orientation, &self.size) {
-                adjacents.push(adjacent_position);
-            }
-            orientation = orientation.rotated_clockwise();
-            if orientation == Orientation::North {
-                break;
-            }
-        }
-
-        adjacents
     }
 
     fn unset_player_from_cell(&mut self, position: &Position) {
@@ -829,8 +812,8 @@ impl World {
             if let Some(next) = remaining.pop() {
                 self.cell_write(&next, MapCell::Terrain(Terrain::Field));
 
-                let mut neighbors = self
-                    .get_adjacent_positions(&next)
+                let mut neighbors = next
+                    .list_adjacent_positions(&self.size)
                     .into_iter()
                     .filter(|x| self.cell_read(x) == MapCell::Unallocated)
                     .collect::<Vec<Position>>();
@@ -878,7 +861,7 @@ impl World {
         let mut tree_e_cnt = 0;
         let mut swamp_cnt = 0;
 
-        let neighbors = self.get_adjacent_positions(position);
+        let neighbors = position.list_adjacent_positions(&self.size);
 
         for neighbor in neighbors {
             if let MapCell::Terrain(terrain) = self.cell_read(&neighbor) {

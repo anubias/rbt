@@ -443,6 +443,24 @@ impl Position {
 
         dx.unsigned_abs() <= range && dy.unsigned_abs() <= range
     }
+
+    /// Provides a list with all the valid adjacent position of self
+    pub fn list_adjacent_positions(&self, world_size: &WorldSize) -> Vec<Position> {
+        let mut adjacents = Vec::new();
+
+        let mut orientation = Orientation::North;
+        loop {
+            if let Some(adjacent_position) = self.follow(&orientation, world_size) {
+                adjacents.push(adjacent_position);
+            }
+            orientation = orientation.rotated_clockwise();
+            if orientation == Orientation::North {
+                break;
+            }
+        }
+
+        adjacents
+    }
 }
 
 impl std::fmt::Display for Position {
