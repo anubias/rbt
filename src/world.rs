@@ -976,6 +976,7 @@ impl World {
             result.generate_obstacle(MapCell::Terrain(Terrain::Forest(TreeType::Deciduous)));
             result.generate_obstacle(MapCell::Terrain(Terrain::Forest(TreeType::Evergreen)));
             result.generate_obstacle(MapCell::Terrain(Terrain::Lake));
+            result.generate_obstacle(MapCell::Terrain(Terrain::Lake));
             result.generate_obstacle(MapCell::Terrain(Terrain::Swamp));
 
             let cell_count = result.count_cells(&MapCell::Unallocated);
