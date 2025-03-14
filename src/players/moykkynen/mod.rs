@@ -27,7 +27,7 @@ pub struct Joonas {
     position: Position,
     enemies: HashMap<u8, Enemy>, // key: player id
     prev_turn: Option<Rotation>,
-    prev_scan_type: Action,
+    prev_scan_type: ScanType,
     time: u32,
 }
 
@@ -42,7 +42,7 @@ impl Joonas {
             position: Position { x: 0, y: 0 },
             enemies: HashMap::new(),
             prev_turn: None,
-            prev_scan_type: Action::Scan(ScanType::Mono(Orientation::North)),
+            prev_scan_type: ScanType::Mono(Orientation::North),
             time: 0,
         }
     }
@@ -63,7 +63,10 @@ impl Joonas {
     #[allow(dead_code)]
     fn print_enemies(&self) {
         for enemy in self.enemies.values() {
-            println!("{}: {}, timestamp: {}", enemy.details.avatar, enemy.last_pos, enemy.timestamp);
+            println!(
+                "{}: {}, timestamp: {}",
+                enemy.details.avatar, enemy.last_pos, enemy.timestamp
+            );
         }
     }
 
@@ -105,7 +108,40 @@ impl Joonas {
         None
     }
 
-    fn store_scan_data(&mut self, ctx: &Context) {
+    fn update_enemy_data(&mut self, pos: Position, details: Details) {
+        println!("Enemy spotted in {}, timestamp: {}", pos, self.time);
+        let enemy = Enemy {
+            last_pos: pos.clone(),
+            details: details.clone(),
+            timestamp: self.time,
+        };
+        self.enemies
+            .entry(details.id)
+            .and_modify(|elem| {
+                elem.last_pos = pos;
+                elem.details = details;
+                elem.timestamp = self.time;
+            })
+            .or_insert(enemy);
+    }
+
+    fn analyze_cell(&mut self, pos: Position) {
+        match self.map[pos.y][pos.x] {
+            MapCell::Player(details, terrain) => {
+                if details.id != self.id {
+                    // It's another player
+                    self.update_enemy_data(pos, details)
+                } else {
+                    // It's us, remove player and only store terrain
+                    self.map[pos.y][pos.x] = MapCell::Terrain(terrain);
+                }
+            }
+            // TODO: consider if explosions etc. need some handling
+            _ => (),
+        }
+    }
+
+    fn store_and_analyze_scan_data(&mut self, ctx: &Context) {
         // Initialize our own map according to world size
         if self.map.is_empty() {
             self.map = vec![vec![MapCell::Unallocated; ctx.world_size().x]; ctx.world_size().y];
@@ -125,42 +161,13 @@ impl Joonas {
                         scan_coord,
                     ) {
                         // We have the scanned map cell with world coordinates. Store it in our own map.
+                        // TODO: enemies remain on own map in their last known position if they move out of scan range, probably not an issue though
                         self.map[coordinate.y][coordinate.x] = scan_data.data[scan_y][scan_x];
-                        match self.map[coordinate.y][coordinate.x] {
-                            MapCell::Player(details, terrain) => {
-                                if details.id != self.id {
-                                    // It's another player
-                                    self.update_enemy_data(coordinate, details)
-                                } else {
-                                    // It's us, only store terrain
-                                    self.map[coordinate.y][coordinate.x] =
-                                        MapCell::Terrain(terrain);
-                                }
-                            }
-                            // TODO: explosions etc?
-                            _ => (),
-                        }
+                        self.analyze_cell(coordinate);
                     }
                 }
             }
         }
-    }
-
-    fn update_enemy_data(&mut self, pos: Position, details: Details) {
-        println!("Enemy spotted in {}, timestamp: {}", pos, self.time);
-        let enemy = Enemy {
-            last_pos: pos.clone(),
-            details: details.clone(),
-            timestamp: self.time,
-        };
-        self.enemies
-            .entry(details.id)
-            .and_modify(|elem| {
-                elem.last_pos = pos;
-                elem.details = details;
-                elem.timestamp = self.time;
-            })
-            .or_insert(enemy);
     }
 
     fn get_terrain_ahead(&self, ctx: &Context) -> MapCell {
@@ -179,8 +186,7 @@ impl Joonas {
 
     // Check if recently spotted enemies near and return coordinates to shoot at
     fn check_enemy_data(&self) -> Option<Position> {
-        // TODO: find the most recent (or weakest if all same timestamp) enemy and shoot that target
-        // TODO: is distance too long for positional shooting? Check readme for details.
+        // TODO: find the closest (or most recent if many within omniscan range?) enemy and shoot that target
         for enemy in self.enemies.values() {
             if enemy.details.alive {
                 if (self.time - enemy.timestamp) <= 3 {
@@ -189,6 +195,111 @@ impl Joonas {
             }
         }
         None
+    }
+
+    fn get_enemy_direction(&self, enemy_pos: &Position) -> Orientation {
+        let dx = enemy_pos.x as isize - self.position.x as isize;
+        let dy = enemy_pos.y as isize - self.position.y as isize;
+
+        // Check for horizontal/vertical
+        if dx == 0 {
+            if dy > 0 {
+                return Orientation::South;
+            } else if dy < 0 {
+                return Orientation::North;
+            }
+        }
+        if dy == 0 {
+            if dx > 0 {
+                return Orientation::East;
+            } else if dx < 0 {
+                return Orientation::West;
+            }
+        }
+
+        // Check for diagonal
+        return match (dx.signum(), dy.signum()) {
+            (1, 1) => Orientation::SouthEast,
+            (1, -1) => Orientation::NorthEast,
+            (-1, -1) => Orientation::NorthWest,
+            (-1, 1) => Orientation::SouthWest,
+            _ => unreachable!(), // signum() returned NaN for either dx or dy value
+        };
+    }
+
+    fn get_cardinal_shooting_direction(&self, enemy_pos: &Position) -> Option<Orientation> {
+        let dx = enemy_pos.x as isize - self.position.x as isize;
+        let dy = enemy_pos.y as isize - self.position.y as isize;
+
+        // Check for horizontal/vertical
+        if dx == 0 {
+            if dy > 0 {
+                return Some(Orientation::South);
+            } else if dy < 0 {
+                return Some(Orientation::North);
+            }
+        }
+        if dy == 0 {
+            if dx > 0 {
+                return Some(Orientation::East);
+            } else if dx < 0 {
+                return Some(Orientation::West);
+            }
+        }
+
+        // Check for exact diagonal
+        if dx.abs() == dy.abs() {
+            return match (dx.signum(), dy.signum()) {
+                (1, 1) => Some(Orientation::SouthEast),
+                (1, -1) => Some(Orientation::NorthEast),
+                (-1, -1) => Some(Orientation::NorthWest),
+                (-1, 1) => Some(Orientation::SouthWest),
+                _ => unreachable!(), // signum() returned NaN for either dx or dy value
+            };
+        }
+
+        // Not in position to fire cardinal, damnit!
+        None
+    }
+
+    fn decide_next_scan_type(&mut self, enemy_direction: Option<Orientation>) -> Action {
+        // Alternate between omni and mono directly ahead. If enemies are near, scan towards them instead of ahead.
+        match self.prev_scan_type {
+            ScanType::Omni => {
+                if let Some(enemy) = enemy_direction {
+                    self.prev_scan_type = ScanType::Mono(enemy)
+                } else {
+                    self.prev_scan_type = ScanType::Mono(self.orientation)
+                }
+            }
+            ScanType::Mono(_) => self.prev_scan_type = ScanType::Omni,
+        };
+        Action::Scan(self.prev_scan_type.clone())
+    }
+
+    fn decide_firing_option(&mut self, enemy_pos: Position) -> Action {
+        // these are the ranges for omni and mono scans and therefore the ranges of positional and cardinal shooting
+        let positional_range = SCANNING_DISTANCE / 2;
+        let cardinal_range = SCANNING_DISTANCE - 1;
+
+        // Check if in range for positional shooting
+        if self.position.x.abs_diff(enemy_pos.x) <= positional_range
+            && self.position.y.abs_diff(enemy_pos.y) <= positional_range
+        {
+            return Action::Fire(Aiming::Positional(enemy_pos));
+        }
+
+        // How about cardinal shooting
+        if self.position.x.abs_diff(enemy_pos.x) <= cardinal_range
+            && self.position.y.abs_diff(enemy_pos.y) <= cardinal_range
+        {
+            if let Some(orientation) = self.get_cardinal_shooting_direction(&enemy_pos) {
+                return Action::Fire(Aiming::Cardinal(orientation));
+            }
+        }
+
+        // Not within firing distance or direction, look puzzled and do a scan
+        self.decide_next_scan_type(Some(self.get_enemy_direction(&enemy_pos)))
     }
 
     fn decide_rotation_direction(&mut self) -> Action {
@@ -211,13 +322,12 @@ impl Joonas {
 
     // Decide next action based on scanned data
     fn handle_scan(&mut self, ctx: &Context) -> Action {
-        self.store_scan_data(ctx);
+        self.store_and_analyze_scan_data(ctx);
 
         // If (alive) enemies around, shoot at them. Otherwise act based on what is ahead.
-        // TODO: cardinal shooting?
         // TODO: some smarter movement?
         if let Some(enemy_pos) = self.check_enemy_data() {
-            Action::Fire(Aiming::Positional(enemy_pos))
+            self.decide_firing_option(enemy_pos)
         } else {
             match self.get_terrain_ahead(ctx) {
                 MapCell::Terrain(Terrain::Field) => Action::Move(Direction::Forward),
@@ -229,18 +339,6 @@ impl Joonas {
                 _ => Action::Fire(Aiming::Cardinal(self.orientation)),
             }
         }
-    }
-
-    fn decide_next_scan_type(&mut self) -> Action {
-        // Alternate between omni and mono scan and keep track of which one was done last
-        match self.prev_scan_type {
-            Action::Scan(ScanType::Omni) => {
-                self.prev_scan_type = Action::Scan(ScanType::Mono(self.orientation))
-            }
-            Action::Scan(ScanType::Mono(_)) => self.prev_scan_type = Action::Scan(ScanType::Omni),
-            _ => self.prev_scan_type = Action::Scan(ScanType::Omni),
-        };
-        self.prev_scan_type.clone()
     }
 }
 
@@ -260,11 +358,11 @@ impl Player for Joonas {
         }
 
         // TODO: when close to map border, do directional scan instead of omni?
-        // TODO: After spotting an enemy, do the next scan in the direction the enemy was seen?
+        // TODO: if the enemy we are shooting at is also shooting, shoot again instead of scan? => can't know enemy action :(
         let next_action = match self.last_action {
             Action::Idle => Action::Scan(ScanType::Omni),
             Action::Fire(_) => Action::Scan(ScanType::Omni),
-            Action::Move(_) => self.decide_next_scan_type(),
+            Action::Move(_) => self.decide_next_scan_type(None),
             Action::Rotate(_) => Action::Scan(ScanType::Omni),
             Action::Scan(_) => self.handle_scan(&context),
         };
