@@ -99,6 +99,7 @@ impl Game {
         terminal.println(self.world.to_string());
 
         let mut pause = false;
+        let mut next = false;
         let mut animation = ENABLE_SHELL_ANIMATION;
 
         while !self.world.is_game_over() {
@@ -110,6 +111,11 @@ impl Game {
                         || event == Event::Key(KeyCode::Char('A').into())
                     {
                         animation = !animation;
+                    } else if event == Event::Key(KeyCode::Char('n').into())
+                        || event == Event::Key(KeyCode::Char('N').into())
+                    {
+                        pause = false;
+                        next = true;
                     } else if event == Event::Key(KeyCode::Char('p').into())
                         || event == Event::Key(KeyCode::Char('P').into())
                     {
@@ -126,6 +132,11 @@ impl Game {
 
             terminal.move_caret_to_origin();
             terminal.println(self.world.to_string());
+
+            if next {
+                pause = true;
+                next = false;
+            }
         }
 
         if self.world.is_game_over() {
