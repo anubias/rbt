@@ -1008,7 +1008,7 @@ impl std::fmt::Display for World {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const PRINT_OFFSET: usize = 1;
         const HELP_SECTION_OFFSET: usize = PRINT_OFFSET;
-        const STATS_SECTION_OFFSET: usize = HELP_SECTION_OFFSET + 7;
+        const STATS_SECTION_OFFSET: usize = HELP_SECTION_OFFSET + 8;
         const PLAYERS_SECTION_OFFSET: usize = STATS_SECTION_OFFSET + 6;
         const PLAYERS_LIST_OFSSET: usize = PLAYERS_SECTION_OFFSET + 2;
 
@@ -1025,11 +1025,13 @@ impl std::fmt::Display for World {
             } else if i == HELP_SECTION_OFFSET + 1 {
                 line = format!("{line}   ===========");
             } else if i == HELP_SECTION_OFFSET + 2 {
-                line = format!("{line}   Esc - Interrupt game after current turn");
+                line = format!("{line}   Esc - Interrupt game");
             } else if i == HELP_SECTION_OFFSET + 3 {
-                line = format!("{line}   A   - Toggle shell animation after current turn");
+                line = format!("{line}   A   - Toggle shell animation");
             } else if i == HELP_SECTION_OFFSET + 4 {
-                line = format!("{line}   P   - Toggle pause game after current turn");
+                line = format!("{line}   N   - Run next turn and then pause");
+            } else if i == HELP_SECTION_OFFSET + 5 {
+                line = format!("{line}   P   - Toggle pause game");
             } else if i == STATS_SECTION_OFFSET {
                 line = format!("{line}   [GAME STATS]");
             } else if i == STATS_SECTION_OFFSET + 1 {
