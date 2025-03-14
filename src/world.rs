@@ -209,6 +209,9 @@ impl World {
             }
         }
 
+        terminal.move_caret_to_origin();
+        terminal.println(&self);
+
         self.process_player_actions(terminal, animation, actions)
     }
 

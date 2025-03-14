@@ -130,9 +130,6 @@ impl Game {
 
             self.world.new_turn(&mut terminal, animation);
 
-            terminal.move_caret_to_origin();
-            terminal.println(self.world.to_string());
-
             if next {
                 pause = true;
                 next = false;
