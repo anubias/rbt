@@ -8,7 +8,10 @@ mod terminal;
 use crossterm::event::{poll, read, Event, KeyCode};
 use std::time::Duration;
 
-use api::{player::Player, world_size::WorldSize};
+use api::{
+    player::{Avatar, Player},
+    world_size::WorldSize,
+};
 use engine::world::World;
 use players::{
     alvarez::Luis, armholt::Swede, arola::Arola, laurikainen::PlayerOne, moykkynen::Joonas,
@@ -17,13 +20,14 @@ use players::{
 };
 use terminal::Terminal;
 
-pub const DEAD_AVATAR: char = '💀';
-const DEFAULT_AVATAR: char = '👶';
-const AVATARS: [char; 18] = [
+pub const DEAD_AVATAR: Avatar = '💀';
+const DEFAULT_AVATAR: Avatar = '👶';
+const AVATARS: [Avatar; 18] = [
     '🙂', '😈', '👽', '🤡', '🤖', '🎃', '🐵', '🐶', '🐱', '🦁', '🐺', '🐻', '🐼', '🦊', '🐷', '🐰',
     '🐭', '🐸',
 ];
 
+pub const DEBUG_MODE: bool = true;
 const ENABLE_SHELL_ANIMATION: bool = false;
 const USER_INPUT_POLL_TIME_MSEC: u64 = 5;
 const GAME_TICK_DURATION_MSEC: u64 = 20;
@@ -127,11 +131,15 @@ impl Game {
             }
         }
 
+        terminal.move_caret_to_origin();
         if self.world.is_game_over() {
-            terminal.println("[Game ended]\n");
+            terminal.println("[Game ended]");
         } else {
-            terminal.println("[Game interrupted]\n");
+            terminal.println("[Game interrupted]");
         }
+
+        terminal.println("[Final game state]\n");
+        terminal.println(&self.world);
 
         self.world.reward_survivors();
 
