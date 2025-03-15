@@ -1,5 +1,8 @@
 use crate::{
-    players::player::{Action, PlayerDetails, Position, Rotation, ScanResult, Terrain, WorldSize},
+    api::{
+        action::Action, context::Context as ApiContext, map_cell::Terrain, player::Details,
+        position::Position, rotation::Rotation, scan::ScanResult, world_size::WorldSize,
+    },
     DEAD_AVATAR,
 };
 
@@ -34,7 +37,7 @@ pub struct Context {
     max_turns: usize,
     mobile: bool,
     previous_action: Action,
-    player_details: PlayerDetails,
+    player_details: Details,
     position: Position,
     scan: Option<ScanResult>,
     score: Score,
@@ -44,7 +47,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(
-        player_details: PlayerDetails,
+        player_details: Details,
         position: Position,
         max_turns: usize,
         world_size: WorldSize,
@@ -104,7 +107,7 @@ impl Context {
         &self.previous_action
     }
 
-    pub fn player_details(&self) -> &PlayerDetails {
+    pub fn player_details(&self) -> &Details {
         &self.player_details
     }
 
@@ -206,5 +209,20 @@ impl std::fmt::Display for Context {
             )
         };
         write!(f, "{text}")
+    }
+}
+
+impl Into<ApiContext> for Context {
+    fn into(self) -> ApiContext {
+        ApiContext::new(
+            self.health,
+            self.max_turns,
+            self.previous_action.clone(),
+            self.player_details.clone(),
+            self.position.clone(),
+            self.scan.clone(),
+            self.turn,
+            self.world_size.clone(),
+        )
     }
 }

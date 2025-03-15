@@ -1,4 +1,5 @@
-use super::super::player::*;
+use crate::api::{action::Action, aiming::Aiming, context::Context, scan::ScanType};
+
 use super::Arola;
 use super::PlayerState;
 

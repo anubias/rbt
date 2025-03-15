@@ -1,28 +1,19 @@
 #![deny(unsafe_code)]
 
+mod api;
 mod engine;
 mod players;
 mod terminal;
 
+use crossterm::event::{poll, read, Event, KeyCode};
 use std::time::Duration;
 
-use crossterm::event::{poll, read, Event, KeyCode};
+use api::{player::Player, world_size::WorldSize};
 use engine::world::World;
 use players::{
-    alvarez::Luis,
-    armholt::Swede,
-    arola::Arola,
-    laurikainen::PlayerOne,
-    moykkynen::Joonas,
-    niemisto::Niemisto,
-    player::{Player, WorldSize},
-    pop::Aurelian,
-    rahtu::Rahtu,
-    rantala::PlayerTeemu,
-    reponen::Samuli,
-    salonen::Es,
-    siimesjarvi::Siimesjarvi,
-    terava::PlAgiAntti,
+    alvarez::Luis, armholt::Swede, arola::Arola, laurikainen::PlayerOne, moykkynen::Joonas,
+    niemisto::Niemisto, pop::Aurelian, rahtu::Rahtu, rantala::PlayerTeemu, reponen::Samuli,
+    salonen::Es, siimesjarvi::Siimesjarvi, terava::PlAgiAntti,
 };
 use terminal::Terminal;
 

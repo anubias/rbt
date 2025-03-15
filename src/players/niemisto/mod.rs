@@ -1,4 +1,11 @@
-use super::player::*;
+use crate::api::action::Action;
+use crate::api::aiming::Aiming;
+use crate::api::context::Context;
+use crate::api::orientation::Orientation;
+use crate::api::player::Player;
+use crate::api::rotation::Rotation;
+use crate::api::scan::ScanType;
+
 use std::io::{self, Read, Write};
 use std::net::TcpStream;
 

@@ -1,6 +1,13 @@
 use std::{cmp::max, collections::HashMap};
 
-use super::super::player::*;
+use crate::api::{
+    map_cell::{MapCell, Terrain, TreeType},
+    orientation::Orientation,
+    player::INVALID_PLAYER,
+    position::Position,
+    scan::ScanResult,
+    world_size::{WorldSize, MAX_WORLD_SIZE},
+};
 
 pub struct Map {
     map: [[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE],

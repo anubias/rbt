@@ -3,15 +3,21 @@ use std::{collections::HashMap, time::Duration};
 use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
 
 use crate::{
+    api::{
+        action::Action,
+        direction::Direction,
+        map_cell::{MapCell, Terrain, TreeType},
+        orientation::Orientation,
+        player::{Details, Player, PlayerId, INVALID_PLAYER},
+        position::{Position, CARDINAL_SHOT_DISTANCE, POSITIONAL_SHOT_DISTANCE, SCANNING_DISTANCE},
+        rotation::Rotation,
+        scan::{ScanResult, ScanType},
+        world_size::{WorldSize, MAX_WORLD_SIZE},
+    },
     engine::{
         context::Context,
         shell::{Shell, ShellState},
         tank::Tank,
-    },
-    players::player::{
-        Action, Direction, MapCell, Orientation, Player, PlayerDetails, PlayerId, Position,
-        Rotation, ScanResult, ScanType, Terrain, TreeType, WorldSize, CARDINAL_SHOT_DISTANCE,
-        INVALID_PLAYER, MAX_WORLD_SIZE, POSITIONAL_SHOT_DISTANCE, SCANNING_DISTANCE,
     },
     terminal::Terminal,
 };
@@ -83,7 +89,7 @@ impl World {
 
         if let Some(position) = random {
             if player.is_ready() && player.initialized() {
-                let player_details = PlayerDetails::new(avatar, self.tanks.len() as PlayerId + 1);
+                let player_details = Details::new(avatar, self.tanks.len() as PlayerId + 1);
                 let context =
                     Context::new(player_details, position, self.max_turns, self.size.clone());
 
@@ -465,7 +471,7 @@ impl World {
         result
     }
 
-    fn is_player_alive(&self, player_details: &PlayerDetails) -> bool {
+    fn is_player_alive(&self, player_details: &Details) -> bool {
         for tank in self.get_tanks() {
             if *tank.context().player_details() == *player_details && tank.context().health() > 0 {
                 return true;
@@ -612,7 +618,7 @@ impl World {
         matches!(self.cell_read(position), MapCell::Unallocated)
     }
 
-    fn get_player_at_position(&self, position: &Position) -> Option<PlayerDetails> {
+    fn get_player_at_position(&self, position: &Position) -> Option<Details> {
         match self.cell_read(position) {
             MapCell::Player(player_details, _) => Some(player_details),
             _ => None,
@@ -650,7 +656,7 @@ impl World {
 
     fn try_set_player_on_cell(
         &mut self,
-        player_details: PlayerDetails,
+        player_details: Details,
         position: &Position,
     ) -> Option<Terrain> {
         let mut result = None;
@@ -1083,7 +1089,7 @@ mod tests {
         let position = Position { x: 5, y: 2 };
         assert!(world.cell_read(&position) == MapCell::Terrain(Terrain::Field));
 
-        let player_details = PlayerDetails::new(DEFAULT_AVATAR, 10);
+        let player_details = Details::new(DEFAULT_AVATAR, 10);
         let result = world.try_set_player_on_cell(player_details, &position);
         assert!(result.is_some());
     }
@@ -1098,7 +1104,7 @@ mod tests {
             world.cell_read(&position) == MapCell::Terrain(Terrain::Forest(TreeType::Deciduous))
         );
 
-        let player_details = PlayerDetails::new(DEFAULT_AVATAR, 10);
+        let player_details = Details::new(DEFAULT_AVATAR, 10);
         let result = world.try_set_player_on_cell(player_details, &position);
         assert!(result.is_none());
     }
@@ -1111,7 +1117,7 @@ mod tests {
         let position = Position { x: 3, y: 2 };
         assert!(world.cell_read(&position) == MapCell::Terrain(Terrain::Lake));
 
-        let player_details = PlayerDetails::new(DEFAULT_AVATAR, 10);
+        let player_details = Details::new(DEFAULT_AVATAR, 10);
         let result = world.try_set_player_on_cell(player_details, &position);
         assert!(result.is_some());
     }
@@ -1124,7 +1130,7 @@ mod tests {
         let position = Position { x: 5, y: 0 };
         assert!(world.cell_read(&position) == MapCell::Terrain(Terrain::Swamp));
 
-        let player_details = PlayerDetails::new(DEFAULT_AVATAR, 10);
+        let player_details = Details::new(DEFAULT_AVATAR, 10);
         let result = world.try_set_player_on_cell(player_details, &position);
         assert!(result.is_some());
     }
@@ -1135,7 +1141,7 @@ mod tests {
         fill_fields(&mut world);
 
         let position = Position { x: 5, y: 2 };
-        let player_details = PlayerDetails::new(DEFAULT_AVATAR, 10);
+        let player_details = Details::new(DEFAULT_AVATAR, 10);
         let result = world.try_set_player_on_cell(player_details, &position);
         assert!(result.is_some());
 
@@ -1153,14 +1159,14 @@ mod tests {
         fill_fields(&mut world);
 
         let position_lower_player = Position { x: 5, y: 2 };
-        let lower_player_details = PlayerDetails::new(DEFAULT_AVATAR, 10);
+        let lower_player_details = Details::new(DEFAULT_AVATAR, 10);
         let result = world.try_set_player_on_cell(lower_player_details, &position_lower_player);
         assert!(result.is_some());
 
         let position_upper_player = position_lower_player
             .follow(&Orientation::North, &world.size)
             .unwrap();
-        let upper_player_details = PlayerDetails::new(DEFAULT_AVATAR, lower_player_details.id + 1);
+        let upper_player_details = Details::new(DEFAULT_AVATAR, lower_player_details.id + 1);
         let result = world.try_set_player_on_cell(upper_player_details, &position_upper_player);
         assert!(result.is_some());
 

@@ -2,7 +2,18 @@ use std::collections::HashSet;
 
 use rand::Rng;
 
-use super::player::*;
+use crate::api::{
+    action::Action,
+    aiming::Aiming,
+    context::Context,
+    direction::Direction,
+    map_cell::{MapCell, Terrain},
+    orientation::Orientation,
+    player::Player,
+    position::{Position, SCANNING_DISTANCE},
+    rotation::Rotation,
+    scan::{ScanResult, ScanType},
+};
 
 pub struct Surroundings {
     pub with_players: HashSet<Orientation>,

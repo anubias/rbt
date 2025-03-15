@@ -1,6 +1,16 @@
 use rand::Rng;
 
-use super::super::player::*;
+use crate::api::{
+    action::Action,
+    context::Context,
+    direction::Direction,
+    map_cell::{MapCell, Terrain},
+    orientation::Orientation,
+    position::Position,
+    scan::{ScanResult, ScanType},
+    world_size::WorldSize,
+};
+
 use super::Arola;
 use super::PlayerState;
 
