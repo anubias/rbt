@@ -119,6 +119,7 @@ impl Score {
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Context {
     health: u8,
+    max_turns: usize,
     mobile: bool,
     previous_action: Action,
     player_details: PlayerDetails,
@@ -130,9 +131,15 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(player_details: PlayerDetails, position: Position, world_size: WorldSize) -> Self {
+    pub fn new(
+        player_details: PlayerDetails,
+        position: Position,
+        max_turns: usize,
+        world_size: WorldSize,
+    ) -> Self {
         Self {
             health: 100,
+            max_turns,
             mobile: true,
             previous_action: Action::default(),
             player_details,
@@ -230,6 +237,10 @@ impl Context {
 
     pub fn set_turn(&mut self, turn: usize) {
         self.turn = turn;
+    }
+
+    pub fn max_turns(&self) -> usize {
+        self.max_turns
     }
 
     pub fn turn(&self) -> usize {

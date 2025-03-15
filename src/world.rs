@@ -222,7 +222,8 @@ impl World {
         if let Some(position) = random {
             if player.is_ready() && player.initialized() {
                 let player_details = PlayerDetails::new(avatar, self.tanks.len() as PlayerId + 1);
-                let context = Context::new(player_details, position, self.size.clone());
+                let context =
+                    Context::new(player_details, position, self.max_turns, self.size.clone());
 
                 if self
                     .try_set_player_on_cell(player_details, context.position())
