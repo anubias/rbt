@@ -1,12 +1,13 @@
 #![deny(unsafe_code)]
 
+mod engine;
 mod players;
 mod terminal;
-mod world;
 
 use std::time::Duration;
 
 use crossterm::event::{poll, read, Event, KeyCode};
+use engine::world::World;
 use players::{
     alvarez::Luis,
     armholt::Swede,
@@ -24,7 +25,6 @@ use players::{
     terava::PlAgiAntti,
 };
 use terminal::Terminal;
-use world::World;
 
 pub const DEAD_AVATAR: char = '💀';
 const DEFAULT_AVATAR: char = '👶';
@@ -188,5 +188,10 @@ mod tests {
     #[test]
     fn test_animation_is_off() {
         assert!(!ENABLE_SHELL_ANIMATION);
+    }
+
+    #[test]
+    fn test_default_avatar() {
+        assert_eq!(DEFAULT_AVATAR, avatar(1000));
     }
 }
