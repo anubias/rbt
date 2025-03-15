@@ -29,8 +29,7 @@ const AVATARS: [Avatar; 18] = [
 
 pub const DEBUG_MODE: bool = true;
 const ENABLE_SHELL_ANIMATION: bool = false;
-const USER_INPUT_POLL_TIME_MSEC: u64 = 5;
-const GAME_TICK_DURATION_MSEC: u64 = 20;
+const GAME_TICK_DURATION_MSEC: u64 = 10;
 
 fn main() {
     let mut game = Game::new();
@@ -96,16 +95,24 @@ impl Game {
         let mut pause = false;
         let mut next = false;
         let mut animation = ENABLE_SHELL_ANIMATION;
+        let mut tick_ms = GAME_TICK_DURATION_MSEC;
 
         while !self.world.is_game_over() {
-            if let Ok(true) = poll(Duration::from_millis(USER_INPUT_POLL_TIME_MSEC)) {
+            if let Ok(true) = poll(Duration::from_millis(0)) {
                 if let Ok(event) = read() {
                     if event == Event::Key(KeyCode::Esc.into()) {
                         break;
+                    } else if event == Event::Key(KeyCode::Up.into()) {
+                        tick_ms = tick_ms.saturating_add(1);
+                        self.world.update_tick(tick_ms);
+                    } else if event == Event::Key(KeyCode::Down.into()) {
+                        tick_ms = tick_ms.saturating_sub(1);
+                        self.world.update_tick(tick_ms);
                     } else if event == Event::Key(KeyCode::Char('a').into())
                         || event == Event::Key(KeyCode::Char('A').into())
                     {
                         animation = !animation;
+                        self.world.update_animation(animation);
                     } else if event == Event::Key(KeyCode::Char('n').into())
                         || event == Event::Key(KeyCode::Char('N').into())
                     {
@@ -123,7 +130,7 @@ impl Game {
                 continue;
             }
 
-            self.world.new_turn(&mut terminal, animation);
+            self.world.new_turn(&mut terminal);
 
             if next {
                 pause = true;
