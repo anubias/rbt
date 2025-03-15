@@ -33,6 +33,7 @@ struct ScanRequest {
 }
 
 pub struct World {
+    animation: bool,
     map: Box<[[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]>,
     max_turns: usize,
     rng: ThreadRng,
@@ -61,7 +62,15 @@ impl World {
         }
     }
 
-    pub fn new_turn(&mut self, terminal: &mut Terminal, animation: bool) {
+    pub fn update_animation(&mut self, animation: bool) {
+        self.animation = animation;
+    }
+
+    pub fn update_tick(&mut self, tick: u64) {
+        self.tick = tick;
+    }
+
+    pub fn new_turn(&mut self, terminal: &mut Terminal) {
         let mut actions = Vec::new();
 
         self.turn_number += 1;
@@ -81,7 +90,7 @@ impl World {
         terminal.move_caret_to_origin();
         terminal.println(&self);
 
-        self.process_player_actions(terminal, animation, actions)
+        self.process_player_actions(terminal, actions)
     }
 
     pub fn spawn_player(&mut self, mut player: Box<dyn Player>, avatar: char) {
@@ -128,7 +137,6 @@ impl World {
     fn process_player_actions(
         &mut self,
         terminal: &mut Terminal,
-        animation: bool,
         actions: Vec<(PlayerId, Action)>,
     ) {
         let mut shot_queue = Vec::new();
@@ -160,7 +168,7 @@ impl World {
             }
         }
 
-        self.process_shots(terminal, animation, shot_queue);
+        self.process_shots(terminal, shot_queue);
         self.update_players_on_world_map(); // we need to update the world map before processing scans
         self.process_scans(scan_queue);
     }
@@ -185,7 +193,7 @@ impl World {
         }
     }
 
-    fn process_shots(&mut self, terminal: &mut Terminal, animation: bool, shot_queue: Vec<Shell>) {
+    fn process_shots(&mut self, terminal: &mut Terminal, shot_queue: Vec<Shell>) {
         let max_iteration = CARDINAL_SHOT_DISTANCE.max(POSITIONAL_SHOT_DISTANCE) + 3;
         let mut possible_shots = Vec::new();
 
@@ -247,7 +255,7 @@ impl World {
                 break;
             }
 
-            if animation && !possible_shots.is_empty() {
+            if self.animation && !possible_shots.is_empty() {
                 terminal.move_caret_to_origin();
                 terminal.println(self.to_string());
             }
@@ -836,6 +844,7 @@ impl World {
 
     fn generate_world(size: WorldSize, tick: u64) -> Self {
         let mut result = Self {
+            animation: false,
             map: Box::new([[MapCell::Unallocated; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
             max_turns: compute_game_turns(&size),
             rng: thread_rng(),
@@ -883,8 +892,8 @@ impl std::fmt::Display for World {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         const PRINT_OFFSET: usize = 1;
         const HELP_SECTION_OFFSET: usize = PRINT_OFFSET;
-        const STATS_SECTION_OFFSET: usize = HELP_SECTION_OFFSET + 8;
-        const PLAYERS_SECTION_OFFSET: usize = STATS_SECTION_OFFSET + 6;
+        const STATS_SECTION_OFFSET: usize = HELP_SECTION_OFFSET + 10;
+        const PLAYERS_SECTION_OFFSET: usize = STATS_SECTION_OFFSET + 8;
         const PLAYERS_LIST_OFSSET: usize = PLAYERS_SECTION_OFFSET + 2;
 
         let tanks = self.get_tanks();
@@ -900,24 +909,33 @@ impl std::fmt::Display for World {
             } else if i == HELP_SECTION_OFFSET + 1 {
                 line = format!("{line}   ===========");
             } else if i == HELP_SECTION_OFFSET + 2 {
-                line = format!("{line}   Esc - Interrupt game");
+                line = format!("{line}   Esc  - Interrupt game");
             } else if i == HELP_SECTION_OFFSET + 3 {
-                line = format!("{line}   A   - Toggle shell animation");
+                line = format!("{line}   A    - Toggle shell animation");
             } else if i == HELP_SECTION_OFFSET + 4 {
-                line = format!("{line}   N   - Run next turn and then pause");
+                line = format!("{line}   N    - Run next turn and then pause");
             } else if i == HELP_SECTION_OFFSET + 5 {
-                line = format!("{line}   P   - Toggle pause game");
+                line = format!("{line}   P    - Toggle pause game");
+            } else if i == HELP_SECTION_OFFSET + 6 {
+                line = format!("{line}   Up   - Increase tick by 1 millisecond");
+            } else if i == HELP_SECTION_OFFSET + 7 {
+                line = format!("{line}   Down - Decrease tick by 1 millisecond");
             } else if i == STATS_SECTION_OFFSET {
                 line = format!("{line}   [GAME STATS]");
             } else if i == STATS_SECTION_OFFSET + 1 {
                 line = format!("{line}   ============");
             } else if i == STATS_SECTION_OFFSET + 2 {
+                let a = if self.animation { "on" } else { "off" };
+                line = format!("{line}   Animation:\t\t{}   ", a);
+            } else if i == STATS_SECTION_OFFSET + 3 {
+                line = format!("{line}   Players alive:\t{}   ", self.count_live_players());
+            } else if i == STATS_SECTION_OFFSET + 4 {
+                line = format!("{line}   Tick ms:\t\t{}   ", self.tick);
+            } else if i == STATS_SECTION_OFFSET + 5 {
                 line = format!(
                     "{line}   Turn:\t\t{} / {}",
                     self.turn_number, self.max_turns,
                 );
-            } else if i == STATS_SECTION_OFFSET + 3 {
-                line = format!("{line}   Players alive:\t{}   ", self.count_live_players());
             } else if i == PLAYERS_SECTION_OFFSET {
                 line = format!("{line}   [ACTIVE PLAYERS]");
             } else if i == PLAYERS_SECTION_OFFSET + 1 {
@@ -974,6 +992,7 @@ mod tests {
             y: MINI_MAP_SIZE,
         };
         let world = World {
+            animation: false,
             map: Box::new([[MapCell::Unallocated; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
             max_turns: compute_game_turns(&size),
             rng: thread_rng(),
