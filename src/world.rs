@@ -93,7 +93,8 @@ impl Shell {
 
     fn evolve(&mut self, world_size: &WorldSize) {
         match self.state {
-            ShellState::NotLaunched | ShellState::Flying => {
+            ShellState::NotLaunched => self.state = ShellState::Flying,
+            ShellState::Flying => {
                 self.state = ShellState::Flying;
                 if let Some(pos) = &self.current_pos {
                     self.current_pos = match &self.aim_type {
@@ -328,7 +329,6 @@ impl World {
                 match shell.state {
                     ShellState::NotLaunched => {
                         shell.evolve(&self.size);
-                        self.animate_shell_movement(shell, false);
                     }
                     ShellState::Flying => {
                         self.animate_shell_movement(shell, true);
