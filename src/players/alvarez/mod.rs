@@ -1,4 +1,15 @@
-use super::player::*;
+use crate::api::{
+    action::Action,
+    aiming::Aiming,
+    context::Context,
+    direction::Direction,
+    map_cell::{MapCell, Terrain},
+    orientation::Orientation,
+    player::Player,
+    position::SCANNING_DISTANCE,
+    rotation::Rotation,
+    scan::ScanType,
+};
 
 #[derive(Default)]
 pub struct Luis {

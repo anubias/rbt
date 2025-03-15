@@ -1,5 +1,7 @@
-use crate::players::player::{
-    Aiming, Position, WorldSize, CARDINAL_SHOT_DISTANCE, POSITIONAL_SHOT_DISTANCE,
+use crate::api::{
+    aiming::Aiming,
+    position::{Position, CARDINAL_SHOT_DISTANCE, POSITIONAL_SHOT_DISTANCE},
+    world_size::WorldSize,
 };
 
 #[derive(Clone, PartialEq, Eq)]

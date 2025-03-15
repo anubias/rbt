@@ -1,4 +1,11 @@
-use super::super::player::*;
+use crate::api::{
+    map_cell::MapCell,
+    orientation::Orientation,
+    player::{Details, PlayerId, INVALID_PLAYER},
+    position::{Position, SCANNING_DISTANCE},
+    rotation::Rotation,
+    scan::{ScanResult, ScanType},
+};
 
 impl Position {
     pub fn get_orientation_to(&self, neighbor: &Position) -> Orientation {
@@ -77,7 +84,7 @@ impl ScanResult {
         }
     }
 
-    fn get_player_details(map_cell: &MapCell) -> PlayerDetails {
+    fn get_player_details(map_cell: &MapCell) -> Details {
         match map_cell {
             MapCell::Explosion(player_details, _) => player_details.clone(),
             MapCell::Player(player_details, _) => player_details.clone(),
@@ -90,7 +97,7 @@ impl ScanResult {
         &self,
         my_id: PlayerId,
         my_world_position: &Position,
-    ) -> Vec<(PlayerDetails, Position)> {
+    ) -> Vec<(Details, Position)> {
         let mut other_players = Vec::new();
         let scan_world_position = self.get_world_position(my_world_position);
 

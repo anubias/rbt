@@ -1,4 +1,4 @@
-use crate::{engine::context::Context, players::player::Player};
+use crate::{api::player::Player, engine::context::Context};
 
 pub struct Tank {
     context: Context,

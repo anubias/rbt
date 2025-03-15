@@ -1,5 +1,3 @@
-pub mod player;
-
 pub mod alvarez;
 pub mod armholt;
 pub mod arola;

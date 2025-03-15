@@ -1,10 +1,21 @@
-use super::player::*;
+use crate::api::{
+    action::Action,
+    aiming::Aiming,
+    context::Context,
+    direction::Direction,
+    map_cell::{MapCell, Terrain},
+    orientation::Orientation,
+    player::{Details, Player},
+    position::{Position, SCANNING_DISTANCE},
+    rotation::Rotation,
+    scan::ScanType,
+};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Enemy {
     last_pos: Position,
-    details: PlayerDetails,
+    details: Details,
 }
 pub struct Joonas {
     id: u8,
@@ -93,7 +104,7 @@ impl Joonas {
         }
     }
 
-    fn update_enemy_data(&mut self, pos: Position, details: PlayerDetails) {
+    fn update_enemy_data(&mut self, pos: Position, details: Details) {
         let enemy = Enemy {
             last_pos: pos.clone(),
             details: details.clone(),
