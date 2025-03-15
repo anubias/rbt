@@ -9,7 +9,7 @@ use crossterm::{
     ExecutableCommand, QueueableCommand,
 };
 
-const DEBUG_MODE: bool = true;
+use crate::DEBUG_MODE;
 
 /// This structure should be used when trying to print anything to the console.
 /// It encapsulates and wraps up behaviour needed to redraw the screen to avoid
