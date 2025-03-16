@@ -57,23 +57,23 @@ pub trait Player {
 }
 ```
 
-The `Player::act()` function is invoked by the game engine once per turn. It is within this function that the players should execute their own bot tactic logic.
+The `act()` function is invoked by the game engine once per turn. It is within this function that the players should execute their own bot tactic logic.
 
 Players are free to organize their code as they see fit, as long as all their code resides within their own module directory.
 
 ### Constructors
 
-In addition, each player needs to implement the `Player::new()` method which delegates proper construction of their data structure. It is mandatory in this project (as well as a good coding practice) that constructors don't fail.
+In addition, each player needs to implement the `new()` method which delegates proper construction of their data structure. It is mandatory in this project (as well as a good coding practice) that constructors don't fail.
 
 ### Delayed (expensive) initialization
 
-In case that some players require expensive initialization which may fail, there is the `Player::initialized()` function which should contain the expensive initialization code.
+In case that some players require expensive initialization which may fail, there is the `initialized()` function which should contain the expensive initialization code.
 
 ### World map
 
-As mentioned, the game world is a bi-dimensional map. The world map is represented by an array with the dimensions specified by the `Players::MAX_WORLD_SIZE` constant. In practice, the actual map is smaller than the maximum world size, and the actual size is provided in the `context` parameter of the `Player::act()` function.
+As mentioned, the game world is a bi-dimensional map. The world map is represented by an array with the dimensions specified by the `MAX_WORLD_SIZE` constant. In practice, the actual map is smaller than the maximum world size, and the actual size is provided in the `context` parameter of the `act()` function.
 
-The constant `Players::MAX_WORLD_SIZE` is useful if players chose to cache their own world-view in arrays. The alternative is to represent the map (or portions of the map) using dynamic data structures such as Vectors.
+The constant `MAX_WORLD_SIZE` is useful if players chose to cache their own world-view in arrays. The alternative is to represent the map (or portions of the map) using dynamic data structures such as Vectors.
 
 ### Terrain
 
@@ -86,13 +86,13 @@ The world map has different types of `Terrain`:
 
 ### Positioning
 
-The `Players::Position` structure defines a position that can be used to reference a cell in the world map. The position is relative to the top-left corner of the map.
+The `Position` structure defines a position that can be used to reference a cell in the world map. The position is relative to the top-left corner of the map.
 
 The position of the origin (the top-left corner) of the map is `Position {x:0, y:0}`.
 
 Taking this into consideration, moving one step to the right on the map increments the `x` coordinate, and moving one step lower on the map increments the `y` coordinate.
 
-Pay special attention when manipulating Position data, taking into account the true meaning and direction of the horizontal (`X`) and vertical (`Y`) axis.
+Pay special attention when manipulating `Position` data, taking into account the true meaning and direction of the horizontal (`X`) and vertical (`Y`) axis.
 
 ### Orientation
 
@@ -122,7 +122,7 @@ Tanks have an attached mini-radar unit which allows them to scan their vicinity.
 - `Mono`-directional: sends the radar energy beam in a single direction
 - `Omni`-directional: sends the radar energy beam in a swift pattern all around the tank
 
-The shape and size of the scanned map surface is always a square with side length of `Players::SCANNING_DISTANCE`.
+The shape and size of the scanned map surface is always a square with side length of `SCANNING_DISTANCE`.
 
 It is important to note that the scan output will _always_ include the tank who requested it. The differences between the different types of scans affect the position of the requesting tank relative to the returned result. In the case of `Omni`-directional scanning, the scanning tank will be located in the center of the scanned area. In case of `Mono`-directional scanning, the scanning tank will be located either on the edge or corner of the scanned area (depending on `Orientation`). For example, the scanning tank will be located on the bottom-left side of the scanned area in case of a `Mono`-directional North-East scan.
 
@@ -132,37 +132,37 @@ It should be obvious that mono-directional scans will give you data that is fart
 
 By definition, tanks can shoot shells on each other. Shooting depends on the aiming type, and there are two types of `Aiming`:
 
-- `Positional` aiming: defines the exact coordinate where the shell will hit on the map
-- `Cardinal` aiming: defines the cardinal orientation the shell path will follow
+- `Aiming::Positional` : defines the exact coordinate where the shell will hit on the map
+- `Aiming::Cardinal` : defines the cardinal orientation the shell path will follow
 
 These two aiming types have different pros and cons:
 
-- `Positional`:
+- **Positional**:
   - Pro: shooting is precisely at the specified `Position`
   - Con: the range is limited to the area that is returned by an `Omni`-directional scan
-- `Cardinal`:
+- **Cardinal**:
   - Pro: the range is limited to the area that is returned by a `Mono`-directional scan
   - Con: the line of shooting must be one of the eight cardinal `Orientation`
 
 The shell will impact in one of these conditions:
 
-- for `Positional` aiming, at the indicated position
-- for `Cardinal` aiming, if it hits directly any tank along the way, otherwise at the end of its range
+- for **Positional** aiming, at the indicated position
+- for **Cardinal** aiming, if it hits directly any tank along the way, otherwise at the end of its range
 
-In all cases, regardless on where a shell lands (even if on a player, or any type of terrain), the shell will create a `3x3 square` damage pattern. Anything located in the middle of that 3x3 square pattern will suffer a `direct hit` and anything located on the edges of that 3x3 square pattern will suffer an `indirect hit`.
+In all cases, regardless on where a shell lands (even if on a player, or any type of terrain), the shell will create a **3x3 square damage pattern**. Anything located in the middle of that 3x3 square pattern will suffer a **direct hit** and anything located on the edges of that 3x3 square pattern will suffer an **indirect hit**.
 
 Damage is done exclusively to other tanks, the terrain will not suffer any changes upon a shell impact. In other words, one cannot clear the forest by shooting at it. In fact the shots are flying over the forest.
 
-- `Direct hit` is when the shell lands exactly on the enemy or if the enemy is aligned perfectly along the same cardinal `Orientation` as the flying shell, with respect of the shooting player (in case of `Cardinal` aiming).
-- `Indirect hit` is when the shell lands on any of the immediately adjacent cells to the enemy or if another player located on a immediately adjacent cell is directly hit.
+- **Direct hit** is when the shell lands exactly on the enemy or if the enemy is aligned perfectly along the same cardinal `Orientation` as the flying shell, with respect of the shooting player (in case of `Aiming::Cardinal`).
+- **Indirect hit** is when the shell lands on any of the immediately adjacent cells to the enemy or if another player located on a immediately adjacent cell is directly hit.
 
-As a corolary: if a tank shoots at an enemy or a position which is located `right next to it`, it will also suffer an indirect hit, because of the damage pattern explained above. It should not be possible to perform a `direct hit` on itself (anti-suicide rule).
+**As a corolary**, if a tank shoots at an enemy or a position which is located right next to it, it will also suffer an indirect hit, because of the damage pattern explained above. It should not be possible to perform a direct hit on itself (anti-suicide rule).
 
 Please note that shooting can be done in any direction, in other words the orientation of the tank and its turret are independent. Also, turret rotation is 'free', i.e. it is not performed by the game engine as an `Action`.
 
 **Examples**:
 
-In the next scenario, we look at `Positional` shooting. The hero is is located in the middle of the map, and the enemy is offset. Assuming that the enemy is close enough for `Positional` shooting, the hero is able to strike precisely, even if the enemy is not perfectly alligned on any cardinal `Orientation`.
+In the next scenario, we look at Positional shooting. The hero is is located in the middle of the map, and the enemy is offset. Assuming that the enemy is close enough for Positional shooting, the hero is able to strike precisely, even if the enemy is not perfectly alligned on any cardinal `Orientation`.
 
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
@@ -180,7 +180,7 @@ In the next scenario, we look at `Positional` shooting. The hero is is located i
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
 
-In the next scenario, the hero shoots while the enemy is moving, and the shell lands right next to the enemy. This is an example of `indirect hit` during a `Positional` shooting.
+In the next scenario, the hero shoots while the enemy is moving, and the shell lands right next to the enemy. This is an example of **indirect hit** during a Positional shooting.
 
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
@@ -198,7 +198,7 @@ In the next scenario, the hero shoots while the enemy is moving, and the shell l
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
 
-In the next scenario, we look at `Cardinal` shooting. The hero is located on the left side of the map, an the enemy is straight to the right of our hero. We can observe that the hitting distance is larger.
+In the next scenario, we look at Cardinal shooting. The hero is located on the left side of the map, an the enemy is straight to the right of our hero. We can observe that the hitting distance is larger.
 
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
@@ -216,7 +216,7 @@ In the next scenario, we look at `Cardinal` shooting. The hero is located on the
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
 
-In the following scenario of `Cardinal` shooting, the enemy is slightly offset from the orientation, therefore the shell is missing, and doesn't damage the enemy. You can observe that the shell still lands at the end of its range, but in this case it doesn't damage the enemy tank.
+In the following scenario of Cardinal shooting, the enemy is slightly offset from the orientation, therefore the shell is missing, and doesn't damage the enemy. You can observe that the shell still lands at the end of its range, but in this case it doesn't damage the enemy tank.
 
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
@@ -234,7 +234,7 @@ In the following scenario of `Cardinal` shooting, the enemy is slightly offset f
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
 
-The next scenario is very similar to the one above, only that the enemy player is close enough to where the shell lands, and you can see how in this case the enemy suffers an `indirect hit`.
+The next scenario is very similar to the one above, only that the enemy player is close enough to where the shell lands, and you can see how in this case the enemy suffers an indirect hit.
 
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
@@ -252,7 +252,7 @@ The next scenario is very similar to the one above, only that the enemy player i
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
 
-In the last scenario, we revisit a modified version of a previous scenario, where we add another enemy immediately near our main target. In this scenario, the main enemy (the one surrounded by the flames) will suffer a `direct hit`, while the enemy next to it will suffer a `indirect hit`.
+In the last scenario, we revisit a modified version of a previous scenario, where we add another enemy immediately near our main target. In this scenario, the main enemy (the one surrounded by the flames) will suffer a direct hit, while the enemy next to it will suffer a indirect hit.
 
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
@@ -270,7 +270,7 @@ In the last scenario, we revisit a modified version of a previous scenario, wher
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
     🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
 
-Please note that the same damage pattern is created regardless if the shell has landed directly on another tank or on an unoccupied terrain, or if `Cardinal` or `Positional` aiming was used.
+Please note that the same damage pattern is created regardless if the shell has landed directly on another tank or on an unoccupied terrain, or if Cardinal or Positional aiming was used.
 
 ### Damage
 
@@ -278,10 +278,10 @@ The damage is expressed as a percentage of _full health_. Any damage inflicted b
 
 Tanks take damage in several scenarios:
 
-- When entering `Lake` terrain, the damage is **100%** (instant death, by drowning)
+- When entering `Terrain::Lake`, the damage is **100%** (instant death, by drowning)
 - The damage is **75%** for direct hits, and **25%** for indirect hits
 - When colliding with other tanks, the damage is **25%** _to both tanks_
-- When colliding with `Forest` terrain, the damage is **10%**
+- When colliding with `Terrain::Forest`, the damage to the tank is **10%**
 
 ## Strategy
 
