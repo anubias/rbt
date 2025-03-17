@@ -11,3 +11,4 @@ pub mod reponen;
 pub mod salonen;
 pub mod siimesjarvi;
 pub mod terava;
+pub mod fox;
