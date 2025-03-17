@@ -14,9 +14,9 @@ use api::{
 };
 use engine::world::World;
 use players::{
-    alvarez::Luis, armholt::Swede, arola::Arola, laurikainen::PlayerOne, moykkynen::Joonas,
-    niemisto::Niemisto, pop::Aurelian, rahtu::Rahtu, rantala::PlayerTeemu, reponen::Samuli,
-    salonen::Es, siimesjarvi::Siimesjarvi, terava::PlAgiAntti,
+    alvarez::Luis, armholt::Swede, arola::Arola, fox::TwentyCenturyFox, laurikainen::PlayerOne,
+    moykkynen::Joonas, niemisto::Niemisto, pop::Aurelian, rahtu::Rahtu, rantala::PlayerTeemu,
+    reponen::Samuli, salonen::Es, siimesjarvi::Siimesjarvi, terava::PlAgiAntti,
 };
 use terminal::Terminal;
 
@@ -52,6 +52,7 @@ fn spawn_players(game: &mut Game) {
     game.spawn_single_player(Box::new(Es::new()));
     game.spawn_single_player(Box::new(Siimesjarvi::new()));
     game.spawn_single_player(Box::new(PlAgiAntti::new()));
+    game.spawn_single_player(Box::new(TwentyCenturyFox::new()));
 }
 
 fn avatar(player_id: usize) -> char {
