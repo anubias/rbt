@@ -17,7 +17,7 @@ impl std::fmt::Display for ScanType {
     }
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Default, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ScanResult {
     pub scan_type: ScanType,
     pub data: Box<[[MapCell; SCANNING_DISTANCE]; SCANNING_DISTANCE]>,
