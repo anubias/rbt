@@ -39,12 +39,12 @@ pub struct World {
     rng: ThreadRng,
     size: WorldSize,
     tanks: HashMap<PlayerId, Tank>,
-    turn_number: usize,
     tick: u64,
+    turn_number: usize,
 }
 
 impl World {
-    pub fn new(tick: u64, size: WorldSize) -> Self {
+    pub fn new(animation: bool, tick: u64, size: WorldSize) -> Self {
         if size.x > MAX_WORLD_SIZE || size.y > MAX_WORLD_SIZE {
             panic!(
                 "\nWorld size {size} is too big! Maximum accepted size for each dimension is {MAX_WORLD_SIZE}\n\n"
@@ -52,7 +52,7 @@ impl World {
         }
 
         loop {
-            let result = World::generate_world(size.clone(), tick);
+            let result = World::generate_world(animation, tick, size.clone());
 
             if !result.sea_world() {
                 break result;
@@ -842,16 +842,16 @@ impl World {
         percentage >= SEA_WORLD_PERCENTAGE
     }
 
-    fn generate_world(size: WorldSize, tick: u64) -> Self {
+    fn generate_world(animation: bool, tick: u64, size: WorldSize) -> Self {
         let mut result = Self {
-            animation: false,
+            animation,
             map: Box::new([[MapCell::Unallocated; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
             max_turns: compute_game_turns(&size),
             rng: thread_rng(),
             size,
             tanks: HashMap::new(),
-            turn_number: 0,
             tick,
+            turn_number: 0,
         };
         result.generate_map_border();
 
