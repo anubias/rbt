@@ -419,11 +419,8 @@ impl AdvancedStrategy {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::avatar;
-    use crate::DEAD_AVATAR;
-
     use super::*;
+    use crate::engine::game::{avatar, DEAD_AVATAR};
 
     #[test]
     fn check_initial_player_values() {
