@@ -4,11 +4,6 @@ use crate::{
         world_size::WorldSize,
     },
     engine::world::World,
-    players::{
-        alvarez::Luis, armholt::Swede, arola::Arola, fox::TwentyCenturyFox, laurikainen::PlayerOne,
-        moykkynen::Joonas, niemisto::Niemisto, pop::Aurelian, rahtu::Rahtu, rantala::PlayerTeemu,
-        reponen::Samuli, salonen::Es, siimesjarvi::Siimesjarvi, terava::PlAgiAntti,
-    },
     terminal::Terminal,
 };
 
@@ -42,13 +37,7 @@ impl Game {
         }
     }
 
-    pub fn spawn_single_player(&mut self, player: Box<dyn Player>) {
-        self.player_count += 1;
-
-        self.world.spawn_player(player, avatar(self.player_count));
-    }
-
-    pub fn main_loop(&mut self) {
+    pub fn start(&mut self) {
         Terminal::enter_raw_mode();
 
         let mut terminal = Terminal::new();
@@ -135,21 +124,10 @@ impl Game {
         terminal.clear_below();
     }
 
-    pub fn spawn_players(&mut self) {
-        self.spawn_single_player(Box::new(Luis::new()));
-        self.spawn_single_player(Box::new(Swede::new()));
-        self.spawn_single_player(Box::new(Arola::new()));
-        self.spawn_single_player(Box::new(PlayerOne::new()));
-        self.spawn_single_player(Box::new(Joonas::new()));
-        self.spawn_single_player(Box::new(Niemisto::new()));
-        self.spawn_single_player(Box::new(Aurelian::new()));
-        self.spawn_single_player(Box::new(Rahtu::new()));
-        self.spawn_single_player(Box::new(PlayerTeemu::new()));
-        self.spawn_single_player(Box::new(Samuli::new()));
-        self.spawn_single_player(Box::new(Es::new()));
-        self.spawn_single_player(Box::new(Siimesjarvi::new()));
-        self.spawn_single_player(Box::new(PlAgiAntti::new()));
-        self.spawn_single_player(Box::new(TwentyCenturyFox::new()));
+    pub fn spawn_player(&mut self, player: Box<dyn Player>) {
+        self.player_count += 1;
+
+        self.world.spawn_player(player, avatar(self.player_count));
     }
 }
 
@@ -171,14 +149,6 @@ impl Drop for Game {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_no_player_is_ready() {
-        let mut game = Game::new();
-        game.spawn_players();
-
-        assert!(game.world.get_ready_players().is_empty());
-    }
 
     #[test]
     fn test_animation_is_off() {
