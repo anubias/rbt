@@ -3,7 +3,7 @@ use crate::{
         action::Action, context::Context as ApiContext, map_cell::Terrain, player::Details,
         position::Position, rotation::Rotation, scan::ScanResult, world_size::WorldSize,
     },
-    DEAD_AVATAR,
+    engine::game::DEAD_AVATAR,
 };
 
 /// Private consts

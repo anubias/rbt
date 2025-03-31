@@ -981,8 +981,9 @@ fn compute_game_turns(world_size: &WorldSize) -> usize {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
-    use crate::DEFAULT_AVATAR;
+    use crate::engine::game::DEAD_AVATAR;
 
     const MINI_MAP_SIZE: usize = 10;
 
@@ -1108,7 +1109,7 @@ mod tests {
         let position = Position { x: 5, y: 2 };
         assert!(world.cell_read(&position) == MapCell::Terrain(Terrain::Field));
 
-        let player_details = Details::new(DEFAULT_AVATAR, 10);
+        let player_details = Details::new(DEAD_AVATAR, 10);
         let result = world.try_set_player_on_cell(player_details, &position);
         assert!(result.is_some());
     }
@@ -1123,7 +1124,7 @@ mod tests {
             world.cell_read(&position) == MapCell::Terrain(Terrain::Forest(TreeType::Deciduous))
         );
 
-        let player_details = Details::new(DEFAULT_AVATAR, 10);
+        let player_details = Details::new(DEAD_AVATAR, 10);
         let result = world.try_set_player_on_cell(player_details, &position);
         assert!(result.is_none());
     }
@@ -1136,7 +1137,7 @@ mod tests {
         let position = Position { x: 3, y: 2 };
         assert!(world.cell_read(&position) == MapCell::Terrain(Terrain::Lake));
 
-        let player_details = Details::new(DEFAULT_AVATAR, 10);
+        let player_details = Details::new(DEAD_AVATAR, 10);
         let result = world.try_set_player_on_cell(player_details, &position);
         assert!(result.is_some());
     }
@@ -1149,7 +1150,7 @@ mod tests {
         let position = Position { x: 5, y: 0 };
         assert!(world.cell_read(&position) == MapCell::Terrain(Terrain::Swamp));
 
-        let player_details = Details::new(DEFAULT_AVATAR, 10);
+        let player_details = Details::new(DEAD_AVATAR, 10);
         let result = world.try_set_player_on_cell(player_details, &position);
         assert!(result.is_some());
     }
@@ -1160,7 +1161,7 @@ mod tests {
         fill_fields(&mut world);
 
         let position = Position { x: 5, y: 2 };
-        let player_details = Details::new(DEFAULT_AVATAR, 10);
+        let player_details = Details::new(DEAD_AVATAR, 10);
         let result = world.try_set_player_on_cell(player_details, &position);
         assert!(result.is_some());
 
@@ -1178,14 +1179,14 @@ mod tests {
         fill_fields(&mut world);
 
         let position_lower_player = Position { x: 5, y: 2 };
-        let lower_player_details = Details::new(DEFAULT_AVATAR, 10);
+        let lower_player_details = Details::new(DEAD_AVATAR, 10);
         let result = world.try_set_player_on_cell(lower_player_details, &position_lower_player);
         assert!(result.is_some());
 
         let position_upper_player = position_lower_player
             .follow(&Orientation::North, &world.size)
             .unwrap();
-        let upper_player_details = Details::new(DEFAULT_AVATAR, lower_player_details.id + 1);
+        let upper_player_details = Details::new(DEAD_AVATAR, lower_player_details.id + 1);
         let result = world.try_set_player_on_cell(upper_player_details, &position_upper_player);
         assert!(result.is_some());
 
