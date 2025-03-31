@@ -1,5 +1,5 @@
 use crate::{
-    api::player::Player,
+    api::{player::Player, world_size::WorldSize},
     engine::game::Game,
     players::{
         alvarez::Luis, armholt::Swede, arola::Arola, fox::TwentyCenturyFox, laurikainen::PlayerOne,
@@ -16,11 +16,12 @@ pub enum League {
 pub struct Championship {
     //results: Vec
     league: League,
+    world_size: WorldSize,
 }
 
 impl Championship {
-    pub fn new(league: League) -> Self {
-        Championship { league }
+    pub fn new(league: League, world_size: WorldSize) -> Self {
+        Championship { league, world_size }
     }
 
     pub fn build_academy_championship() -> Vec<Box<dyn Player>> {
@@ -48,13 +49,13 @@ impl Championship {
                 League::Academy => Championship::build_academy_championship(),
             };
 
-            run_game(players);
+            run_game(players, self.world_size.clone());
         }
     }
 }
 
-fn run_game(players: Vec<Box<dyn Player>>) {
-    let mut game = Game::new();
+fn run_game(players: Vec<Box<dyn Player>>, world_size: WorldSize) {
+    let mut game = Game::new(world_size);
     for player in players {
         game.spawn_player(player);
     }

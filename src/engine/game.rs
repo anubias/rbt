@@ -26,13 +26,13 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new() -> Self {
+    pub fn new(world_size: WorldSize) -> Self {
         Self {
             player_count: 0,
             world: Box::new(World::new(
                 ENABLE_SHELL_ANIMATION,
                 GAME_TICK_DURATION_MSEC,
-                WorldSize { x: 60, y: 30 },
+                world_size,
             )),
         }
     }
