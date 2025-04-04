@@ -8,24 +8,24 @@ use crate::{
 
 /// Private consts
 
-const DAMAGE_SINKING_INTO_LAKE: usize = 100;
-const DAMAGE_DIRECT_HIT: usize = 75;
-const DAMAGE_INDIRECT_HIT: usize = 25;
-const DAMAGE_COLLISION_WITH_PLAYER: usize = 25;
-const DAMAGE_COLLISION_WITH_FOREST: usize = 10;
+const DAMAGE_SINKING_INTO_LAKE: u16 = 100;
+const DAMAGE_DIRECT_HIT: u16 = 75;
+const DAMAGE_INDIRECT_HIT: u16 = 25;
+const DAMAGE_COLLISION_WITH_PLAYER: u16 = 25;
+const DAMAGE_COLLISION_WITH_FOREST: u16 = 10;
 
-const SCORE_INDIRECT_HIT_BONUS: usize = 1;
-const SCORE_DIRECT_HIT_BONUS: usize = 2;
-const SCORE_KILLING_BONUS: usize = 3;
-const SCORE_SURVIVOR_BONUS: usize = 5;
+const SCORE_INDIRECT_HIT_BONUS: u16 = 1;
+const SCORE_DIRECT_HIT_BONUS: u16 = 2;
+const SCORE_KILLING_BONUS: u16 = 3;
+const SCORE_SURVIVOR_BONUS: u16 = 5;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Score {
-    value: usize,
+    value: u16,
 }
 
 impl Score {
-    fn increment(&mut self, points: usize) {
+    fn increment(&mut self, points: u16) {
         self.value += points;
     }
 }
@@ -75,11 +75,11 @@ impl Context {
         other.generic_damage(DAMAGE_COLLISION_WITH_PLAYER);
     }
 
-    pub fn damage_direct_hit(&mut self, shooter_id: u8) -> usize {
+    pub fn damage_direct_hit(&mut self, shooter_id: u8) -> u16 {
         self.hit_damage(shooter_id, DAMAGE_DIRECT_HIT, SCORE_DIRECT_HIT_BONUS)
     }
 
-    pub fn damage_indirect_hit(&mut self, shooter_id: u8) -> usize {
+    pub fn damage_indirect_hit(&mut self, shooter_id: u8) -> u16 {
         self.hit_damage(shooter_id, DAMAGE_INDIRECT_HIT, SCORE_INDIRECT_HIT_BONUS)
     }
 
@@ -89,7 +89,7 @@ impl Context {
         }
     }
 
-    pub fn reward_hits(&mut self, amount: usize) {
+    pub fn reward_hits(&mut self, amount: u16) {
         if self.health > 0 {
             self.score.increment(amount);
         }
@@ -138,7 +138,7 @@ impl Context {
         &self.scan
     }
 
-    pub fn score(&self) -> usize {
+    pub fn score(&self) -> u16 {
         self.score.value
     }
 
@@ -168,7 +168,7 @@ impl Context {
 }
 
 impl Context {
-    fn generic_damage(&mut self, amount: usize) {
+    fn generic_damage(&mut self, amount: u16) {
         self.health = self.health.saturating_sub(amount as u8);
         if self.health == 0 {
             self.player_details.avatar = DEAD_AVATAR;
@@ -176,7 +176,7 @@ impl Context {
         }
     }
 
-    fn hit_damage(&mut self, shooter_id: u8, damage_amount: usize, reward_amount: usize) -> usize {
+    fn hit_damage(&mut self, shooter_id: u8, damage_amount: u16, reward_amount: u16) -> u16 {
         let mut reward = 0;
 
         if self.health > 0 {
