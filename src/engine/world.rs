@@ -16,6 +16,7 @@ use crate::{
     },
     engine::{
         context::Context,
+        outcome::{PlayerOutcome, TurnOutcome},
         shell::{Shell, ShellState},
         tank::Tank,
     },
@@ -62,6 +63,10 @@ impl World {
         }
     }
 
+    pub fn map(&self) -> Box<[[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]> {
+        self.map.clone()
+    }
+
     pub fn update_animation(&mut self, animation: bool) {
         self.animation = animation;
     }
@@ -70,27 +75,41 @@ impl World {
         self.tick = tick;
     }
 
-    pub fn new_turn(&mut self, terminal: &mut Terminal) {
+    pub fn new_turn(&mut self, terminal: &mut Terminal) -> TurnOutcome {
+        let mut turn_outcome = TurnOutcome::new(self.turn_number);
+
         let mut actions = Vec::new();
 
         self.turn_number += 1;
-        for (player_details, tank) in self.tanks.iter_mut() {
+        for (player_id, tank) in self.tanks.iter_mut() {
             if tank.player().is_ready() && tank.context().health() > 0 {
                 let context = tank.context().clone();
-                let action = tank.player_mut().act(context.into());
+                let action = tank.player_mut().act(context.clone().into());
 
                 tank.context_mut().set_previous_action(action.clone());
                 tank.context_mut().set_scanned_data(None);
                 tank.context_mut().set_turn(self.turn_number);
 
-                actions.push((*player_details, action));
+                actions.push((*player_id, action.clone()));
+
+                turn_outcome.add_player_outcome(
+                    *player_id,
+                    PlayerOutcome::new(
+                        action,
+                        context.health(),
+                        context.position().clone(),
+                        context.score(),
+                    ),
+                );
             }
         }
 
         terminal.move_caret_to_origin();
         terminal.println(&self);
 
-        self.process_player_actions(terminal, actions)
+        self.process_player_actions(terminal, actions);
+
+        turn_outcome
     }
 
     pub fn spawn_player(&mut self, mut player: Box<dyn Player>, avatar: Avatar) {

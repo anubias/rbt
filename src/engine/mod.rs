@@ -1,4 +1,5 @@
 mod context;
+mod outcome;
 mod shell;
 mod tank;
 mod world;

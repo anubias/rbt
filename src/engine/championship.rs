@@ -1,6 +1,9 @@
 use crate::{
     api::{player::Player, world_size::WorldSize},
-    engine::game::Game,
+    engine::{
+        game::Game,
+        outcome::{ChampionshipOutcome, GameOutcome},
+    },
     players::{
         alvarez::Luis, armholt::Swede, arola::Arola, fox::TwentyCenturyFox, laurikainen::PlayerOne,
         moykkynen::Joonas, niemisto::Niemisto, pop::Aurelian, rahtu::Rahtu, rantala::PlayerTeemu,
@@ -10,11 +13,10 @@ use crate::{
 
 pub enum League {
     Academy,
-    // Open,
+    Open,
 }
 
 pub struct Championship {
-    //results: Vec
     league: League,
     world_size: WorldSize,
 }
@@ -24,8 +26,32 @@ impl Championship {
         Championship { league, world_size }
     }
 
-    pub fn build_academy_championship() -> Vec<Box<dyn Player>> {
-        vec![
+    pub fn run(&mut self, rounds: u32) {
+        let mut championship_outcome = ChampionshipOutcome::new();
+        let players = self.get_players();
+        for (rank, player) in players.into_iter().enumerate() {
+            championship_outcome.add_player(rank as u8 + 1, player.name());
+        }
+
+        for _ in 0..rounds {
+            let players = self.get_players();
+            let game_outcome = self.run_single_game(players, self.world_size.clone());
+
+            championship_outcome.add_game_result(game_outcome);
+        }
+    }
+}
+
+impl Championship {
+    fn run_single_game(&self, players: Vec<Box<dyn Player>>, world_size: WorldSize) -> GameOutcome {
+        let mut game = Game::new(world_size);
+        game.spawn_players(players);
+
+        game.start()
+    }
+
+    fn get_players(&self) -> Vec<Box<dyn Player>> {
+        let mut result: Vec<Box<dyn Player>> = vec![
             Box::new(Luis::new()),
             Box::new(Swede::new()),
             Box::new(Arola::new()),
@@ -40,27 +66,17 @@ impl Championship {
             Box::new(Siimesjarvi::new()),
             Box::new(PlAgiAntti::new()),
             Box::new(TwentyCenturyFox::new()),
-        ]
-    }
+        ];
 
-    pub fn run(&mut self, rounds: u32) {
-        for _ in 0..rounds {
-            let players = match self.league {
-                League::Academy => Championship::build_academy_championship(),
-            };
+        let mut open_players: Vec<Box<dyn Player>> = vec![Box::new(Aurelian::new())];
 
-            run_game(players, self.world_size.clone());
+        match self.league {
+            League::Academy => {}
+            League::Open => result.append(&mut open_players),
         }
-    }
-}
 
-fn run_game(players: Vec<Box<dyn Player>>, world_size: WorldSize) {
-    let mut game = Game::new(world_size);
-    for player in players {
-        game.spawn_player(player);
+        result
     }
-
-    game.start();
 }
 
 #[cfg(test)]
@@ -69,7 +85,8 @@ mod tests {
 
     #[test]
     fn test_no_player_is_ready() {
-        let players = Championship::build_academy_championship();
+        let championship = Championship::new(League::Academy, WorldSize { x: 60, y: 45 });
+        let players = championship.get_players();
 
         for player in players {
             assert!(!player.is_ready());

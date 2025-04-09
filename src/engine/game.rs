@@ -3,11 +3,12 @@ use crate::{
         player::{Avatar, Player},
         world_size::WorldSize,
     },
-    engine::world::World,
+    engine::{outcome::GameOutcome, world::World},
     terminal::Terminal,
 };
 
 use crossterm::event::{poll, read, Event, KeyCode};
+
 use std::time::Duration;
 
 const ENABLE_SHELL_ANIMATION: bool = false;
@@ -21,14 +22,12 @@ const AVATARS: [Avatar; 18] = [
 ];
 
 pub struct Game {
-    player_count: usize,
     world: Box<World>,
 }
 
 impl Game {
     pub fn new(world_size: WorldSize) -> Self {
         Self {
-            player_count: 0,
             world: Box::new(World::new(
                 ENABLE_SHELL_ANIMATION,
                 GAME_TICK_DURATION_MSEC,
@@ -37,7 +36,7 @@ impl Game {
         }
     }
 
-    pub fn start(&mut self) {
+    pub fn start(&mut self) -> GameOutcome {
         Terminal::enter_raw_mode();
 
         let mut terminal = Terminal::new();
@@ -48,6 +47,8 @@ impl Game {
         let mut next = false;
         let mut animation = ENABLE_SHELL_ANIMATION;
         let mut tick_ms = GAME_TICK_DURATION_MSEC;
+
+        let mut game_outcome = GameOutcome::new(self.world.map());
 
         while !self.world.is_game_over() {
             if let Ok(true) = poll(Duration::from_millis(0)) {
@@ -82,7 +83,8 @@ impl Game {
                 continue;
             }
 
-            self.world.new_turn(&mut terminal);
+            let turn_outcome = self.world.new_turn(&mut terminal);
+            game_outcome.add_turn_outcome(turn_outcome);
 
             if next {
                 pause = true;
@@ -110,24 +112,29 @@ impl Game {
         terminal.println("=========\n");
         terminal.println("RANK  SCORE  PLAYER");
         terminal.println("----  -----  -------------------------");
-        for (place, player) in players.iter().enumerate() {
+        for (place, &tank) in players.iter().enumerate() {
             let text = format!(
                 " {:02}    {:03}   {}",
                 place + 1,
-                player.context().score(),
-                player.player().name()
+                tank.context().score(),
+                tank.player().name()
             );
             terminal.println(text);
+
+            game_outcome
+                .add_player_score(tank.context().player_details().id, tank.context().score());
         }
 
         terminal.println("");
         terminal.clear_below();
+
+        game_outcome
     }
 
-    pub fn spawn_player(&mut self, player: Box<dyn Player>) {
-        self.player_count += 1;
-
-        self.world.spawn_player(player, avatar(self.player_count));
+    pub fn spawn_players(&mut self, players: Vec<Box<dyn Player>>) {
+        for (rank, player) in players.into_iter().enumerate() {
+            self.world.spawn_player(player, avatar(rank + 1));
+        }
     }
 }
 
