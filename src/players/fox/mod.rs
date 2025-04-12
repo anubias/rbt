@@ -19,7 +19,6 @@ const MAX_STEPS: u8 = 3;
 
 pub struct TwentyCenturyFox {
     move_action: Action,
-    rng: ThreadRng,
     scan_data: ScanResult,
     scan_pos: Position,
     steps: u8,
@@ -31,7 +30,6 @@ impl TwentyCenturyFox {
     pub fn new() -> Self {
         Self {
             move_action: Action::default(),
-            rng: thread_rng(),
             scan_data: ScanResult::default(),
             scan_pos: Position { x: 0, y: 0 },
             steps: 0,
@@ -42,25 +40,22 @@ impl TwentyCenturyFox {
 }
 
 impl TwentyCenturyFox {
-    fn random_orientation(&mut self) -> Orientation {
-        Orientation::from(
-            self.rng
-                .gen_range(0..Orientation::get_cardinal_direction_count()),
-        )
+    fn random_orientation(&mut self, rng: &mut ThreadRng) -> Orientation {
+        Orientation::from(rng.gen_range(0..Orientation::get_cardinal_direction_count()))
     }
 
-    fn next_state(&mut self, context: Context) -> Action {
+    fn next_state(&mut self, context: Context, rng: &mut ThreadRng) -> Action {
         match context.previous_action() {
             Action::Idle => Action::Scan(ScanType::Omni),
             Action::Scan(_) => {
                 self.scan_data = context.scanned_data().clone().unwrap_or_default();
                 self.scan_pos = context.position().clone();
-                self.move_or_rotate(&context);
+                self.move_or_rotate(&context, rng);
                 self.move_action.clone()
             }
             Action::Fire(_) => self.move_action.clone(),
             Action::Move(_) => {
-                self.move_or_rotate(&context);
+                self.move_or_rotate(&context, rng);
                 self.next_step(context)
             }
             Action::Rotate(_) => {
@@ -72,13 +67,13 @@ impl TwentyCenturyFox {
         }
     }
 
-    fn move_or_rotate(&mut self, context: &Context) {
+    fn move_or_rotate(&mut self, context: &Context, rng: &mut ThreadRng) {
         let (mut valid_pos, mut walkable_pos) = self.check_next_pos(context);
 
         let mut x = 0;
         while !(valid_pos && walkable_pos) {
             // select random orientation
-            self.target_orientation = self.random_orientation();
+            self.target_orientation = self.random_orientation(rng);
 
             // check if valid and walkable
             (valid_pos, walkable_pos) = self.check_next_pos(context);
@@ -149,7 +144,8 @@ impl Player for TwentyCenturyFox {
     fn act(&mut self, context: Context) -> Action {
         // self.terminal.println(&self.scan_data);
 
-        self.next_state(context)
+        let mut rng: ThreadRng = thread_rng();
+        self.next_state(context, &mut rng)
     }
 
     fn name(&self) -> String {

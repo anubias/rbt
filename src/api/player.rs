@@ -15,7 +15,7 @@ pub const INVALID_PLAYER: Details = Details {
 
 /// Public trait that players need to implement, in order for the game engine
 /// to be able to interact with the player.
-pub trait Player {
+pub trait Player: Send {
     /// Implement this method if and only if you need to perform expensive and
     /// potentially failing initialization.
     ///
