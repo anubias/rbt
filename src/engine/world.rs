@@ -1,6 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::{
     api::{
@@ -77,31 +78,41 @@ impl World {
 
     pub fn new_turn(&mut self, terminal: &mut Terminal) -> TurnOutcome {
         let mut turn_outcome = TurnOutcome::new(self.turn_number);
+        self.turn_number += 1;
+
+        // Parallelize processing of tanks
+        let outcomes: Vec<(u8, Action, PlayerOutcome)> = self
+            .tanks
+            .par_iter_mut()
+            .filter_map(|(player_id, tank)| {
+                if tank.player().is_ready() && tank.context().health() > 0 {
+                    let context = tank.context().clone();
+                    let action = tank.player_mut().act(context.clone().into());
+
+                    tank.context_mut().set_previous_action(action.clone());
+                    tank.context_mut().set_scanned_data(None);
+                    tank.context_mut().set_turn(self.turn_number);
+
+                    Some((
+                        *player_id,
+                        action.clone(),
+                        PlayerOutcome::new(
+                            action,
+                            context.health(),
+                            context.position().clone(),
+                            context.score(),
+                        ),
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect();
 
         let mut actions = Vec::new();
-
-        self.turn_number += 1;
-        for (player_id, tank) in self.tanks.iter_mut() {
-            if tank.player().is_ready() && tank.context().health() > 0 {
-                let context = tank.context().clone();
-                let action = tank.player_mut().act(context.clone().into());
-
-                tank.context_mut().set_previous_action(action.clone());
-                tank.context_mut().set_scanned_data(None);
-                tank.context_mut().set_turn(self.turn_number);
-
-                actions.push((*player_id, action.clone()));
-
-                turn_outcome.add_player_outcome(
-                    *player_id,
-                    PlayerOutcome::new(
-                        action,
-                        context.health(),
-                        context.position().clone(),
-                        context.score(),
-                    ),
-                );
-            }
+        for (a, b, c) in outcomes {
+            actions.push((a, b));
+            turn_outcome.add_player_outcome(a, c);
         }
 
         terminal.move_caret_to_origin();
