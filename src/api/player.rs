@@ -48,7 +48,7 @@ pub struct Details {
 }
 
 impl Details {
-    pub fn new(avatar: char, id: PlayerId) -> Self {
+    pub fn new(avatar: Avatar, id: PlayerId) -> Self {
         if id == 0 {
             panic!("Invalid player id=0 used!");
         }

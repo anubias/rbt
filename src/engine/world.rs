@@ -8,7 +8,7 @@ use crate::{
         direction::Direction,
         map_cell::{MapCell, Terrain, TreeType},
         orientation::Orientation,
-        player::{Details, Player, PlayerId, INVALID_PLAYER},
+        player::{Avatar, Details, Player, PlayerId, INVALID_PLAYER},
         position::{Position, CARDINAL_SHOT_DISTANCE, POSITIONAL_SHOT_DISTANCE, SCANNING_DISTANCE},
         rotation::Rotation,
         scan::{ScanResult, ScanType},
@@ -93,7 +93,7 @@ impl World {
         self.process_player_actions(terminal, actions)
     }
 
-    pub fn spawn_player(&mut self, mut player: Box<dyn Player>, avatar: char) {
+    pub fn spawn_player(&mut self, mut player: Box<dyn Player>, avatar: Avatar) {
         let random = self.get_random_location(MapCell::Terrain(Terrain::Field));
 
         if let Some(position) = random {
