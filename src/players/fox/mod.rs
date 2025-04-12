@@ -151,4 +151,8 @@ impl Player for TwentyCenturyFox {
     fn name(&self) -> String {
         "Twenty Century Fox".to_string()
     }
+
+    fn is_ready(&self) -> bool {
+        true
+    }
 }
