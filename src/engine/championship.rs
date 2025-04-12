@@ -33,21 +33,30 @@ impl Championship {
             championship_outcome.add_player(rank as u8 + 1, player.name());
         }
 
-        for _ in 0..rounds {
+        for i in 0..rounds {
+            let game_id = i + 1;
             let players = self.get_players();
-            let game_outcome = self.run_single_game(players, self.world_size.clone());
+            let game_outcome = self.run_single_game(game_id, players, self.world_size.clone());
 
             championship_outcome.add_game_result(game_outcome);
+            println!("Game {game_id} finished");
         }
+
+        dbg!(championship_outcome);
     }
 }
 
 impl Championship {
-    fn run_single_game(&self, players: Vec<Box<dyn Player>>, world_size: WorldSize) -> GameOutcome {
+    fn run_single_game(
+        &self,
+        game_id: u32,
+        players: Vec<Box<dyn Player>>,
+        world_size: WorldSize,
+    ) -> GameOutcome {
         let mut game = Game::new(world_size);
         game.spawn_players(players);
 
-        game.start()
+        game.start(game_id)
     }
 
     fn get_players(&self) -> Vec<Box<dyn Player>> {

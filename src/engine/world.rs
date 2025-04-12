@@ -20,7 +20,7 @@ use crate::{
         shell::{Shell, ShellState},
         tank::Tank,
     },
-    terminal::Terminal,
+    terminal::{Terminal, CHAMPIONSHIP_MODE},
 };
 
 const SEA_WORLD_PERCENTAGE: f32 = 20.0;
@@ -278,7 +278,10 @@ impl World {
                 terminal.move_caret_to_origin();
                 terminal.println(self.to_string());
             }
-            std::thread::sleep(Duration::from_millis(self.tick));
+
+            if !CHAMPIONSHIP_MODE {
+                std::thread::sleep(Duration::from_millis(self.tick));
+            }
         }
     }
 
