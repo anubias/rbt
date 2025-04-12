@@ -9,7 +9,8 @@ use crossterm::{
     ExecutableCommand, QueueableCommand,
 };
 
-use crate::DEBUG_MODE;
+pub const CHAMPIONSHIP_MODE: bool = false;
+pub const DEBUG_MODE: bool = true;
 
 /// This structure should be used when trying to print anything to the console.
 /// It encapsulates and wraps up behaviour needed to redraw the screen to avoid
@@ -28,7 +29,7 @@ impl Terminal {
 
     /// This is meant for the game engine, players should avoid using it.
     pub fn enter_raw_mode() {
-        if !DEBUG_MODE {
+        if !CHAMPIONSHIP_MODE && !DEBUG_MODE {
             if enable_raw_mode().is_err() {
                 println!("Unable to enter raw mode!")
             }
@@ -37,35 +38,37 @@ impl Terminal {
 
     /// This is meant for the game engine, players should avoid using it.
     pub fn exit_raw_mode() {
-        if !DEBUG_MODE {
+        if !CHAMPIONSHIP_MODE && !DEBUG_MODE {
             let _ = disable_raw_mode();
         }
     }
 
     pub fn clear_screen(&mut self) {
-        if !DEBUG_MODE {
+        if !CHAMPIONSHIP_MODE && !DEBUG_MODE {
             let _ = self.stdout.queue(Clear(ClearType::All));
             self.move_caret_to_origin();
         }
     }
 
     pub fn clear_below(&mut self) {
-        if !DEBUG_MODE {
+        if !CHAMPIONSHIP_MODE && !DEBUG_MODE {
             let _ = self.stdout.execute(Clear(ClearType::FromCursorDown));
         }
     }
 
     pub fn move_caret_to_origin(&mut self) {
-        if !DEBUG_MODE {
+        if !CHAMPIONSHIP_MODE && !DEBUG_MODE {
             let _ = self.stdout.execute(MoveTo(0, 0));
         }
     }
 
     pub fn println<T: Display>(&mut self, printable: T) {
-        if DEBUG_MODE {
-            println!("{printable}");
-        } else {
-            let _ = self.println_text(format!("{printable}"));
+        if !CHAMPIONSHIP_MODE {
+            if DEBUG_MODE {
+                println!("{printable}");
+            } else {
+                let _ = self.println_text(format!("{printable}"));
+            }
         }
     }
 }
@@ -86,6 +89,11 @@ impl Terminal {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_championship_mode_is_off() {
+        assert!(!CHAMPIONSHIP_MODE);
+    }
 
     #[test]
     fn test_debug_mode_is_on() {

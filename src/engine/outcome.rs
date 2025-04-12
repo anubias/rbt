@@ -36,14 +36,19 @@ pub struct PlayerDetails {
 
 #[derive(Debug)]
 pub struct GameOutcome {
+    game_id: u32,
     original_map: Box<[[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]>,
     turns: Vec<TurnOutcome>,
     scores: HashMap<PlayerId, u16>,
 }
 
 impl GameOutcome {
-    pub fn new(original_map: Box<[[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]>) -> Self {
+    pub fn new(
+        game_id: u32,
+        original_map: Box<[[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]>,
+    ) -> Self {
         GameOutcome {
+            game_id,
             original_map,
             turns: Vec::new(),
             scores: HashMap::new(),

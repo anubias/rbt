@@ -4,7 +4,7 @@ use crate::{
         world_size::WorldSize,
     },
     engine::{outcome::GameOutcome, world::World},
-    terminal::Terminal,
+    terminal::{Terminal, CHAMPIONSHIP_MODE},
 };
 
 use crossterm::event::{poll, read, Event, KeyCode};
@@ -36,7 +36,7 @@ impl Game {
         }
     }
 
-    pub fn start(&mut self) -> GameOutcome {
+    pub fn start(&mut self, game_id: u32) -> GameOutcome {
         Terminal::enter_raw_mode();
 
         let mut terminal = Terminal::new();
@@ -48,39 +48,41 @@ impl Game {
         let mut animation = ENABLE_SHELL_ANIMATION;
         let mut tick_ms = GAME_TICK_DURATION_MSEC;
 
-        let mut game_outcome = GameOutcome::new(self.world.map());
+        let mut game_outcome = GameOutcome::new(game_id, self.world.map());
 
         while !self.world.is_game_over() {
-            if let Ok(true) = poll(Duration::from_millis(0)) {
-                if let Ok(event) = read() {
-                    if event == Event::Key(KeyCode::Esc.into()) {
-                        break;
-                    } else if event == Event::Key(KeyCode::Up.into()) {
-                        tick_ms = tick_ms.saturating_add(1);
-                        self.world.update_tick(tick_ms);
-                    } else if event == Event::Key(KeyCode::Down.into()) {
-                        tick_ms = tick_ms.saturating_sub(1);
-                        self.world.update_tick(tick_ms);
-                    } else if event == Event::Key(KeyCode::Char('a').into())
-                        || event == Event::Key(KeyCode::Char('A').into())
-                    {
-                        animation = !animation;
-                        self.world.update_animation(animation);
-                    } else if event == Event::Key(KeyCode::Char('n').into())
-                        || event == Event::Key(KeyCode::Char('N').into())
-                    {
-                        pause = false;
-                        next = true;
-                    } else if event == Event::Key(KeyCode::Char('p').into())
-                        || event == Event::Key(KeyCode::Char('P').into())
-                    {
-                        pause = !pause;
+            if !CHAMPIONSHIP_MODE {
+                if let Ok(true) = poll(Duration::from_millis(0)) {
+                    if let Ok(event) = read() {
+                        if event == Event::Key(KeyCode::Esc.into()) {
+                            break;
+                        } else if event == Event::Key(KeyCode::Up.into()) {
+                            tick_ms = tick_ms.saturating_add(1);
+                            self.world.update_tick(tick_ms);
+                        } else if event == Event::Key(KeyCode::Down.into()) {
+                            tick_ms = tick_ms.saturating_sub(1);
+                            self.world.update_tick(tick_ms);
+                        } else if event == Event::Key(KeyCode::Char('a').into())
+                            || event == Event::Key(KeyCode::Char('A').into())
+                        {
+                            animation = !animation;
+                            self.world.update_animation(animation);
+                        } else if event == Event::Key(KeyCode::Char('n').into())
+                            || event == Event::Key(KeyCode::Char('N').into())
+                        {
+                            pause = false;
+                            next = true;
+                        } else if event == Event::Key(KeyCode::Char('p').into())
+                            || event == Event::Key(KeyCode::Char('P').into())
+                        {
+                            pause = !pause;
+                        }
                     }
                 }
-            }
 
-            if pause {
-                continue;
+                if pause {
+                    continue;
+                }
             }
 
             let turn_outcome = self.world.new_turn(&mut terminal);
