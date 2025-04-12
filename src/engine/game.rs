@@ -131,7 +131,7 @@ impl Game {
     }
 }
 
-pub fn avatar(player_id: usize) -> char {
+pub fn avatar(player_id: usize) -> Avatar {
     let index = player_id - 1;
     if index < AVATARS.len() {
         AVATARS[index]
