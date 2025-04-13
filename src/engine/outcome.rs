@@ -7,8 +7,9 @@ use crate::api::{
 
 #[derive(Debug)]
 pub struct ChampionshipOutcome {
-    players: Vec<PlayerDetails>,
+    players: Vec<PlayerEntry>,
     game_results: Vec<GameOutcome>,
+    ranks: HashMap<PlayerId, f32>,
 }
 
 impl ChampionshipOutcome {
@@ -16,20 +17,45 @@ impl ChampionshipOutcome {
         ChampionshipOutcome {
             players: Vec::new(),
             game_results: Vec::new(),
+            ranks: HashMap::new(),
         }
     }
 
-    pub fn add_player(&mut self, id: PlayerId, name: String) {
-        self.players.push(PlayerDetails { id, name });
+    pub fn register_player(&mut self, id: PlayerId, name: String) {
+        self.players.push(PlayerEntry { id, name });
     }
 
     pub fn add_game_result(&mut self, game_result: GameOutcome) {
         self.game_results.push(game_result);
     }
+
+    pub fn compute_ranks(&mut self) {
+        for game in &self.game_results {
+            for (player_id, rank) in &game.ranks {
+                let computed_rank = self.ranks.entry(*player_id).or_default();
+                *computed_rank += *rank as f32;
+            }
+        }
+
+        for rank in self.ranks.values_mut() {
+            *rank /= self.game_results.len() as f32;
+        }
+    }
+
+    pub fn get_ranks(&self) -> HashMap<PlayerId, f32> {
+        self.ranks.clone()
+    }
+
+    pub fn get_player_name(&self, id: PlayerId) -> Option<String> {
+        self.players
+            .iter()
+            .find(|&entry| entry.id == id)
+            .map(|entry| entry.name.clone())
+    }
 }
 
 #[derive(Debug)]
-pub struct PlayerDetails {
+pub struct PlayerEntry {
     id: PlayerId,
     name: String,
 }
@@ -39,7 +65,7 @@ pub struct GameOutcome {
     game_id: u32,
     original_map: Box<[[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]>,
     turns: Vec<TurnOutcome>,
-    scores: HashMap<PlayerId, u16>,
+    ranks: HashMap<PlayerId, u8>,
 }
 
 impl GameOutcome {
@@ -51,7 +77,7 @@ impl GameOutcome {
             game_id,
             original_map,
             turns: Vec::new(),
-            scores: HashMap::new(),
+            ranks: HashMap::new(),
         }
     }
 
@@ -59,8 +85,8 @@ impl GameOutcome {
         self.turns.push(turn);
     }
 
-    pub fn add_player_score(&mut self, id: PlayerId, score: u16) {
-        self.scores.insert(id, score);
+    pub fn add_player_rank(&mut self, id: PlayerId, rank: u8) {
+        self.ranks.insert(id, rank);
     }
 }
 

@@ -26,11 +26,16 @@ impl Championship {
         Championship { league, world_size }
     }
 
-    pub fn run(&mut self, rounds: u32) {
+    pub fn run(&mut self, rounds: u32) -> ChampionshipOutcome {
         let mut championship_outcome = ChampionshipOutcome::new();
         let players = self.get_players();
-        for (rank, player) in players.into_iter().enumerate() {
-            championship_outcome.add_player(rank as u8 + 1, player.name());
+
+        let mut player_id = 0;
+        for player in players {
+            if player.is_ready() {
+                player_id += 1;
+                championship_outcome.register_player(player_id, player.name());
+            }
         }
 
         for i in 0..rounds {
@@ -46,8 +51,9 @@ impl Championship {
                 break;
             }
         }
+        championship_outcome.compute_ranks();
 
-        dbg!(championship_outcome);
+        championship_outcome
     }
 }
 

@@ -97,11 +97,7 @@ impl Game {
         }
 
         terminal.move_caret_to_origin();
-        if self.world.is_game_over() {
-            terminal.println("[Game ended]");
-        } else {
-            terminal.println("[Game interrupted]");
-        }
+        terminal.clear_below();
 
         terminal.println("[Final game state]\n");
         terminal.println(&self.world);
@@ -112,25 +108,16 @@ impl Game {
         players.sort_by(|&a, &b| a.context().score().cmp(&b.context().score()));
         players.reverse();
 
-        terminal.println("[RANKING]");
-        terminal.println("=========\n");
-        terminal.println("RANK  SCORE  PLAYER");
-        terminal.println("----  -----  -------------------------");
-        for (place, &tank) in players.iter().enumerate() {
-            let text = format!(
-                " {:02}    {:03}   {}",
-                place + 1,
-                tank.context().score(),
-                tank.player().name()
-            );
-            terminal.println(text);
+        let mut rank = 0;
+        let mut score = u16::MAX;
+        for tank in players {
+            if score > tank.context().score() {
+                rank += 1;
+                score = tank.context().score();
+            }
 
-            game_outcome
-                .add_player_score(tank.context().player_details().id, tank.context().score());
+            game_outcome.add_player_rank(tank.context().player_details().id, rank);
         }
-
-        terminal.println("");
-        terminal.clear_below();
 
         (quit, game_outcome)
     }
