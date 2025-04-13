@@ -36,7 +36,7 @@ impl Game {
         }
     }
 
-    pub fn start(&mut self, game_id: u32) -> GameOutcome {
+    pub fn start(&mut self, game_id: u32) -> (bool, GameOutcome) {
         Terminal::enter_raw_mode();
 
         let mut terminal = Terminal::new();
@@ -45,6 +45,7 @@ impl Game {
 
         let mut pause = false;
         let mut next = false;
+        let mut quit = false;
         let mut animation = ENABLE_SHELL_ANIMATION;
         let mut tick_ms = GAME_TICK_DURATION_MSEC;
 
@@ -55,6 +56,7 @@ impl Game {
                 if let Ok(true) = poll(Duration::from_millis(0)) {
                     if let Ok(event) = read() {
                         if event == Event::Key(KeyCode::Esc.into()) {
+                            quit = true;
                             break;
                         } else if event == Event::Key(KeyCode::Up.into()) {
                             tick_ms = tick_ms.saturating_add(1);
@@ -130,7 +132,7 @@ impl Game {
         terminal.println("");
         terminal.clear_below();
 
-        game_outcome
+        (quit, game_outcome)
     }
 
     pub fn spawn_players(&mut self, players: Vec<Box<dyn Player>>) {
