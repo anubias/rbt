@@ -36,10 +36,15 @@ impl Championship {
         for i in 0..rounds {
             let game_id = i + 1;
             let players = self.get_players();
-            let game_outcome = self.run_single_game(game_id, players, self.world_size.clone());
+            let (quit, game_outcome) =
+                self.run_single_game(game_id, players, self.world_size.clone());
 
             championship_outcome.add_game_result(game_outcome);
             println!("Game {game_id} finished");
+
+            if quit {
+                break;
+            }
         }
 
         dbg!(championship_outcome);
@@ -52,7 +57,7 @@ impl Championship {
         game_id: u32,
         players: Vec<Box<dyn Player>>,
         world_size: WorldSize,
-    ) -> GameOutcome {
+    ) -> (bool, GameOutcome) {
         let mut game = Game::new(world_size);
         game.spawn_players(players);
 
