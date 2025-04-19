@@ -6,6 +6,7 @@ pub mod context;
 pub mod direction;
 pub mod map_cell;
 pub mod orientation;
+pub mod path_finder;
 pub mod player;
 pub mod position;
 pub mod rotation;
