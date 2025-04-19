@@ -28,7 +28,12 @@ Being old and rusty, the tanks have limited capabilities. Moreover, they can onl
 
 ## Implementation details
 
-Each player needs to implement the `Player` trait.
+Each player needs to implement the following traits:
+
+- `Player` - mandatory
+- `Navigator` - if the players want to use the built-in A* pathfinder
+
+### Player trait
 
 ```Rust
 /// Public trait that players need to implement, in order for the game engine
@@ -57,17 +62,55 @@ pub trait Player {
 }
 ```
 
+In addition, each player needs to implement the `new()` method which delegates proper construction of their data structure. It is mandatory in this project (as well as a good coding practice) that constructors don't fail.
+
 The `act()` function is invoked by the game engine once per turn. It is within this function that the players should execute their own bot tactic logic.
 
 Players are free to organize their code as they see fit, as long as all their code resides within their own module directory.
 
-### Constructors
-
-In addition, each player needs to implement the `new()` method which delegates proper construction of their data structure. It is mandatory in this project (as well as a good coding practice) that constructors don't fail.
-
-### Delayed (expensive) initialization
+#### Delayed (expensive) player initialization
 
 In case that some players require expensive initialization which may fail, there is the `initialized()` function which should contain the expensive initialization code.
+
+### Navigator trait
+
+If a player wants to use the builtin pathfinding A* implementation, via the `PathFinder` type, one needs to create a new type which implements the `Navigator` trait below:
+
+```Rust
+/// Navigator is a trait that provides the necessary information for the pathfinding algorithm.
+/// It is used to determine the cost of moving from one position to another, as well as the
+/// cost of turning the tank to a desired orientation.
+///
+/// It provides default implementations for some methods, but players may override them. The only
+/// method for which default implementation cannot be provded is `cell_at`, as fetching the discovered
+/// map information is specific to each player.
+pub trait Navigator {
+    /// Returns the map cell at `position`, as the player knows it
+    fn cell_at(&self, position: &Position) -> MapCell;
+
+    /// Returns the cost of rotating the tank to the desired orientation
+    /// The cost is the number of steps needed to turn the tank
+    /// to the desired orientation.
+    ///
+    /// Used as a cost heuristic by the pathfinding algorithm.
+    fn turning_steps(
+        &self,
+        curr_orientation: &Orientation,
+        next_orientation: &Orientation,
+    ) -> usize {
+        let (_, steps) = curr_orientation.quick_turn(&next_orientation);
+
+        steps
+    }
+
+    /// Computes the distance between two positions, used as a cost heuristic by the pathfinding algorithm.
+    fn distance(&self, from: &Position, to: &Position) -> usize {
+        from.pythagorean_distance(to) as usize
+    }
+}
+```
+
+Alternativey, players may implement their own custom pathfinding algorithms.
 
 ### World map
 
