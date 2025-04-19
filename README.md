@@ -28,7 +28,12 @@ Being old and rusty, the tanks have limited capabilities. Moreover, they can onl
 
 ## Implementation details
 
-Each player needs to implement the `Player` trait.
+Each player needs to implement the following traits:
+
+- `Player` - mandatory
+- `MapReader` - if the players want to use the built-in A* pathfinder
+
+### Player trait
 
 ```Rust
 /// Public trait that players need to implement, in order for the game engine
@@ -57,17 +62,29 @@ pub trait Player {
 }
 ```
 
+In addition, each player needs to implement the `new()` method which delegates proper construction of their data structure. It is mandatory in this project (as well as a good coding practice) that constructors don't fail.
+
 The `act()` function is invoked by the game engine once per turn. It is within this function that the players should execute their own bot tactic logic.
 
 Players are free to organize their code as they see fit, as long as all their code resides within their own module directory.
 
-### Constructors
-
-In addition, each player needs to implement the `new()` method which delegates proper construction of their data structure. It is mandatory in this project (as well as a good coding practice) that constructors don't fail.
-
-### Delayed (expensive) initialization
+#### Delayed (expensive) player initialization
 
 In case that some players require expensive initialization which may fail, there is the `initialized()` function which should contain the expensive initialization code.
+
+### MapReader trait
+
+If a player wants to use the builtin pathfinding A* implementation, via the `PathFinder` type, one needs to create a new type which implements the `MapReader` trait below:
+
+```Rust
+/// MapReader is a trait that provides necessary map data for the PathFinder.
+pub trait MapReader: Clone {
+    /// Returns the MapCell found at `position`, as known by the player.
+    fn read_at(&self, position: &Position) -> MapCell;
+}
+```
+
+Alternatively, players may implement their own custom pathfinding algorithms.
 
 ### World map
 
