@@ -19,10 +19,10 @@ pub trait MapReader: Clone {
 }
 
 struct PathDetails {
-    pub from: Position,
-    pub to: Position,
-    pub orientation: Orientation,
-    pub path: Vec<Position>,
+    from: Position,
+    to: Position,
+    orientation: Orientation,
+    path: Vec<Position>,
 }
 
 /// The `A*` pathfinding algorithm
