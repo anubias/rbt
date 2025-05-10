@@ -15,6 +15,7 @@ pub struct Position {
     pub y: usize,
 }
 
+#[allow(dead_code)]
 impl Position {
     /// Follows a "path" from the current Position according to the provided orientation.
     ///

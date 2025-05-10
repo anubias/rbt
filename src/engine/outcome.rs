@@ -61,6 +61,7 @@ pub struct PlayerEntry {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct GameOutcome {
     game_id: u32,
     original_map: Box<[[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]>,
@@ -91,6 +92,7 @@ impl GameOutcome {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TurnOutcome {
     number: usize,
     players: HashMap<PlayerId, PlayerOutcome>,
@@ -110,6 +112,7 @@ impl TurnOutcome {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PlayerOutcome {
     action: Action,
     health: u8,
