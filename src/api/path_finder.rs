@@ -18,6 +18,7 @@ pub trait MapReader: Clone {
     fn read_at(&self, position: &Position) -> MapCell;
 }
 
+#[allow(dead_code)]
 struct PathDetails {
     from: Position,
     to: Position,
@@ -42,6 +43,7 @@ pub struct PathFinder<M, C> {
     _computed: C,
 }
 
+#[allow(dead_code)]
 impl<M: MapReader> PathFinder<M, NotComputed> {
     pub fn new(map_reader: M, world_size: WorldSize) -> Self {
         Self {
@@ -130,6 +132,7 @@ impl<M: MapReader> PathFinder<M, NotComputed> {
     }
 }
 
+#[allow(dead_code)]
 impl<M: MapReader> PathFinder<M, Computed> {
     /// Returns the path from `from` to `to` as a vector of positions.
     ///

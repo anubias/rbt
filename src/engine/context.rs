@@ -45,6 +45,7 @@ pub struct Context {
     world_size: WorldSize,
 }
 
+#[allow(dead_code)]
 impl Context {
     pub fn new(
         player_details: Details,
