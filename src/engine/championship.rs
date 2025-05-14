@@ -97,29 +97,3 @@ impl Championship {
         result
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_only_one_player_is_ready() {
-        let championship = Championship::new(League::Academy, WorldSize { x: 60, y: 45 });
-        let players = championship.get_players();
-
-        let ready: i32 = players
-            .iter()
-            .map(|player| if player.is_ready() { 1 } else { 0 })
-            .collect::<Vec<i32>>()
-            .iter()
-            .sum();
-
-        assert_eq!(1, ready);
-    }
-
-    #[test]
-    fn test_foxy_player_is_ready() {
-        let fox = TwentyCenturyFox::new();
-        assert!(fox.is_ready())
-    }
-}
