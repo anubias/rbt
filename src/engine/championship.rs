@@ -5,9 +5,10 @@ use crate::{
         outcome::{ChampionshipOutcome, GameOutcome},
     },
     players::{
-        alvarez::Luis, armholt::Swede, arola::Arola, fox::TwentyCenturyFox, laurikainen::PlayerOne,
-        moykkynen::Joonas, niemisto::Niemisto, pop::Aurelian, rahtu::Rahtu, rantala::PlayerTeemu,
-        reponen::Samuli, salonen::Es, siimesjarvi::Siimesjarvi, terava::PlAgiAntti,
+        alvarez::Luis, armholt::Swede, arola::Arola, fox::TwentyCenturyFox, karjalainen::Miklas,
+        laurikainen::PlayerOne, moykkynen::Joonas, niemisto::Niemisto, pop::Aurelian, rahtu::Rahtu,
+        rantala::PlayerTeemu, reponen::Samuli, salonen::Es, siimesjarvi::Siimesjarvi,
+        terava::PlAgiAntti,
     },
 };
 
@@ -87,7 +88,8 @@ impl Championship {
             Box::new(TwentyCenturyFox::new()),
         ];
 
-        let mut open_players: Vec<Box<dyn Player>> = vec![Box::new(Aurelian::new())];
+        let mut open_players: Vec<Box<dyn Player>> =
+            vec![Box::new(Aurelian::new()), Box::new(Miklas::new())];
 
         match self.league {
             League::Academy => {}
