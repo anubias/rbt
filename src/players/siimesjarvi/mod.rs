@@ -35,6 +35,10 @@ impl Player for Siimesjarvi {
     fn name(&self) -> String {
         "Joni Siimesjärvi 🐙".to_string()
     }
+
+    fn is_ready(&self) -> bool {
+        true
+    }
 }
 
 #[allow(dead_code)]
@@ -425,7 +429,7 @@ mod tests {
     #[test]
     fn check_initial_player_values() {
         let s = Siimesjarvi::new();
-        assert_eq!(false, s.is_ready());
+        assert_eq!(true, s.is_ready());
     }
 
     #[test]
