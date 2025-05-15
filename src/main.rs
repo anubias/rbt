@@ -15,8 +15,8 @@ fn main() {
     let mut championship = Championship::new(League::Open, WORLD_SIZE);
     let championship_outcome = championship.run(GAME_ROUNDS);
 
-    println!("");
-    println!("");
+    println!("\n\n");
+    println!("Championship finished after {} rounds\n\n", GAME_ROUNDS);
     println!("[RANKING]");
     println!("=========\n");
     println!("RANK  ID  PLAYER");
