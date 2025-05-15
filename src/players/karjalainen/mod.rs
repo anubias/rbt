@@ -1,19 +1,16 @@
-mod evaluator;
 mod utils;
 
 use crate::api::map_cell::MapCell;
-use crate::api::player;
 use crate::api::scan::ScanResult;
 use crate::api::world_size::MAX_WORLD_SIZE;
 use crate::api::{
-    self, action::Action, aiming::Aiming, context::Context, direction::Direction, map_cell,
-    orientation::Orientation, player::Player, scan::ScanType,
+    action::Action, aiming::Aiming, context::Context, direction::Direction, map_cell,
+    player::Player, scan::ScanType,
 };
 
 use crate::api::position::Position;
 use crate::api::position::SCANNING_DISTANCE;
 use crate::api::rotation::Rotation;
-use evaluator::Evaluator;
 
 pub struct Miklas {
     discovered_map: Box<[[MapCell; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]>,
@@ -28,6 +25,39 @@ impl Miklas {
         }
     }
 
+    fn append_shooting(&self, context: &Context, moves: &mut Vec<(Action, i64)>) {
+        let players_found = {
+            let mut players = vec![];
+            // just imagine if the array was a flat 1D array ;-;. iter, reduce, filter, collect.
+            for y in 0..MAX_WORLD_SIZE {
+                for x in 0..MAX_WORLD_SIZE {
+                    if let MapCell::Player(details, _) = self.discovered_map[y][x] {
+                        if details.id != context.player_details().id && details.alive {
+                            players.push((x, y, self.update_map[y][x]));
+                        }
+                    }
+                }
+            }
+            players.sort_by_key(|&(_, _, last_updated)| std::usize::MAX - last_updated);
+            players
+        };
+        if let Some((x, y, last_updated)) = players_found.first().cloned() {
+            let delta = context.turn() - last_updated;
+            let target_pos = Position { x, y };
+            if delta <= 5 {
+                if context.position().could_hit_positionally(&target_pos) {
+                    moves.push((Action::Fire(Aiming::Positional(target_pos)), 1500));
+                } else if context.position().could_hit_cardinally(&target_pos) {
+                    println!("card: {}", target_pos);
+                    let or = context
+                        .position()
+                        .get_orientation_to_pos(&target_pos.direction_normalize());
+                    moves.push((Action::Fire(Aiming::Cardinal(or)), 1500));
+                }
+            }
+        }
+    }
+
     fn append_move(&self, context: &Context, moves: &mut Vec<(Action, i64)>) {
         let self_pos = context.position();
         let orientation = context.player_details().orientation;
@@ -35,14 +65,18 @@ impl Miklas {
 
         // Forward
         if let Some(pos) = self_pos.follow(&orientation, world_size) {
+            if (context.turn() - self.update_map[pos.y][pos.x]) > 10 {
+                moves.push((Action::Scan(ScanType::Mono(orientation)), 500));
+                return;
+            }
+
             match self.discovered_map[pos.y][pos.x] {
                 MapCell::Unallocated => {
                     moves.push((Action::Scan(ScanType::Mono(orientation)), 500));
                 }
                 MapCell::Terrain(terrain) => {
-                    if terrain == map_cell::Terrain::Field {
-                        let eval = Evaluator::evaluate_position(world_size, &pos);
-                        moves.push((Action::Move(Direction::Forward), eval));
+                    if terrain == map_cell::Terrain::Field && (rand::random::<i32>() % 5) != 0 {
+                        moves.push((Action::Move(Direction::Forward), 500));
                     } else {
                         moves.push((Action::Rotate(Rotation::Clockwise), 500));
                     }
@@ -106,7 +140,7 @@ impl Miklas {
         }
     }
 
-    fn append_scan(&mut self, context: &Context, moves: &mut Vec<(Action, i64)>) {
+    fn append_scan(&mut self, context: &Context, _: &mut Vec<(Action, i64)>) {
         if let Some(result) = context.scanned_data() {
             self.parse_scan(context, result);
         }
@@ -119,6 +153,7 @@ impl Miklas {
         let mut moves: Vec<(Action, i64)> = vec![];
         self.append_move(context, &mut moves);
         self.append_scan(context, &mut moves);
+        self.append_shooting(context, &mut moves);
         moves.sort_by_key(|&(_, weight)| -weight);
 
         // Take top-three and randomly choose on by their weight.
@@ -153,13 +188,6 @@ impl Miklas {
 
 impl Player for Miklas {
     fn act(&mut self, context: Context) -> Action {
-        if let Some(r) = context.scanned_data() {
-            println!("r: {}", r);
-            println!(
-                "pos {}",
-                Evaluator::evaluate_position(context.world_size(), context.position())
-            )
-        }
         self.choose_action(&context)
     }
 
