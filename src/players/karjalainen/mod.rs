@@ -48,7 +48,7 @@ impl Miklas {
                 if context.position().could_hit_positionally(&target_pos) {
                     moves.push((Action::Fire(Aiming::Positional(target_pos)), 1500));
                 } else if context.position().could_hit_cardinally(&target_pos) {
-                    println!("card: {}", target_pos);
+                    // println!("card: {}", target_pos);
                     let or = context
                         .position()
                         .get_orientation_to_pos(&target_pos.direction_normalize());
@@ -132,12 +132,12 @@ impl Miklas {
         }
 
         // print
-        for y in 0..height {
-            for x in 0..width {
-                print!("{}", self.discovered_map[y][x]);
-            }
-            print!("\n");
-        }
+        // for y in 0..height {
+        //     for x in 0..width {
+        //         print!("{}", self.discovered_map[y][x]);
+        //     }
+        //     print!("\n");
+        // }
     }
 
     fn append_scan(&mut self, context: &Context, _: &mut Vec<(Action, i64)>) {
@@ -176,12 +176,12 @@ impl Miklas {
         let mut rng = rand::thread_rng();
 
         let select_index = dist.sample(&mut rng);
-        println!(
-            "{:?}\n\nchose{} orientation {}",
-            moves,
-            select_index,
-            context.player_details().orientation
-        );
+        // println!(
+        //     "{:?}\n\nchose{} orientation {}",
+        //     moves,
+        //     select_index,
+        //     context.player_details().orientation
+        // );
         top_three[select_index].0.clone()
     }
 }
