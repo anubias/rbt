@@ -8,7 +8,7 @@ use crate::api::{
 };
 
 impl Position {
-    pub fn get_orientation_to(&self, neighbor: &Position) -> Orientation {
+    pub(super) fn get_orientation_to(&self, neighbor: &Position) -> Orientation {
         match neighbor.manhattan_distance(self) {
             (1, 0) => Orientation::East,
             (1, 1) => Orientation::SouthEast,
@@ -24,7 +24,7 @@ impl Position {
 }
 
 impl Orientation {
-    pub fn quick_turn_bidirectional(&self, other: &Self) -> (Rotation, usize) {
+    pub(super) fn quick_turn_bidirectional(&self, other: &Self) -> (Rotation, usize) {
         let result = self.quick_turn(other);
         if result.1 <= 2 {
             result
@@ -93,7 +93,7 @@ impl ScanResult {
         }
     }
 
-    pub fn find_other_players(
+    pub(super) fn find_other_players(
         &self,
         my_id: PlayerId,
         my_world_position: &Position,
@@ -127,7 +127,7 @@ impl ScanResult {
         return other_players;
     }
 
-    pub fn get_world_position(&self, my_world_position: &Position) -> (isize, isize) {
+    pub(super) fn get_world_position(&self, my_world_position: &Position) -> (isize, isize) {
         let my_scan_position = self.get_my_position();
         let scan_world_x = my_world_position.x as isize - my_scan_position.x as isize;
         let scan_world_y = my_world_position.y as isize - my_scan_position.y as isize;

@@ -28,7 +28,33 @@ impl Es {
             iteration: 0,
             latest_scan_pos: Position { x: 0, y: 0 },
             latest_scan_data: None,
-            rotate_direction: None
+            rotate_direction: None,
+        }
+    }
+
+    fn find_alignment(&self, from: &Position, to: &Position) -> Option<Orientation> {
+        let (dx, dy) = from.manhattan_distance(to);
+
+        match (dx, dy) {
+            (0, ..0) => Some(Orientation::South),
+            (0, 0..) => Some(Orientation::North),
+            (..0, 0) => Some(Orientation::East),
+            (0.., 0) => Some(Orientation::West),
+            _ => {
+                if dx.abs() == dy.abs() {
+                    if dx < 0 && dy < 0 {
+                        Some(Orientation::SouthEast)
+                    } else if dx < 0 && dy > 0 {
+                        Some(Orientation::NorthEast)
+                    } else if dx > 0 && dy < 0 {
+                        Some(Orientation::SouthWest)
+                    } else {
+                        Some(Orientation::NorthWest)
+                    }
+                } else {
+                    None
+                }
+            }
         }
     }
 }
@@ -48,19 +74,19 @@ impl Player for Es {
             self.latest_scan_data = Some(scanned_data.clone());
             self.latest_scan_pos = context.position().clone();
 
-            for y in 0..SCANNING_DISTANCE
-            {
-                for x in 0..SCANNING_DISTANCE
-                {
-                    if let MapCell::Player(_, _) = scanned_data.data[y][x]
-                    {
+            for y in 0..SCANNING_DISTANCE {
+                for x in 0..SCANNING_DISTANCE {
+                    if let MapCell::Player(_, _) = scanned_data.data[y][x] {
                         let pos = context.position();
                         //println!("Cell: {}, details: {}", scanned_data.data[y][x], det);
-                        let enemy_pos = Position{x,y};
+                        let enemy_pos = Position { x, y };
                         if pos.could_hit_cardinally(&enemy_pos) {
-                            return Action::Fire(Aiming::Cardinal(pos.get_orientation_to(&enemy_pos)));
-                        }
-                        else if pos.could_hit_positionally(&enemy_pos) {
+                            if let Some(orientation) =
+                                self.find_alignment(&context.position(), &enemy_pos)
+                            {
+                                return Action::Fire(Aiming::Cardinal(orientation));
+                            }
+                        } else if pos.could_hit_positionally(&enemy_pos) {
                             return Action::Fire(Aiming::Positional(enemy_pos));
                         }
                     }
