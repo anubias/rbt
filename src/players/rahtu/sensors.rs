@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::{api::{
     context::Context, map_cell::{MapCell, Terrain}, orientation::Orientation, path_finder::MapReader, player::Details, position::{Position, SCANNING_DISTANCE}, scan::ScanType, world_size::MAX_WORLD_SIZE
 }, WORLD_SIZE};
@@ -17,7 +19,7 @@ impl Map {
         }
         Self {
             sensor_data: v,
-            tracks: Vec::new(),
+            tracks: VecDeque::new(),
             initial_scan_done: false,
             actions_since_last_scan_northwest: 100,
             actions_since_last_scan_northeast: 100,
@@ -135,7 +137,7 @@ impl Map {
 
     fn store_track(&mut self, context: &Context, global_x: usize, global_y: usize, player: Details) {
         if player.id != context.player_details().id && player.alive {
-            self.tracks.push(Track {
+            self.tracks.push_front(Track {
                 timestamp: context.turn() as i32,
                 x: global_x,
                 y: global_y,
@@ -212,8 +214,8 @@ impl Map {
     }
 
     pub fn get_any_unexplored_tile(&self) -> Option<Position> {
-        for x in 1..WORLD_SIZE.x as isize {
-            for y in 1..WORLD_SIZE.y as isize {
+        for x in 3..(WORLD_SIZE.x - 3) as isize {
+            for y in 3..(WORLD_SIZE.y - 3) as isize {
                 match self.get_map_tile(x, y) {
                     SensorData::NotScanned => return Some(Position { x: x as usize, y: y as usize }),
                     _ => (),
@@ -221,6 +223,77 @@ impl Map {
             }
         }
         return None;
+    }
+
+    pub fn available_cardinal_shot(&self, context: &Context) -> Option<Orientation> {
+        for track in &self.tracks {
+            if track.timestamp as usize == context.turn() || track.timestamp as usize == context.turn() - 1 {
+                if let Some(direction) = self.get_direction_to_position(context, &Position{ x: track.x, y: track.y}) {
+                    return Some(direction);
+                }
+            }
+        }
+        return None;
+    }
+
+    pub fn get_direction_to_position(&self, context: &Context, position: &Position) -> Option<Orientation> {
+        if position.x == context.position().x {
+            if position.x < context.position().x {
+                return Some(Orientation::West);
+            }
+            else {
+                return Some(Orientation::East);
+            }
+        }
+        if position.y == context.position().y {
+            if position.y < context.position().y {
+                return Some(Orientation::North);
+            }
+            else {
+                return Some(Orientation::South);
+            }
+        }
+
+        let relative_x = position.x as isize - context.position().x as isize;
+        let relative_y = position.y as isize - context.position().y as isize;
+        if  relative_x == relative_y {
+            if relative_x < 0 {
+                return Some(Orientation::NorthWest);
+            }
+            else {
+                return Some(Orientation::SouthEast);
+            }
+        }
+        if relative_x == -relative_y {
+            if relative_x < 0 {
+                return Some(Orientation::SouthWest);
+            }
+            else {
+                return Some(Orientation::NorthEast);
+            }
+        }
+        return None;
+    }
+
+    pub fn get_closest_ordinal_direction_to_position(&self, context: &Context, position: &Position) -> Orientation {
+        let relative_x = position.x as isize - context.position().x as isize;
+        let relative_y = position.y as isize - context.position().y as isize;
+        if  relative_x < 0 {
+            if relative_y < 0 {
+                return Orientation::NorthWest;
+            }
+            else {
+                return Orientation::SouthWest;
+            }
+        }
+        else {
+            if relative_y < 0 {
+                return Orientation::NorthEast;
+            }
+            else {
+                return Orientation::SouthEast;
+            }
+        }
     }
 
 }

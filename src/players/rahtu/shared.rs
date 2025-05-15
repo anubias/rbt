@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::api::world_size::MAX_WORLD_SIZE;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -17,7 +19,7 @@ pub struct Track {
 #[derive(Clone)]
 pub struct Map {
     pub sensor_data: Vec<Vec<SensorData>>,
-    pub tracks: Vec<Track>,
+    pub tracks: VecDeque<Track>,
     pub initial_scan_done: bool,
     pub actions_since_last_scan_northwest: i64,
     pub actions_since_last_scan_northeast: i64,
