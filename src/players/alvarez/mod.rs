@@ -1,80 +1,71 @@
-use crate::api::{
-    action::Action,
-    aiming::Aiming,
-    context::Context,
-    direction::Direction,
-    map_cell::{MapCell, Terrain},
-    orientation::Orientation,
-    player::Player,
-    position::SCANNING_DISTANCE,
-    rotation::Rotation,
-    scan::ScanType,
-};
+mod model;
+mod scanner;
+mod strategy;
+mod tanks;
+mod terrain;
+mod types;
 
-#[derive(Default)]
+//use super::player::*;
+use tanks::*;
+
+use strategy::*;
+use terrain::*;
+use types::*;
+
 pub struct Luis {
-    last_action: Action,
-    map: Vec<Vec<u32>>,
-}
-
-impl Luis {
-    pub fn new() -> Self {
-        Self {
-            last_action: Action::default(),
-            map: Vec::<Vec<u32>>::new(),
-        }
-    }
+    id: PId,
+    abs_pos: Position,
+    strategy: Option<StrategyManager>,
 }
 
 impl Player for Luis {
     fn act(&mut self, context: Context) -> Action {
-        // Just scanned
-        if let Some(scan_data) = context.scanned_data() {
-            // Cache map data (just if uncomplete?)
+        self.ensure_strategy_initializtion(&context);
 
-            let orientation = context.player_details().orientation;
-            let center = SCANNING_DISTANCE / 2;
-            let mut next_cell_x = center;
-            let mut next_cell_y = center;
-
-            match orientation {
-                Orientation::North => next_cell_y -= 1,
-                Orientation::NorthWest => {
-                    next_cell_y -= 1;
-                    next_cell_x -= 1;
-                }
-                Orientation::West => next_cell_x -= 1,
-                Orientation::SouthWest => {
-                    next_cell_x -= 1;
-                    next_cell_y += 1;
-                }
-                Orientation::South => next_cell_y += 1,
-                Orientation::SouthEast => {
-                    next_cell_y += 1;
-                    next_cell_x += 1;
-                }
-                Orientation::East => next_cell_x += 1,
-                Orientation::NorthEast => {
-                    next_cell_x += 1;
-                    next_cell_y -= 1;
-                }
-            }
-
-            let next_cell = scan_data.data[next_cell_x][next_cell_y];
-
-            match next_cell {
-                MapCell::Terrain(Terrain::Field) => Action::Move(Direction::Forward),
-                MapCell::Terrain(_) => Action::Rotate(Rotation::Clockwise),
-                MapCell::Player(_, _) => Action::Fire(Aiming::default()),
-                MapCell::Unallocated => Action::Scan(ScanType::Omni),
-                _ => Action::default(),
-            }
-        } else {
-            Action::Scan(ScanType::Omni)
+        if let Some(strategy) = &mut self.strategy {
+            strategy.process(&context);
+            return strategy.decide_action(&context);
         }
+        println!("oi oi oi, nothing selected, why?");
+        Action::Idle
     }
 
     fn name(&self) -> String {
-        "LPlayer".to_string()
+        "Shin-chan".to_string()
     }
+
+    fn initialized(&mut self) -> bool {
+        true
+    }
+
+    fn is_ready(&self) -> bool {
+        true
+    }
+}
+
+// Private functions
+impl Luis {
+    pub fn new() -> Self {
+        Self {
+            id: 0,
+            abs_pos: Position { x: 0, y: 0 },
+            strategy: None,
+        }
+    }
+
+    fn ensure_strategy_initializtion(&mut self, context: &Context) {
+        if self.strategy.is_none() {
+            let player_id = context.player_details().id;
+            let position = context.position().clone();
+
+            let map = MappedTerrain::new(context.world_size().clone());
+            let tanks = TanksTracker::new(player_id);
+
+            self.strategy = Some(StrategyManager::new(
+                model::WorldModel { map: map, tanks: tanks }));
+            self.id = player_id;
+            self.abs_pos = position;
+        }
+    }
+
 }
