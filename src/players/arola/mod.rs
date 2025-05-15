@@ -60,6 +60,6 @@ impl Player for Arola {
     }
 
     fn is_ready(&self) -> bool {
-        false
+        true
     }
 }
