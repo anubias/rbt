@@ -10,6 +10,12 @@ pub fn get_next_action(data: &mut Data, context: &Context) -> Action {
     if let Some(action) = danger_close(data, context) {
         return action;
     }
+    else if let Some(action) = take_cardinal_shots(data, context) {
+        return action;
+    }
+    else if let Some(action) = track_active_tracks(data, context) {
+        return action;
+    }
     else if let Some(action) = keep_scans_fresh(data, context) {
         return action;
     }
@@ -25,7 +31,6 @@ pub fn get_next_action(data: &mut Data, context: &Context) -> Action {
 }
 
 fn danger_close(data: &mut Data, context: &Context) -> Option<Action> {
-    let _ = context;
     let mut found_recent_track = false;
     for track in &data.map.tracks {
         if track.timestamp == context.turn() as i32 && context.position().could_hit_positionally(&Position { x: track.x, y: track.y }) {
@@ -43,10 +48,28 @@ fn danger_close(data: &mut Data, context: &Context) -> Option<Action> {
     if found_recent_track {
         return Some(Action::Scan(ScanType::Omni));
     }
-    else {
-        data.map.tracks.clear();
+    return None;
+}
+
+fn take_cardinal_shots(data: &mut Data, context: &Context) -> Option<Action> {
+    if let Some(direction) = data.map.available_cardinal_shot(context) {
+        return Some(Action::Fire(Aiming::Cardinal(direction)));
     }
     return None;
+}
+
+fn track_active_tracks(data: &mut Data, context: &Context) -> Option<Action> {
+    for track in &data.map.tracks {
+        if track.timestamp == context.turn() as i32 - 1 || track.timestamp == context.turn() as i32 - 2 {
+            // Don't stop moving entirely - mebbe instead some solution based on moving, but TODO..
+            return Some(Action::Scan(ScanType::Mono(data.map.get_closest_ordinal_direction_to_position(context, &Position{ x: track.x, y: track. y }))));
+        }
+    }
+
+    // If there are no recent tracks, clean the container.
+    data.map.tracks.clear();
+
+    None
 }
 
 fn keep_scans_fresh(data: &mut Data, context: &Context) -> Option<Action> {
@@ -55,16 +78,16 @@ fn keep_scans_fresh(data: &mut Data, context: &Context) -> Option<Action> {
     {
         return Some(Action::Scan(ScanType::Omni));
     }
-    if data.map.actions_since_last_scan_northwest > 8 {
+    if data.map.actions_since_last_scan_northwest > 7 {
         return Some(Action::Scan(ScanType::Mono(Orientation::NorthWest)));
     }
-    if data.map.actions_since_last_scan_northeast > 8 {
+    if data.map.actions_since_last_scan_northeast > 7 {
         return Some(Action::Scan(ScanType::Mono(Orientation::NorthEast)));
     }
-    if data.map.actions_since_last_scan_southeast > 8 {
+    if data.map.actions_since_last_scan_southeast > 7 {
         return Some(Action::Scan(ScanType::Mono(Orientation::SouthEast)));
     }
-    if data.map.actions_since_last_scan_southwest > 8 {
+    if data.map.actions_since_last_scan_southwest > 7 {
         return Some(Action::Scan(ScanType::Mono(Orientation::SouthWest)));
     }
 

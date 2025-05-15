@@ -41,9 +41,9 @@ impl Player for Rahtu {
     }
 
     fn name(&self) -> String {
-        "Rahtu".to_string()
+        "Nascar".to_string()
     }
     fn is_ready(&self) -> bool {
-        false
+        true
     }
 }
