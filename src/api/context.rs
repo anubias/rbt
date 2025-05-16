@@ -7,7 +7,6 @@ use super::{
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Context {
     health: u8,
-    max_turns: usize,
     previous_action: Action,
     player_details: Details,
     position: Position,
@@ -20,7 +19,6 @@ pub struct Context {
 impl Context {
     pub fn new(
         health: u8,
-        max_turns: usize,
         previous_action: Action,
         player_details: Details,
         position: Position,
@@ -30,7 +28,6 @@ impl Context {
     ) -> Self {
         Self {
             health,
-            max_turns,
             player_details,
             position,
             previous_action,
@@ -54,10 +51,6 @@ impl Context {
 
     pub fn scanned_data(&self) -> &Option<ScanResult> {
         &self.scan
-    }
-
-    pub fn max_turns(&self) -> usize {
-        self.max_turns
     }
 
     pub fn turn(&self) -> usize {

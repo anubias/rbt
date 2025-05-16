@@ -34,7 +34,6 @@ impl Score {
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Context {
     health: u8,
-    max_turns: usize,
     mobile: bool,
     previous_action: Action,
     player_details: Details,
@@ -47,15 +46,9 @@ pub struct Context {
 
 #[allow(dead_code)]
 impl Context {
-    pub fn new(
-        player_details: Details,
-        position: Position,
-        max_turns: usize,
-        world_size: WorldSize,
-    ) -> Self {
+    pub fn new(player_details: Details, position: Position, world_size: WorldSize) -> Self {
         Self {
             health: 100,
-            max_turns,
             mobile: true,
             previous_action: Action::default(),
             player_details,
@@ -155,10 +148,6 @@ impl Context {
         self.turn = turn;
     }
 
-    pub fn max_turns(&self) -> usize {
-        self.max_turns
-    }
-
     pub fn turn(&self) -> usize {
         self.turn
     }
@@ -217,7 +206,6 @@ impl Into<ApiContext> for Context {
     fn into(self) -> ApiContext {
         ApiContext::new(
             self.health,
-            self.max_turns,
             self.previous_action.clone(),
             self.player_details.clone(),
             self.position.clone(),
