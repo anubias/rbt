@@ -11,8 +11,8 @@ use crossterm::event::{poll, read, Event, KeyCode};
 
 use std::time::Duration;
 
-const ENABLE_SHELL_ANIMATION: bool = false;
-const GAME_TICK_DURATION_MSEC: u64 = 10;
+const ENABLE_SHELL_ANIMATION: bool = true;
+const GAME_TICK_DURATION_MSEC: u64 = 5;
 
 pub const DEAD_AVATAR: Avatar = '💀';
 const DEFAULT_AVATAR: Avatar = '👶';
@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn test_animation_is_off() {
-        assert!(!ENABLE_SHELL_ANIMATION);
+        assert!(ENABLE_SHELL_ANIMATION);
     }
 
     #[test]

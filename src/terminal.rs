@@ -10,7 +10,7 @@ use crossterm::{
 };
 
 pub const CHAMPIONSHIP_MODE: bool = false;
-pub const DEBUG_MODE: bool = true;
+pub const DEBUG_MODE: bool = false;
 
 /// This structure should be used when trying to print anything to the console.
 /// It encapsulates and wraps up behaviour needed to redraw the screen to avoid
@@ -96,7 +96,7 @@ mod tests {
     }
 
     #[test]
-    fn test_debug_mode_is_on() {
-        assert!(DEBUG_MODE);
+    fn test_debug_mode_is_off() {
+        assert!(!DEBUG_MODE);
     }
 }
