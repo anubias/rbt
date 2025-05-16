@@ -11,19 +11,13 @@ use crate::{
     },
 };
 
-pub enum League {
-    Academy,
-    Open,
-}
-
 pub struct Championship {
-    league: League,
     world_size: WorldSize,
 }
 
 impl Championship {
-    pub fn new(league: League, world_size: WorldSize) -> Self {
-        Championship { league, world_size }
+    pub fn new(world_size: WorldSize) -> Self {
+        Championship { world_size }
     }
 
     pub fn run(&mut self, rounds: u32) -> ChampionshipOutcome {
@@ -71,7 +65,7 @@ impl Championship {
     }
 
     fn get_players(&self) -> Vec<Box<dyn Player>> {
-        let mut result: Vec<Box<dyn Player>> = vec![
+        let result: Vec<Box<dyn Player>> = vec![
             Box::new(Luis::new()),
             Box::new(Swede::new()),
             Box::new(Arola::new()),
@@ -83,15 +77,9 @@ impl Championship {
             Box::new(Siimesjarvi::new()),
             Box::new(PlAgiAntti::new()),
             Box::new(TwentyCenturyFox::new()),
+            Box::new(Aurelian::new()),
+            Box::new(Miklas::new()),
         ];
-
-        let mut open_players: Vec<Box<dyn Player>> =
-            vec![Box::new(Aurelian::new()), Box::new(Miklas::new())];
-
-        match self.league {
-            League::Academy => {}
-            League::Open => result.append(&mut open_players),
-        }
 
         result
     }

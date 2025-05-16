@@ -6,13 +6,13 @@ mod players;
 mod terminal;
 
 use api::world_size::WorldSize;
-use engine::championship::{Championship, League};
+use engine::championship::Championship;
 
 const GAME_ROUNDS: u32 = 1;
 const WORLD_SIZE: WorldSize = WorldSize { x: 60, y: 45 };
 
 fn main() {
-    let mut championship = Championship::new(League::Open, WORLD_SIZE);
+    let mut championship = Championship::new(WORLD_SIZE);
     let championship_outcome = championship.run(GAME_ROUNDS);
 
     println!("\n\n");
