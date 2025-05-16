@@ -17,7 +17,7 @@ const GAME_TICK_DURATION_MSEC: u64 = 10;
 pub const DEAD_AVATAR: Avatar = '💀';
 const DEFAULT_AVATAR: Avatar = '👶';
 const AVATARS: [Avatar; 18] = [
-    '🙂', '😈', '👽', '🤡', '🤖', '🎃', '🐶', '🐱', '🦁', '🐺', '🐻', '🐼', '🦊', '🐵', '🐷', '🐰',
+    '🙂', '😈', '👽', '🤡', '🤖', '🎃', '🐶', '🐺', '🐻', '🐼', '🦊', '🐵', '🐷', '🐱', '🦁', '🐰',
     '🐭', '🐸',
 ];
 

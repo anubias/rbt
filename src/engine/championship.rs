@@ -7,8 +7,7 @@ use crate::{
     players::{
         alvarez::Luis, armholt::Swede, arola::Arola, fox::TwentyCenturyFox, karjalainen::Miklas,
         laurikainen::PlayerOne, moykkynen::Joonas, niemisto::Niemisto, pop::Aurelian, rahtu::Rahtu,
-        rantala::PlayerTeemu, reponen::Samuli, salonen::Es, siimesjarvi::Siimesjarvi,
-        terava::PlAgiAntti,
+        salonen::Es, siimesjarvi::Siimesjarvi, terava::PlAgiAntti,
     },
 };
 
@@ -80,8 +79,6 @@ impl Championship {
             Box::new(Joonas::new()),
             Box::new(Niemisto::new()),
             Box::new(Rahtu::new()),
-            Box::new(PlayerTeemu::new()),
-            Box::new(Samuli::new()),
             Box::new(Es::new()),
             Box::new(Siimesjarvi::new()),
             Box::new(PlAgiAntti::new()),
