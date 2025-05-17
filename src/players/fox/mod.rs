@@ -23,7 +23,7 @@ pub struct TwentyCenturyFox {
     scan_pos: Position,
     steps: u8,
     target_orientation: Orientation,
-    terminal: Terminal,
+    _terminal: Terminal,
 }
 
 impl TwentyCenturyFox {
@@ -34,7 +34,7 @@ impl TwentyCenturyFox {
             scan_pos: Position { x: 0, y: 0 },
             steps: 0,
             target_orientation: Orientation::default(),
-            terminal: Terminal::new(),
+            _terminal: Terminal::new(),
         }
     }
 }

@@ -250,7 +250,7 @@ impl PlayerOne {
     }
 
     fn act_on_scanning(&mut self, context: &Context) -> Option<Action> {
-        let mut action: Option<Action> = None;
+        let action: Option<Action>;
         let mut scanned_wall = true;
         if self.in_west_wall(context) {
             // Alternate between NorthEast and SouthEast

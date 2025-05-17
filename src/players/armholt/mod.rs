@@ -1,12 +1,11 @@
 use crate::api::{
     action::Action,
     aiming::Aiming,
-    context::{self, Context},
+    context::Context,
     direction::Direction,
     map_cell::{MapCell, Terrain},
-    orientation::{self, Orientation},
+    orientation::Orientation,
     player::Player,
-    position::Position,
     rotation::Rotation,
     scan::{ScanResult, ScanType},
 };
@@ -26,7 +25,7 @@ impl Swede {
 }
 
 impl Swede {
-    fn handle_omni_scan(&mut self, scan_result: &ScanResult, context: &Context) -> Action {
+    fn handle_omni_scan(&mut self, _scan_result: &ScanResult, context: &Context) -> Action {
         //this shouldnt happen as the the logic is not using omni scan
         //shoot before asking any questions ;)
         Action::Fire(Aiming::Cardinal(context.player_details().orientation))

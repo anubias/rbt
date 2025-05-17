@@ -87,7 +87,7 @@ impl Miklas {
     }
 
     fn parse_scan(&mut self, context: &Context, result: &ScanResult) {
-        let (width, height) = (context.world_size().x, context.world_size().y);
+        // let (width, height) = (context.world_size().x, context.world_size().y);
 
         // find the local player use it as offset
         let player_in_map: (usize, usize) = {
