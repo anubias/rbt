@@ -4,9 +4,8 @@ use crate::api::context::Context;
 use crate::api::orientation::Orientation;
 use crate::api::player::Player;
 use crate::api::rotation::Rotation;
-use crate::api::scan::ScanType;
 
-use std::io::{self, Read, Write};
+use std::io::Read;
 use std::net::TcpStream;
 
 pub struct Niemisto {
@@ -42,8 +41,8 @@ fn read_last_character(stream: &mut TcpStream) -> char {
             // No bytes read
             //println!("No data received from the stream.");
         }
-        Err(e) => {
-            //eprintln!("Failed to read from stream: {}", e);
+        Err(_e) => {
+            //eprintln!("Failed to read from stream: {}", _e);
         }
     }
     '\0'
@@ -64,18 +63,18 @@ impl Player for Niemisto {
             }
 
             let ori = _context.player_details().orientation;
-            let good = false;
-            let mut rot: Rotation;
+            let _good = false;
+            let mut _rot: Rotation;
             if ch == 'a' {
                 match ori {
-                    Orientation::North => rot = Rotation::Clockwise,
-                    Orientation::NorthEast => rot = Rotation::Clockwise,
-                    Orientation::East => rot = Rotation::Clockwise,
-                    Orientation::SouthEast => rot = Rotation::Clockwise,
-                    Orientation::South => rot = Rotation::Clockwise,
-                    Orientation::SouthWest => rot = Rotation::Clockwise,
-                    Orientation::West => rot = Rotation::Clockwise,
-                    Orientation::NorthWest => rot = Rotation::Clockwise,
+                    Orientation::North => _rot = Rotation::Clockwise,
+                    Orientation::NorthEast => _rot = Rotation::Clockwise,
+                    Orientation::East => _rot = Rotation::Clockwise,
+                    Orientation::SouthEast => _rot = Rotation::Clockwise,
+                    Orientation::South => _rot = Rotation::Clockwise,
+                    Orientation::SouthWest => _rot = Rotation::Clockwise,
+                    Orientation::West => _rot = Rotation::Clockwise,
+                    Orientation::NorthWest => _rot = Rotation::Clockwise,
                 }
             }
             return Action::Fire(Aiming::default());
@@ -84,7 +83,7 @@ impl Player for Niemisto {
             return Action::Rotate(Rotation::Clockwise);
         }
         //return Action::Move(Direction::Forward);
-        return Action::Scan(ScanType::Mono(Orientation::NorthEast));
+        // return Action::Scan(ScanType::Mono(Orientation::NorthEast));
     }
 
     fn name(&self) -> String {

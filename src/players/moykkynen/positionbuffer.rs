@@ -30,7 +30,7 @@ impl PositionBuffer {
         }
     }
 
-    pub fn last(&self) -> Option<Position> {
+    pub fn _last(&self) -> Option<Position> {
         if self.index == 0 {
             self.buffer[BUFFER_SIZE - 1].clone()
         } else {
@@ -53,10 +53,10 @@ impl PositionBuffer {
         self.buffer.iter().take(self.count).all(|x| *x == first_value)
     }
 
-    pub fn print(&self) {
+    pub fn _print(&self) {
         for entry in &self.buffer {
             if let Some(pos) = entry {
-            print!("{}, ", pos);
+                print!("{}, ", pos);
             }
         }
         println!();
