@@ -33,6 +33,7 @@ impl Score {
 /// Represents the player context that the game engine is using for storing players state
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Context {
+    cumulated_cpu_time: u128,
     health: u8,
     mobile: bool,
     previous_action: Action,
@@ -55,6 +56,7 @@ impl Context {
             position,
             scan: None,
             score: Score { value: 0 },
+            cumulated_cpu_time: 0,
             turn: 0,
             world_size,
         }
@@ -91,6 +93,18 @@ impl Context {
 
     pub fn health(&self) -> u8 {
         self.health
+    }
+
+    pub fn average_cpu_time_per_turn(&self) -> u128 {
+        if self.turn > 0 {
+            self.cumulated_cpu_time / self.turn as u128
+        } else {
+            0
+        }
+    }
+
+    pub fn increase_cpu_time(&mut self, time: u128) {
+        self.cumulated_cpu_time += time;
     }
 
     pub fn is_mobile(&self) -> bool {

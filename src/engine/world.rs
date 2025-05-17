@@ -1,4 +1,7 @@
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
@@ -28,6 +31,12 @@ const SEA_WORLD_PERCENTAGE: f32 = 20.0;
 const MAX_FIELD_AREA_PERCENTAGE: f32 = 75.0;
 const MIN_OBSTACLE_SIZE_PERCENTAGE: f32 = 0.5;
 const MAX_OBSTACLE_SIZE_PERCENTAGE: f32 = 2.5;
+
+// Performance comparison factor to determine when a player is
+// too slow compared to rest of the players, and should be
+// penalized. We consider bots that take more than 10 times
+// the average time of the other players to be too slow.
+const PERFORMANCE_FACTOR: u128 = 10;
 
 struct ScanRequest {
     requester_id: PlayerId,
@@ -78,6 +87,14 @@ impl World {
 
     pub fn new_turn(&mut self, terminal: &mut Terminal) -> TurnOutcome {
         let mut turn_outcome = TurnOutcome::new(self.turn_number);
+        let (total_cpu_time_per_turn, total_tanks) = self
+            .tanks
+            .iter()
+            .filter(|(_, tank)| tank.player().is_ready())
+            .fold((0, 0), |(acc, count), (_, tank)| {
+                (acc + tank.context().average_cpu_time_per_turn(), count + 1)
+            });
+
         self.turn_number += 1;
 
         // Parallelize processing of tanks
@@ -87,7 +104,25 @@ impl World {
             .filter_map(|(player_id, tank)| {
                 if tank.player().is_ready() && tank.context().health() > 0 {
                     let context = tank.context().clone();
-                    let action = tank.player_mut().act(context.clone().into());
+                    let mut action = Action::Idle;
+
+                    let my_cpu_time_per_turn = tank.context().average_cpu_time_per_turn();
+                    let others_cpu_time_per_turn =
+                        (total_cpu_time_per_turn - my_cpu_time_per_turn) / (total_tanks - 1);
+
+                    // Checking if the current player wastes too much CPU time
+                    // compared to the average CPU time of the other players.
+                    if my_cpu_time_per_turn <= others_cpu_time_per_turn * PERFORMANCE_FACTOR {
+                        let api_context = context.clone().into();
+                        let start = Instant::now();
+
+                        action = tank.player_mut().act(api_context);
+                        tank.context_mut()
+                            .increase_cpu_time(start.elapsed().as_nanos());
+                    } else {
+                        // Slow players are penalized by skipping their turn,
+                        // and setting their action to Idle.
+                    }
 
                     tank.context_mut().set_previous_action(action.clone());
                     tank.context_mut().set_scanned_data(None);
@@ -992,7 +1027,7 @@ impl std::fmt::Display for World {
                         tank.health_bar(),
                         tank.context().position(),
                         tank.context().player_details().orientation,
-                        tank.context().previous_action()
+                        tank.context().previous_action(),
                     )
                 }
             }
