@@ -64,17 +64,35 @@ pub trait Player {
 
 In addition, each player needs to implement the `new()` method which delegates proper construction of their data structure. It is mandatory in this project (as well as a good coding practice) that constructors don't fail.
 
-The `act()` function is invoked by the game engine once per turn. It is within this function that the players should execute their own bot tactic logic.
+The `act()` method is invoked by the game engine once per turn. It is within this method that the players should execute their own bot tactic logic.
 
 Players are free to organize their code as they see fit, as long as all their code resides within their own module directory.
 
-#### Delayed (expensive) player initialization
+#### Delayed (failing or expensive) player initialization
 
-In case that some players require expensive initialization which may fail, there is the `initialized()` function which should contain the expensive initialization code.
+In case some players require expensive initialization which may optionally fail, there is the `initialized()` method which should contain the expensive initialization code.
 
-### MapReader trait
+It is _essential_ to move any failing initializing code from the `new()` to the `initialized()` method. That would ensure non-failing instance creation, into a potentially failing separate method, which could allow the engine to run even if one of the players encountered errors.
 
-If a player wants to use the builtin pathfinding A* implementation, via the `PathFinder` type, one needs to create a new type which implements the `MapReader` trait below:
+### Context struct
+
+As visible from the `Player` trait, the `act()` method will provide an engine-generated `Context` instance, which gives the player the necessary information, or the result of any request made by the player in the previous round.
+
+Here is a (non-exhaustive) list of information offered by the `context` instance:
+
+- the health of the player
+- the `action` that was returned by the previous invocation of `act()`
+- the player details (ie: current orientation, the avatar symbol, etc.)
+- the current `position` and the size of the world, for navigation purposes
+- etc.
+
+For the latest and most accurate list, please consult the API.
+
+### Path finding using A* algorithm
+
+The game engine provides functionality for finding paths between arbitrary (valid) points on the map, automatically avoiding any obstacles: terrain or other players (dead or alive).
+
+To take advantage of the built-in A* pathfinding implementation, players should use the `PathFinder` structure. In order to use it, players need to also implement the `MapReader` trait below:
 
 ```Rust
 /// MapReader is a trait that provides necessary map data for the PathFinder.
@@ -84,11 +102,11 @@ pub trait MapReader: Clone {
 }
 ```
 
-Alternatively, players may implement their own custom pathfinding algorithms.
+This trait provides player-driven map reading capabilities, which are needed by the pathfinding algorithm. The reason why the players must implement that trait, is that the input data for the pathfinding algorithm is the player-driven view of the world. Each player has a different view of the reality, and need to provide their own world-view to the algorithm.
 
 ### World map
 
-As mentioned, the game world is a bi-dimensional map. The world map is represented by an array with the dimensions specified by the `MAX_WORLD_SIZE` constant. In practice, the actual map is smaller than the maximum world size, and the actual size is provided in the `context` parameter of the `act()` function.
+As mentioned, the game world is a bi-dimensional map. The world map is represented by an array with the dimensions specified by the `MAX_WORLD_SIZE` constant. In practice, the actual map is smaller than the maximum world size, and the actual size is provided in the `context` parameter of the `act()` method.
 
 The constant `MAX_WORLD_SIZE` is useful if players chose to cache their own world-view in arrays. The alternative is to represent the map (or portions of the map) using dynamic data structures such as Vectors.
 
@@ -107,9 +125,7 @@ The `Position` structure defines a position that can be used to reference a cell
 
 The position of the origin (the top-left corner) of the map is `Position {x:0, y:0}`.
 
-Taking this into consideration, moving one step to the right on the map increments the `x` coordinate, and moving one step lower on the map increments the `y` coordinate.
-
-Pay special attention when manipulating `Position` data, taking into account the true meaning and direction of the horizontal (`X`) and vertical (`Y`) axis.
+Taking this into consideration, moving one step to the right on the map increments the `x` coordinate, and moving one step lower on the map increments the `y` coordinate. Therefore, when manipulating `Position` data, taking into account the true meaning and direction of the horizontal (`X`) and vertical (`Y`) axis. A `Position{x,y}`'s corresponding cell on the world map array would be `map[y][x]`.
 
 ### Orientation
 
@@ -181,111 +197,123 @@ Please note that shooting can be done in any direction, in other words the orien
 
 In the next scenario, we look at Positional shooting. The hero is is located in the middle of the map, and the enemy is offset. Assuming that the enemy is close enough for Positional shooting, the hero is able to strike precisely, even if the enemy is not perfectly alligned on any cardinal `Orientation`.
 
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥😈💥🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
-    🟩🟩🟩🟩🟩🟩🟩🙂🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+```text
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥😈💥🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
+🟩🟩🟩🟩🟩🟩🟩🙂🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+```
 
 In the next scenario, the hero shoots while the enemy is moving, and the shell lands right next to the enemy. This is an example of **indirect hit** during a Positional shooting.
 
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥😈💥🟩
-    🟩🟩🟩🟩🟩🟩🟩🙂🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+```text
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥😈💥🟩
+🟩🟩🟩🟩🟩🟩🟩🙂🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+```
 
 In the next scenario, we look at Cardinal shooting. The hero is located on the left side of the map, an the enemy is straight to the right of our hero. We can observe that the hitting distance is larger.
 
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
-    🙂🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥😈💥🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+```text
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
+🙂🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥😈💥🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+```
 
 In the following scenario of Cardinal shooting, the enemy is slightly offset from the orientation, therefore the shell is missing, and doesn't damage the enemy. You can observe that the shell still lands at the end of its range, but in this case it doesn't damage the enemy tank.
 
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩😈💥💥
-    🙂🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+```text
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩😈💥💥
+🙂🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+```
 
 The next scenario is very similar to the one above, only that the enemy player is close enough to where the shell lands, and you can see how in this case the enemy suffers an indirect hit.
 
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩😈💥
-    🙂🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+```text
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩😈💥
+🙂🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+```
 
 In the last scenario, we revisit a modified version of a previous scenario, where we add another enemy immediately near our main target. In this scenario, the main enemy (the one surrounded by the flames) will suffer a direct hit, while the enemy next to it will suffer a indirect hit.
 
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
-    🙂🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥😈💥🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥👽🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-    🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+```text
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥💥🟩
+🙂🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥😈💥🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩💥💥👽🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
+```
 
 Please note that the same damage pattern is created regardless if the shell has landed directly on another tank or on an unoccupied terrain, or if Cardinal or Positional aiming was used.
 
@@ -308,7 +336,15 @@ Generally speaking, exploring and navigating the map safely by avoiding terrain 
 
 Use of neural networks or even LLMs to take the next tactical decision is up for the player, however certain penalties will be applied when unreasonably high amount of time is consumed a player.
 
-(more details to follow)
+### Performance hoggers penalties
+
+The game engine has a dynamically computed penalty system for players that are very far off.
+
+Currently, the round-execution times are measured, averaged and recorded for each player separately. And for each player, before running a new round, the player's recorded average is compared with the recorded averages of the other (n-1) players. If this comparison shows that a player's average is `PERFORMANCE_FACTOR` times larger then the average of the other players, then the current player is skipped from participating in the current round. As such, the player's average will start to decrease until it falls below the threshold.
+
+The reason the comparison is multiplicative, is to allow execution spikes in different rounds. It is likely that in 'stress-situations' there can be situations where many things happen at the same time, requiring more complex decision-making execution branches from the players. The point is not to disallow these spikes, but to penalize consistent inefficiencies.
+
+In addition, instead of setting harcoded values for performance - which are difficult to select - the algorithm is adaptive in the sense that what matters is only the relative performance between the players. This enabling arranging separate championships between 'turtles' or 'hares'.
 
 ## Scoring
 
