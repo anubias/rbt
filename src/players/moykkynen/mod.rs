@@ -387,8 +387,8 @@ impl Joonas {
             Some(Rotation::Clockwise) => Action::Rotate(Rotation::Clockwise),
             Some(Rotation::CounterClockwise) => Action::Rotate(Rotation::CounterClockwise),
             None => {
-                let mut rng = rand::thread_rng();
-                if rng.gen_bool(0.5) {
+                let mut rng = rand::rng();
+                if rng.random_bool(0.5) {
                     self.ongoing_turn = Some(Rotation::Clockwise);
                     Action::Rotate(Rotation::Clockwise)
                 } else {

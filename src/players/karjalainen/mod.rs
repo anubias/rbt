@@ -147,7 +147,7 @@ impl Miklas {
     }
 
     fn choose_action(&mut self, context: &Context) -> Action {
-        use rand::distributions::{Distribution, WeightedIndex};
+        use rand::distr::{Distribution, weighted::WeightedIndex};
 
         // Fetch all possible actions and assign a weight for each one
         let mut moves: Vec<(Action, i64)> = vec![];
@@ -173,7 +173,7 @@ impl Miklas {
                 return Action::Scan(ScanType::Omni); // fallback if no actions are available.
             }
         };
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let select_index = dist.sample(&mut rng);
         // println!(
