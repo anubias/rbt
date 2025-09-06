@@ -4,7 +4,7 @@ use crate::{
         world_size::WorldSize,
     },
     engine::{outcome::GameOutcome, world::World},
-    terminal::{Terminal, CHAMPIONSHIP_MODE},
+    terminal::{get_terminal, Terminal, CHAMPIONSHIP_MODE},
 };
 
 use crossterm::event::{poll, read, Event, KeyCode};
@@ -39,7 +39,7 @@ impl Game {
     pub fn start(&mut self, game_id: u32) -> (bool, GameOutcome) {
         Terminal::enter_raw_mode();
 
-        let mut terminal = Terminal::new();
+        let mut terminal = get_terminal().lock().unwrap();
         terminal.clear_screen();
         terminal.println(self.world.to_string());
 

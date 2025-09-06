@@ -1,5 +1,7 @@
 mod magellan;
 
+use std::sync::Mutex;
+
 use magellan::Magellan;
 
 use crate::{
@@ -17,7 +19,7 @@ use crate::{
         scan::{ScanResult, ScanType},
         world_size::WorldSize,
     },
-    terminal::Terminal,
+    terminal::{get_terminal, Terminal},
 };
 
 const MAX_CONSECUTIVE_FORWARD_SCANS: usize = 4;
@@ -35,7 +37,7 @@ pub struct Aurelian {
     previous_enemy_positions: Vec<Position>,
     scan_turn: usize,
     shot_queue: Vec<Action>,
-    terminal: Terminal,
+    terminal: &'static Mutex<Terminal>,
     unreachable_positions: Vec<Position>,
     walking_direction: Direction,
     walking_path: Vec<Position>,
@@ -54,7 +56,7 @@ impl Aurelian {
             previous_enemy_positions: Vec::new(),
             scan_turn: 0,
             shot_queue: Vec::new(),
-            terminal: Terminal::new(),
+            terminal: get_terminal(),
             unreachable_positions: Vec::new(),
             walking_direction: Direction::default(),
             walking_path: Vec::new(),
@@ -484,7 +486,8 @@ impl Aurelian {
 
     #[allow(dead_code)]
     fn print(&mut self, context: &Context, highlights: Vec<Position>) {
-        self.terminal.println("+++++++++++++++++++++++");
+        let mut terminal = self.terminal.lock().unwrap();
+        terminal.println("+++++++++++++++++++++++");
 
         for i in 0..context.world_size().y {
             let mut line = String::new();
@@ -505,9 +508,9 @@ impl Aurelian {
                     line = format!("{line}{cell}");
                 }
             }
-            self.terminal.println(line);
+            terminal.println(line);
         }
-        self.terminal.println("-----------------------");
+        terminal.println("-----------------------");
     }
 }
 

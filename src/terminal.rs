@@ -1,6 +1,7 @@
 use std::{
     fmt::Display,
     io::{stdout, Stdout, Write},
+    sync::{Mutex, OnceLock},
 };
 
 use crossterm::{
@@ -8,6 +9,12 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
     ExecutableCommand, QueueableCommand,
 };
+
+static INSTANCE: OnceLock<Mutex<Terminal>> = OnceLock::new();
+
+pub fn get_terminal() -> &'static Mutex<Terminal> {
+    INSTANCE.get_or_init(|| Mutex::new(Terminal::new()))
+}
 
 pub const CHAMPIONSHIP_MODE: bool = false;
 pub const DEBUG_MODE: bool = false;
@@ -23,10 +30,6 @@ pub struct Terminal {
 }
 
 impl Terminal {
-    pub fn new() -> Self {
-        Self { stdout: stdout() }
-    }
-
     /// This is meant for the game engine, players should avoid using it.
     pub fn enter_raw_mode() {
         if !CHAMPIONSHIP_MODE && !DEBUG_MODE {
@@ -75,6 +78,10 @@ impl Terminal {
 
 // Private functions
 impl Terminal {
+    fn new() -> Self {
+        Self { stdout: stdout() }
+    }
+
     fn println_text(&mut self, text: String) {
         for line in text.split('\n').collect::<Vec<&str>>() {
             let _ = write!(self.stdout, "{line}");

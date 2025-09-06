@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use rand::{rngs::ThreadRng, thread_rng, Rng};
 
 use crate::{
@@ -12,7 +14,7 @@ use crate::{
         position::{Position, SCANNING_DISTANCE},
         scan::{ScanResult, ScanType},
     },
-    terminal::Terminal,
+    terminal::{get_terminal, Terminal},
 };
 
 const MAX_STEPS: u8 = 3;
@@ -23,7 +25,7 @@ pub struct TwentyCenturyFox {
     scan_pos: Position,
     steps: u8,
     target_orientation: Orientation,
-    _terminal: Terminal,
+    _terminal: &'static Mutex<Terminal>,
 }
 
 impl TwentyCenturyFox {
@@ -34,7 +36,7 @@ impl TwentyCenturyFox {
             scan_pos: Position { x: 0, y: 0 },
             steps: 0,
             target_orientation: Orientation::default(),
-            _terminal: Terminal::new(),
+            _terminal: get_terminal(),
         }
     }
 }
