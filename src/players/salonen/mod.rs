@@ -151,8 +151,8 @@ impl Player for Es {
                     _ => {
                         if self.rotate_direction.is_none()
                         {
-                            let mut rng = rand::thread_rng();
-                            let dir = if rng.gen_bool(0.5)
+                            let mut rng = rand::rng();
+                            let dir = if rng.random_bool(0.5)
                             {
                                 Rotation::Clockwise
                             } else {

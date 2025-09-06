@@ -97,11 +97,11 @@ impl Arola {
     }
 
     fn generate_random_position(&self, world_size: &WorldSize) -> Position {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         loop {
             let position = Position {
-                x: rng.gen_range(1..world_size.x - 1),
-                y: rng.gen_range(1..world_size.y - 1),
+                x: rng.random_range(1..world_size.x - 1),
+                y: rng.random_range(1..world_size.y - 1),
             };
 
             if matches!(

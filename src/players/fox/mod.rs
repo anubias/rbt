@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use rand::{rngs::ThreadRng, thread_rng, Rng};
+use rand::{rngs::ThreadRng, Rng};
 
 use crate::{
     api::{
@@ -43,7 +43,7 @@ impl TwentyCenturyFox {
 
 impl TwentyCenturyFox {
     fn random_orientation(&mut self, rng: &mut ThreadRng) -> Orientation {
-        Orientation::from(rng.gen_range(0..Orientation::get_cardinal_direction_count()))
+        Orientation::from(rng.random_range(0..Orientation::get_cardinal_direction_count()))
     }
 
     fn next_state(&mut self, context: Context, rng: &mut ThreadRng) -> Action {
@@ -146,7 +146,7 @@ impl Player for TwentyCenturyFox {
     fn act(&mut self, context: Context) -> Action {
         // self.terminal.println(&self.scan_data);
 
-        let mut rng: ThreadRng = thread_rng();
+        let mut rng: ThreadRng = rand::rng();
         self.next_state(context, &mut rng)
     }
 

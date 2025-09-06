@@ -602,16 +602,16 @@ impl PlayerOne {
             Action::Scan(_) => default_prob,
         };
 
-        let rotate = rand::thread_rng().gen_bool(rotate_prob);
+        let rotate = rand::rng().random_bool(rotate_prob);
         if rotate {
-            let rotate_clockwise = rand::thread_rng().gen_bool(0.5);
+            let rotate_clockwise = rand::rng().random_bool(0.5);
             if rotate_clockwise {
                 Action::Rotate(Rotation::Clockwise)
             } else {
                 Action::Rotate(Rotation::CounterClockwise)
             }
         } else {
-            let forward = rand::thread_rng().gen_bool(0.8);
+            let forward = rand::rng().random_bool(0.8);
             if forward {
                 Action::Move(Direction::Forward)
             } else {
@@ -622,7 +622,7 @@ impl PlayerOne {
 
     fn should_move(&self) -> bool {
         // check last scan result etc.
-        rand::thread_rng().gen_bool(0.8)
+        rand::rng().random_bool(0.8)
     }
 }
 

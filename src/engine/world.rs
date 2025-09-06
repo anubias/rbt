@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
+use rand::{rng, rngs::ThreadRng, seq::SliceRandom, Rng};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::{
@@ -506,7 +506,7 @@ impl World {
         let map_size = (self.size.x * self.size.y) as f32;
         let range_min = (map_size * MIN_OBSTACLE_SIZE_PERCENTAGE / 100.0) as usize;
         let range_max = (map_size * MAX_OBSTACLE_SIZE_PERCENTAGE / 100.0) as usize;
-        let obstacle_size = self.rng.gen_range(range_min..range_max);
+        let obstacle_size = self.rng.random_range(range_min..range_max);
 
         let mut old_pos: Option<Position> = None;
         for _ in 0..obstacle_size {
@@ -591,7 +591,7 @@ impl World {
         if bag.is_empty() {
             None
         } else {
-            let index = self.rng.gen_range(0..bag.len());
+            let index = self.rng.random_range(0..bag.len());
             if let Some(pos) = bag.get(index) {
                 Some(pos.clone())
             } else {
@@ -914,7 +914,7 @@ impl World {
             animation,
             map: Box::new([[MapCell::Unallocated; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
             max_turns: compute_game_turns(&size),
-            rng: thread_rng(),
+            rng: rng(),
             size,
             tanks: HashMap::new(),
             tick,
@@ -1063,7 +1063,7 @@ mod tests {
             animation: false,
             map: Box::new([[MapCell::Unallocated; MAX_WORLD_SIZE]; MAX_WORLD_SIZE]),
             max_turns: compute_game_turns(&size),
-            rng: thread_rng(),
+            rng: rng(),
             size,
             tanks: HashMap::new(),
             turn_number: 0,
