@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use rand::{rng, rngs::ThreadRng, seq::SliceRandom, Rng};
+use rand::{rng, rngs::ThreadRng, seq::SliceRandom, RngExt};
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::{
