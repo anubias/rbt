@@ -12,7 +12,7 @@ use crate::api::{
     world_size::WorldSize
 };
 use positionbuffer::PositionBuffer;
-use rand::Rng;
+use rand::RngExt;
 use std::collections::HashMap;
 mod positionbuffer;
 

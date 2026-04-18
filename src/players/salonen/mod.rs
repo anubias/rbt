@@ -1,3 +1,5 @@
+use rand::RngExt;
+
 use crate::api::{
     action::Action,
     context::Context,
@@ -12,8 +14,6 @@ use crate::api::{
     scan::ScanResult,
     aiming::Aiming
 };
-
-use rand::Rng;
 
 pub struct Es {
     iteration: u32,

@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use rand::{rngs::ThreadRng, Rng};
+use rand::{rngs::ThreadRng, RngExt};
 
 use crate::{
     api::{

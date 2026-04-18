@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use rand::Rng;
+use rand::RngExt;
 
 use crate::api::{
     action::Action,
